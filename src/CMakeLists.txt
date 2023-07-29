@@ -16,4 +16,7 @@ pybind11_add_module(hictkpy MODULE hictkpy.cpp)
 target_link_libraries(
   hictkpy
   PRIVATE hictkpy_project_options hictkpy_project_warnings
-  PUBLIC hictk::cooler hictk::file hictk::hic std::filesystem)
+  PUBLIC hictk::cooler
+         hictk::file
+         hictk::hic
+         std::filesystem)

@@ -1,0 +1,17 @@
+# Copyright (C) 2023 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+[requires]
+fast_float/5.2.0
+parallel-hashmap/1.3.11
+pybind11/2.10.4
+
+[generators]
+CMakeDeps
+
+[options]
+highfive*:with_boost=False
+highfive*:with_eigen=False
+highfive*:with_opencv=False
+highfive*:with_xtensor=False
