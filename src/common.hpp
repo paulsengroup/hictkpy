@@ -36,7 +36,8 @@ struct Dynamic1DA {
     if (_buff.size() == _size) {
       grow();
     }
-    _buff.mutable_unchecked()(_size++) = x;
+    auto buffer = _buff.mutable_unchecked();
+    buffer(_size++) = x;
   }
   inline void grow() { _buff.resize({_buff.size() * 2}); }
   inline void shrink_to_fit() { _buff.resize({_size}); }
@@ -158,7 +159,7 @@ inline py::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
   using N = decltype(first_pixel->count);
 
   py::array_t<N> matrix({num_rows, num_cols});
-  auto m = matrix.template mutable_unchecked();
+  auto m = matrix.mutable_unchecked();
 
   DISABLE_WARNING_PUSH
   DISABLE_WARNING_SIGN_COMPARE
