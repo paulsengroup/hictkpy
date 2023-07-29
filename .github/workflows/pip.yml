@@ -33,7 +33,16 @@ on:
       - "setup.py"
 
 env:
-  CONAN_HOME: "/opt/conan/"
+  CONAN_HOME: "${{ github.workspace }}/conan/"
+
+# https://stackoverflow.com/a/72408109
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
@@ -41,7 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [windows-latest, macos-latest, ubuntu-latest]
-        python-version: ["3.6", "3.11"]
+        python-version: ["3.7", "3.11"]
 
     runs-on: ${{ matrix.platform }}
 
@@ -68,6 +77,11 @@ jobs:
       with:
         key: conan-${{ steps.cache-key.outputs.conan-key }}
         path: ${{ env.CONAN_HOME }}
+
+    - name: Configure Conan
+      if: steps.cache-conan.outputs.cache-hit != 'true'
+      run: |
+        conan profile detect --force
 
     - name: Clean Conan cache (pre-build)
       if: steps.cache-conan.outputs.cache-hit != 'true'
