@@ -27,8 +27,16 @@ include(FetchContent)
 FetchContent_Declare(
   hictk
   GIT_REPOSITORY "https://github.com/paulsengroup/hictk.git"
-  GIT_TAG        "86c9215574c045c883c8a0e1b7bf542a92e2ab65"
+  GIT_TAG        "6e9d46efc3cd3a4efa06db9d05b9af9fe91df4fe"
   SYSTEM)
+
+set(BUILD_SHARED_LIBS ON)
+set(HICTK_ENABLE_TESTING OFF)
+set(HICTK_BUILD_EXAMPLES OFF)
+set(HICTK_BUILD_BENCHMARKS OFF)
+set(HICTK_BUILD_PYTHON_BINDINGS OFF)
+set(HICTK_WITH_EIGEN OFF)
+set(HICTK_BUILD_TOOLS OFF)
 FetchContent_MakeAvailable(hictk)
 
 add_library(hictkpy_project_options INTERFACE)

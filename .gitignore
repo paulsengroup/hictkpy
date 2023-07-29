@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
-conan_build
+cmake-build-*/
+conan_build/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
