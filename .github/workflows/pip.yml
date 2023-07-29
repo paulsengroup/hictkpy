@@ -118,3 +118,6 @@ jobs:
       env:
         CMAKE_ARGS: "-DCMAKE_PREFIX_PATH=${{ github.workspace}}/conan_build"
       run: pip install --verbose .
+
+    - name: Test
+      run: python -c 'import hictkpy; print(hictkpy.__version__)'
