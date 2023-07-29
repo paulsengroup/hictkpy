@@ -36,27 +36,33 @@ testpaths = ["tests"]
 
 [tool.cibuildwheel]
 # Setuptools bug causes collision between pypy and cpython artifacts
-before-build = ["rm -rf {project}/build",
-"""conan install {project} \\
- -s build_type=Release \\
- -s compiler.cppstd=17 \\
- --output-folder "{project}/conan_build" \\
- -o '*/*:shared=True' \\
- --build=missing"""
+before-build = [
+  "rm -rf '{project}/build'",
+  "pip install 'conan>=2'",
+  "conan profile detect --force",
+  """
+  conan install {project} \
+  -s build_type=Release \
+  -s compiler.cppstd=17 \
+  --output-folder "$TMPDIR/conan_build" \
+  -o '*/*:shared=True' \
+  --build="missing"
+   """
 ]
-environment = """CMAKE_ARGS="-DCMAKE_PREFIX_PATH='{project}/conan_build'" """
+environment = { CMAKE_ARGS = '-DCMAKE_PREFIX_PATH="$TMPDIR/conan_build"', MACOSX_DEPLOYMENT_TARGET = '10.15' }
+environment-pass = ["CMAKE_ARGS"]
 
 [tool.ruff]
 extend-select = [
-  "B",    # flake8-bugbear
+  "B", # flake8-bugbear
   "B904",
-  "I",    # isort
-  "PGH",  # pygrep-hooks
-  "RUF",  # Ruff-specific
-  "UP",   # pyupgrade
+  "I", # isort
+  "PGH", # pygrep-hooks
+  "RUF", # Ruff-specific
+  "UP", # pyupgrade
 ]
 extend-ignore = [
-  "E501",   # Line too long
+  "E501", # Line too long
 ]
 target-version = "py36"
 
