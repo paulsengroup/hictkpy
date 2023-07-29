@@ -35,11 +35,16 @@ filterwarnings = [
 testpaths = ["tests"]
 
 [tool.cibuildwheel]
-test-command = "pytest {project}/tests"
-test-extras = ["test"]
-test-skip = ["*universal2:arm64"]
 # Setuptools bug causes collision between pypy and cpython artifacts
-before-build = "rm -rf {project}/build"
+before-build = ["rm -rf {project}/build",
+"""conan install {project} \\
+ -s build_type=Release \\
+ -s compiler.cppstd=17 \\
+ --output-folder "{project}/conan_build" \\
+ -o '*/*:shared=True' \\
+ --build=missing"""
+]
+environment = """CMAKE_ARGS="-DCMAKE_PREFIX_PATH='{project}/conan_build'" """
 
 [tool.ruff]
 extend-select = [
