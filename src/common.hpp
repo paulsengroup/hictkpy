@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <pybind11/eigen.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -37,7 +36,7 @@ struct Dynamic1DA {
     if (_buff.size() == _size) {
       grow();
     }
-    _buff.template mutable_unchecked()(_size++) = x;
+    _buff.mutable_unchecked()(_size++) = x;
   }
   inline void grow() { _buff.resize({_buff.size() * 2}); }
   inline void shrink_to_fit() { _buff.resize({_size}); }
