@@ -35,23 +35,38 @@ filterwarnings = [
 testpaths = ["tests"]
 
 [tool.cibuildwheel]
-test-command = "pytest {project}/tests"
-test-extras = ["test"]
-test-skip = ["*universal2:arm64"]
 # Setuptools bug causes collision between pypy and cpython artifacts
-before-build = "rm -rf {project}/build"
+before-all = [
+  "rm -rf '{project}/build'",
+  'pip3 install "conan>=2"',
+  "conan profile detect --force",
+  "cd '{project}/devel/cibw/linux' && ./cibw_setup_deps.sh"
+]
+environment = { CMAKE_ARGS = '-DCMAKE_PREFIX_PATH=/usr/local/share' }
+environment-pass = ["CMAKE_ARGS"]
+
+[tool.cibuildwheel.macos]
+# Setuptools bug causes collision between pypy and cpython artifacts
+before-all = [
+  "rm -rf '{project}/build'",
+  'pip3 install "conan>=2"',
+  "sudo conan profile detect --force",
+  "cd '{project}/devel/cibw/macos' && sudo ./cibw_setup_deps.sh"
+]
+environment = { CMAKE_ARGS = '-DCMAKE_PREFIX_PATH=/usr/local/share', MACOSX_DEPLOYMENT_TARGET = '10.15' }
+
 
 [tool.ruff]
 extend-select = [
-  "B",    # flake8-bugbear
+  "B", # flake8-bugbear
   "B904",
-  "I",    # isort
-  "PGH",  # pygrep-hooks
-  "RUF",  # Ruff-specific
-  "UP",   # pyupgrade
+  "I", # isort
+  "PGH", # pygrep-hooks
+  "RUF", # Ruff-specific
+  "UP", # pyupgrade
 ]
 extend-ignore = [
-  "E501",   # Line too long
+  "E501", # Line too long
 ]
 target-version = "py36"
 
