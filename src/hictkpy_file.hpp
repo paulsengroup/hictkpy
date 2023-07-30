@@ -19,31 +19,31 @@ namespace hictkpy::file {
                      hictk::hic::ParseUnitStr(std::string{matrix_unit})};
 }
 
-inline py::object fetch(const hictk::File& f, std::string_view range1, std::string_view range2,
+inline py::object fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
                         std::string_view normalization, std::string_view count_type, bool join,
                         std::string_view query_type) {
   return std::visit(
-      [&](const auto& ff) -> py::object {
+      [&](const auto &ff) -> py::object {
         return file_fetch(ff, range1, range2, normalization, count_type, join, query_type);
       },
       f.get());
 }
 
-inline py::object fetch_sparse(const hictk::File& f, std::string_view range1,
+inline py::object fetch_sparse(const hictk::File &f, std::string_view range1,
                                std::string_view range2, std::string_view normalization,
                                std::string_view count_type, std::string_view query_type) {
   return std::visit(
-      [&](const auto& ff) -> py::object {
+      [&](const auto &ff) -> py::object {
         return file_fetch_sparse(ff, range1, range2, normalization, count_type, query_type);
       },
       f.get());
 }
 
-inline py::object fetch_dense(const hictk::File& f, std::string_view range1,
+inline py::object fetch_dense(const hictk::File &f, std::string_view range1,
                               std::string_view range2, std::string_view normalization,
                               std::string_view count_type, std::string_view query_type) {
   return std::visit(
-      [&](const auto& ff) -> py::object {
+      [&](const auto &ff) -> py::object {
         return file_fetch_dense(ff, range1, range2, normalization, count_type, query_type);
       },
       f.get());

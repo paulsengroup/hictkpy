@@ -15,7 +15,7 @@
 
 namespace hictkpy {
 
-static pybind11::module_ declare_cooler_submodule(pybind11::module_& m) {
+static pybind11::module_ declare_cooler_submodule(pybind11::module_ &m) {
   auto cooler = m.def_submodule("cooler");
   auto cooler_utils = cooler.def_submodule("utils");
 
@@ -24,7 +24,7 @@ static pybind11::module_ declare_cooler_submodule(pybind11::module_& m) {
   auto cooler_file =
       py::class_<hictk::cooler::File>(cooler, "File")
           .def(py::init(py::overload_cast<std::string_view>(cooler::file_ctor)), py::arg("uri"))
-          .def(py::init(py::overload_cast<std::string_view, const py::dict&, std::uint32_t, bool>(
+          .def(py::init(py::overload_cast<std::string_view, const py::dict &, std::uint32_t, bool>(
                    cooler::file_ctor)),
                py::arg("uri"), py::arg("chromosomes"), py::arg("bin_size"),
                py::arg("overwrite_if_exists"));
@@ -55,7 +55,7 @@ static pybind11::module_ declare_cooler_submodule(pybind11::module_& m) {
   return cooler;
 }
 
-static pybind11::module_ declare_hic_submodule(pybind11::module_& m) {
+static pybind11::module_ declare_hic_submodule(pybind11::module_ &m) {
   auto hic = m.def_submodule("hic");
   auto hic_utils = hic.def_submodule("utils");
 
@@ -90,7 +90,7 @@ static pybind11::module_ declare_hic_submodule(pybind11::module_& m) {
   return hic;
 }
 
-static void declare_file_class(pybind11::module_& m) {
+static void declare_file_class(pybind11::module_ &m) {
   auto file = py::class_<hictk::File>(m, "File").def(
       py::init(&file::ctor), py::arg("path"), py::arg("resolution"),
       py::arg("matrix_type") = "observed", py::arg("matrix_unit") = "BP");

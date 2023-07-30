@@ -19,7 +19,7 @@ namespace hictkpy::cooler {
 
 inline hictk::cooler::File file_ctor(std::string_view uri) { return hictk::cooler::File(uri); }
 
-inline hictk::cooler::File file_ctor(std::string_view uri, const py::dict& py_chroms,
+inline hictk::cooler::File file_ctor(std::string_view uri, const py::dict &py_chroms,
                                      std::uint32_t bin_size, bool overwrite_if_exists = false) {
   std::vector<std::string> chrom_names{};
   std::vector<std::uint32_t> chrom_sizes{};
@@ -34,7 +34,7 @@ inline hictk::cooler::File file_ctor(std::string_view uri, const py::dict& py_ch
 
 inline bool is_cooler(std::string_view uri) { return bool(hictk::cooler::utils::is_cooler(uri)); }
 
-inline hictk::cooler::File cooler_ctor(std::string_view uri, const py::dict& py_chroms,
+inline hictk::cooler::File cooler_ctor(std::string_view uri, const py::dict &py_chroms,
                                        std::uint32_t bin_size, bool overwrite_if_exists = false,
                                        bool float_pixels = false) {
   std::vector<std::string> chrom_names{};
@@ -51,16 +51,16 @@ inline hictk::cooler::File cooler_ctor(std::string_view uri, const py::dict& py_
   return hictk::cooler::File::create(uri, chroms, bin_size, overwrite_if_exists);
 }
 
-[[nodiscard]] inline py::dict get_cooler_attrs(const hictk::cooler::File& clr) {
+[[nodiscard]] inline py::dict get_cooler_attrs(const hictk::cooler::File &clr) {
   py::dict py_attrs;
-  const auto& attrs = clr.attributes();
+  const auto &attrs = clr.attributes();
 
   py_attrs["bin_size"] = attrs.bin_size;
   py_attrs["bin_type"] = attrs.bin_type;
   py_attrs["format"] = attrs.format;
   py_attrs["format_version"] = attrs.format_version;
 
-  for (const auto& key : {"storage-mode", "creation-date", "generated-by", "assembly", "metadata",
+  for (const auto &key : {"storage-mode", "creation-date", "generated-by", "assembly", "metadata",
                           "format-url", "nbins", "nchroms", "nnz", "sum", "cis"}) {
     py_attrs[key] = pybind11::none();
   }
@@ -94,28 +94,28 @@ inline hictk::cooler::File cooler_ctor(std::string_view uri, const py::dict& py_
     py_attrs["nnz"] = *attrs.nnz;
   }
   if (attrs.sum.has_value()) {
-    std::visit([&](const auto& sum) { py_attrs["sum"] = sum; }, *attrs.sum);
+    std::visit([&](const auto &sum) { py_attrs["sum"] = sum; }, *attrs.sum);
   }
   if (attrs.cis.has_value()) {
-    std::visit([&](const auto& cis) { py_attrs["cis"] = cis; }, *attrs.cis);
+    std::visit([&](const auto &cis) { py_attrs["cis"] = cis; }, *attrs.cis);
   }
 
   return py_attrs;
 }
 
-inline py::object fetch(const hictk::cooler::File& f, std::string_view range1,
+inline py::object fetch(const hictk::cooler::File &f, std::string_view range1,
                         std::string_view range2, std::string_view normalization,
                         std::string_view count_type, bool join, std::string_view query_type) {
   return file_fetch(f, range1, range2, normalization, count_type, join, query_type);
 }
 
-inline py::object fetch_sparse(const hictk::cooler::File& f, std::string_view range1,
+inline py::object fetch_sparse(const hictk::cooler::File &f, std::string_view range1,
                                std::string_view range2, std::string_view normalization,
                                std::string_view count_type, std::string_view query_type) {
   return file_fetch_sparse(f, range1, range2, normalization, count_type, query_type);
 }
 
-inline py::object fetch_dense(const hictk::cooler::File& f, std::string_view range1,
+inline py::object fetch_dense(const hictk::cooler::File &f, std::string_view range1,
                               std::string_view range2, std::string_view normalization,
                               std::string_view count_type, std::string_view query_type) {
   return file_fetch_dense(f, range1, range2, normalization, count_type, query_type);

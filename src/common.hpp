@@ -41,13 +41,13 @@ struct Dynamic1DA {
   }
   inline void grow() { _buff.resize({_buff.size() * 2}); }
   inline void shrink_to_fit() { _buff.resize({_size}); }
-  [[nodiscard]] py::array_t<T>&& operator()() noexcept { return std::move(_buff); }
+  [[nodiscard]] py::array_t<T> &&operator()() noexcept { return std::move(_buff); }
 };
 
 template <typename File>
-inline py::dict get_chromosomes_from_file(const File& f) {
+inline py::dict get_chromosomes_from_file(const File &f) {
   py::dict py_chroms{};  // NOLINT
-  for (const auto& chrom : f.chromosomes()) {
+  for (const auto &chrom : f.chromosomes()) {
     const std::string name{chrom.name()};
     py_chroms[name.c_str()] = chrom.size();
   }
@@ -56,13 +56,13 @@ inline py::dict get_chromosomes_from_file(const File& f) {
 }
 
 template <typename File>
-inline py::object get_bins_from_file(const File& f) {
+inline py::object get_bins_from_file(const File &f) {
   auto pd = py::module::import("pandas");
 
   std::vector<py::str> chrom_names{};
   Dynamic1DA<std::uint32_t> starts{};
   Dynamic1DA<std::uint32_t> ends{};
-  for (const auto& bin : f.bins()) {
+  for (const auto &bin : f.bins()) {
     chrom_names.emplace_back(std::string{bin.chrom().name()});
     starts.append(bin.start());
     ends.append(bin.end());
@@ -93,7 +93,7 @@ inline py::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel
   Dynamic1DA<std::int64_t> bin2_ids{};
   Dynamic1DA<N> counts{};
 
-  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N>& tp) {
+  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
     bin1_ids.append(static_cast<std::int64_t>(tp.bin1_id - row_offset));
     bin2_ids.append(static_cast<std::int64_t>(tp.bin2_id - col_offset));
     counts.append(tp.count);
@@ -105,7 +105,8 @@ inline py::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel
 
   // See
   // https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#scipy.sparse.coo_matrix
-  // Building a sparse COO from an array triplet is much faster than converting an Eigen matrix
+  // Building a sparse COO from an array triplet is much faster than converting
+  // an Eigen matrix
 
   py::list shape{};
   shape.append(num_rows);
@@ -133,7 +134,7 @@ inline py::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pi
   Dynamic1DA<std::int64_t> bin2_ids{};
   Dynamic1DA<N> counts{};
 
-  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N>& tp) {
+  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
     bin1_ids.append(static_cast<std::int64_t>(tp.bin1_id));
     bin2_ids.append(static_cast<std::int64_t>(tp.bin2_id));
     counts.append(tp.count);
@@ -163,7 +164,7 @@ inline py::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
 
   DISABLE_WARNING_PUSH
   DISABLE_WARNING_SIGN_COMPARE
-  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N>& tp) {
+  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
     const auto i1 = static_cast<std::int64_t>(tp.bin1_id - row_offset);
     const auto i2 = static_cast<std::int64_t>(tp.bin2_id - col_offset);
     m(i1, i2) = tp.count;
@@ -182,7 +183,7 @@ inline py::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
 }
 
 template <typename PixelIt>
-inline py::object pixel_iterators_to_bg2(const hictk::BinTable& bins, PixelIt first_pixel,
+inline py::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt first_pixel,
                                          PixelIt last_pixel) {
   using N = decltype(first_pixel->count);
 
@@ -196,7 +197,7 @@ inline py::object pixel_iterators_to_bg2(const hictk::BinTable& bins, PixelIt fi
   Dynamic1DA<std::int32_t> ends2{};
   Dynamic1DA<N> counts{};
 
-  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N>& tp) {
+  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
     const hictk::Pixel<N> p{bins, tp};
 
     chrom_names1.emplace_back(p.coords.bin1.chrom().name());
@@ -231,7 +232,7 @@ inline py::object pixel_iterators_to_bg2(const hictk::BinTable& bins, PixelIt fi
 }
 
 template <typename PixelIt>
-static py::object pixel_iterators_to_df(const hictk::BinTable& bins, PixelIt first_pixel,
+static py::object pixel_iterators_to_df(const hictk::BinTable &bins, PixelIt first_pixel,
                                         PixelIt last_pixel, bool join) {
   if (join) {
     return pixel_iterators_to_bg2(bins, first_pixel, last_pixel);
@@ -240,7 +241,7 @@ static py::object pixel_iterators_to_df(const hictk::BinTable& bins, PixelIt fir
 }
 
 template <typename File>
-inline py::object file_fetch_all(File& f, std::string_view normalization,
+inline py::object file_fetch_all(File &f, std::string_view normalization,
                                  std::string_view count_type, bool join) {
   if (count_type != "int" && count_type != "float") {
     throw std::runtime_error("invalid count type. Allowed types: int, float.");
@@ -260,7 +261,7 @@ inline py::object file_fetch_all(File& f, std::string_view normalization,
 }
 
 template <typename File>
-inline py::object file_fetch(const File& f, std::string_view range1, std::string_view range2,
+inline py::object file_fetch(const File &f, std::string_view range1, std::string_view range2,
                              std::string_view normalization, std::string_view count_type, bool join,
                              std::string_view query_type) {
   if (range1.empty()) {
@@ -286,7 +287,7 @@ inline py::object file_fetch(const File& f, std::string_view range1, std::string
 }
 
 template <typename File>
-inline py::object file_fetch_all_sparse(File& f, std::string_view normalization,
+inline py::object file_fetch_all_sparse(File &f, std::string_view normalization,
                                         std::string_view count_type) {
   if (count_type != "int" && count_type != "float") {
     throw std::runtime_error("invalid count type. Allowed types: int, float.");
@@ -307,7 +308,7 @@ inline py::object file_fetch_all_sparse(File& f, std::string_view normalization,
 }
 
 template <typename File>
-inline py::object file_fetch_sparse(const File& f, std::string_view range1, std::string_view range2,
+inline py::object file_fetch_sparse(const File &f, std::string_view range1, std::string_view range2,
                                     std::string_view normalization, std::string_view count_type,
                                     std::string_view query_type) {
   if (range1.empty()) {
@@ -347,7 +348,7 @@ inline py::object file_fetch_sparse(const File& f, std::string_view range1, std:
 }
 
 template <typename File>
-inline py::object file_fetch_all_dense(File& f, std::string_view normalization,
+inline py::object file_fetch_all_dense(File &f, std::string_view normalization,
                                        std::string_view count_type) {
   if (count_type != "int" && count_type != "float") {
     throw std::runtime_error("invalid count type. Allowed types: int, float.");
@@ -367,7 +368,7 @@ inline py::object file_fetch_all_dense(File& f, std::string_view normalization,
 }
 
 template <typename File>
-inline py::object file_fetch_dense(const File& f, std::string_view range1, std::string_view range2,
+inline py::object file_fetch_dense(const File &f, std::string_view range1, std::string_view range2,
                                    std::string_view normalization, std::string_view count_type,
                                    std::string_view query_type) {
   if (range1.empty()) {
