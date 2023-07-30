@@ -45,6 +45,8 @@ cd "$wd"
 tar -xf "$data_dir/fmt-v10.0.0.tar.xz"
 cmake -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_INSTALL_PREFIX="$install_prefix" \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
       -DFMT_TEST=OFF \
       -DFMT_LIB_DIR="lib" \
       -DFMT_INSTALL=ON \
@@ -56,6 +58,8 @@ cmake --install fmt_build
 
 tar -xf "$data_dir/spdlog-v1.12.0.tar.xz"
 cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
       -DSPDLOG_FMT_EXTERNAL_HO=ON \
       -DSPDLOG_INSTALL=ON \
       -DSPDLOG_BUILD_SHARED=OFF \
@@ -68,6 +72,8 @@ cmake --install spdlog_build
 
 tar -xf "$data_dir/zlib-v1.2.13.tar.xz"
 cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
       -DCMAKE_INSTALL_PREFIX="$install_prefix" \
       -DSKIP_INSTALL_FILES=ON \
       -S zlib* \
@@ -78,6 +84,8 @@ cmake --install zlib_build
 
 tar -xf "$data_dir/hdf5-v1.14.1.tar.xz"
 cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
       -DCMAKE_INSTALL_PREFIX="$install_prefix" \
       -DBUILD_STATIC_LIBS=OFF \
       -DONLY_SHARED_LIBS=ON \
@@ -99,6 +107,8 @@ cmake --install hdf5_build
 
 tar -xf "$data_dir/highfive-v2.7.1.tar.xz"
 cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
       -DCMAKE_INSTALL_PREFIX="$install_prefix" \
       -DHIGHFIVE_PARALLEL_HDF5=OFF \
       -DHIGHFIVE_USE_BOOST=OFF \
@@ -119,6 +129,8 @@ cmake --install HighFive_build
 
 tar -xf "$data_dir/libdeflate-v1.18.tar.xz"
 cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
       -DCMAKE_INSTALL_PREFIX="$install_prefix" \
       -DLIBDEFLATE_BUILD_STATIC_LIB=OFF \
       -DLIBDEFLATE_BUILD_SHARED_LIB=ON \

@@ -44,6 +44,7 @@ defaults:
 
 env:
   CONAN_HOME: "${{ github.workspace }}/conan/"
+  CCACHE_DIR: "${{ github.workspace }}/ccache/"
 
 jobs:
   build_sdist:
@@ -79,6 +80,11 @@ jobs:
         uses: docker/setup-qemu-action@v2
         with:
           platforms: all
+
+      - name: Install ccache
+        if: runner.os == 'macOS'
+        run: |
+          brew install ccache
 
       - uses: pypa/cibuildwheel@v2.14
         env:

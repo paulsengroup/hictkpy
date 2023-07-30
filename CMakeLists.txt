@@ -23,7 +23,6 @@ project(
   HOMEPAGE_URL https://github.com/paulsengroup/hictkpy
   DESCRIPTION "High-performance C++ library to read and write .cool files.")
 
-# include(cmake/FetchExternalDeps.cmake)
 include(FetchContent)
 FetchContent_Declare(
   hictk
