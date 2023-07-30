@@ -50,7 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         # platform: [windows-latest, macos-latest, ubuntu-latest]
-        platform: [macos-latest, ubuntu-latest]
+        platform: [windows-latest]
         python-version: ["3.7", "3.11"]
 
     runs-on: ${{ matrix.platform }}
@@ -121,7 +121,7 @@ jobs:
       run: pip install --verbose .
 
     - name: Test
-      run: python -c 'import hictkpy; print(hictkpy.__version__)'
+      run: python -v -c 'import hictkpy; print(hictkpy.__version__)'
 
 
   pip-status-check:
