@@ -27,7 +27,7 @@ include(FetchContent)
 FetchContent_Declare(
   hictk
   GIT_REPOSITORY "https://github.com/paulsengroup/hictk.git"
-  GIT_TAG        "1c2ec57446d1485e16958bc611016548329b6620"
+  GIT_TAG        "5a27e5c4a071c3384bfc521747c0fe5c329b221f"
   SYSTEM)
 
 set(BUILD_SHARED_LIBS ON)
