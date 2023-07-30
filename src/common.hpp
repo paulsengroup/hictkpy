@@ -407,4 +407,44 @@ inline py::object file_fetch_dense(const File &f, std::string_view range1, std::
                                   num_rows, num_cols, bin1.id(), bin2.id());
 }
 
+template <typename File>
+inline py::object file_fetch_sum(const File &f, std::string_view range1, std::string_view range2,
+                                 std::string_view normalization, std::string_view count_type,
+                                 std::string_view query_type) {
+  if (normalization != "NONE") {
+    count_type = "float";
+  }
+
+  const auto qt =
+      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+
+  auto sel = range2.empty() || range1 == range2
+                 ? f.fetch(range1, hictk::balancing::Method(normalization), qt)
+                 : f.fetch(range1, range2, hictk::balancing::Method(normalization), qt);
+
+  if (count_type == "int") {
+    return py::cast(std::accumulate(
+        sel.template begin<std::int32_t>(), sel.template end<std::int32_t>(), std::int64_t(0),
+        [](const auto accumulator, const hictk::ThinPixel<std::int32_t> &p) {
+          return accumulator + p.count;
+        }));
+  }
+  return py::cast(std::accumulate(sel.template begin<double>(), sel.template end<double>(), 0.0,
+                                  [](const auto accumulator, const hictk::ThinPixel<double> &p) {
+                                    return accumulator + p.count;
+                                  }));
+}
+
+template <typename File>
+inline std::int64_t file_fetch_nnz(const File &f, std::string_view range1, std::string_view range2,
+                                   std::string_view query_type) {
+  const auto qt =
+      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+
+  auto sel = range2.empty() || range1 == range2
+                 ? f.fetch(range1, hictk::balancing::Method("NONE"), qt)
+                 : f.fetch(range1, range2, hictk::balancing::Method("NONE"), qt);
+  return std::distance(sel.template begin<std::int32_t>(), sel.template end<std::int32_t>());
+}
+
 }  // namespace hictkpy

@@ -37,4 +37,15 @@ inline py::object fetch_dense(const hictk::hic::File &f, std::string_view range1
                               std::string_view count_type, std::string_view query_type) {
   return file_fetch_dense(f, range1, range2, normalization, count_type, query_type);
 }
+
+inline py::object fetch_sum(const hictk::hic::File &f, std::string_view range1,
+                            std::string_view range2, std::string_view normalization,
+                            std::string_view count_type, std::string_view query_type) {
+  return file_fetch_sum(f, range1, range2, normalization, count_type, query_type);
+}
+
+inline std::int64_t fetch_nnz(const hictk::hic::File &f, std::string_view range1,
+                              std::string_view range2, std::string_view query_type) {
+  return file_fetch_nnz(f, range1, range2, query_type);
+}
 }  // namespace hictkpy::hic
