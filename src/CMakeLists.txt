@@ -7,7 +7,8 @@ find_package(
   COMPONENTS Interpreter Development.Module
   REQUIRED)
 
-find_package(Filesystem REQUIRED)
+# For some reason linking to std::filesystem breaks cibw builds for Apple Silicon
+# find_package(Filesystem REQUIRED)
 
 find_package(pybind11 CONFIG REQUIRED)
 
@@ -18,5 +19,4 @@ target_link_libraries(
   PRIVATE hictkpy_project_options hictkpy_project_warnings
   PUBLIC hictk::cooler
          hictk::file
-         hictk::hic
-         std::filesystem)
+         hictk::hic)

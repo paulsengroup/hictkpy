@@ -81,11 +81,6 @@ jobs:
         with:
           platforms: all
 
-      - name: Install ccache
-        if: runner.os == 'macOS'
-        run: |
-          brew install ccache
-
       - uses: pypa/cibuildwheel@v2.14
         env:
           CIBW_ARCHS_LINUX: x86_64
