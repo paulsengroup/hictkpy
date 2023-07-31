@@ -1,9 +1,11 @@
-import pathlib
+import os
 
 import numpy as np
 import pytest
 
 import hictkpy
+
+testdir = os.path.dirname(os.path.abspath(__file__))
 
 
 def compare_pixels(f):
@@ -49,7 +51,11 @@ def compare_pixels(f):
     assert len(df) == 4995
 
 
-def test_file_fetch_file(file: pathlib.Path = "test/data/cooler_test_file.cool", resolution: int = 100_000):
+@pytest.mark.parametrize(
+    "file,resolution",
+    [(os.path.join(testdir, "data", "cooler_test_file.cool"), 100_000)],
+)
+def test_file_fetch_file(file, resolution):
     f = hictkpy.File(file, resolution)
     compare_pixels(f)
 
@@ -57,7 +63,11 @@ def test_file_fetch_file(file: pathlib.Path = "test/data/cooler_test_file.cool",
     assert np.isclose(59.349524704033215, df["count"].sum())
 
 
-def test_cooler_fetch_cooler(file: pathlib.Path = "test/data/cooler_test_file.cool"):
+@pytest.mark.parametrize(
+    "file",
+    [(os.path.join(testdir, "data", "cooler_test_file.cool"))],
+)
+def test_cooler_fetch_cooler(file):
     f = hictkpy.cooler.File(file)
     compare_pixels(f)
 
@@ -65,7 +75,11 @@ def test_cooler_fetch_cooler(file: pathlib.Path = "test/data/cooler_test_file.co
     assert np.isclose(59.349524704033215, df["count"].sum())
 
 
-def test_hic_fetch_hic(file: pathlib.Path = "test/data/hic_test_file.hic", resolution: int = 100_000):
+@pytest.mark.parametrize(
+    "file,resolution",
+    [(os.path.join(testdir, "data", "hic_test_file.hic"), 100_000)],
+)
+def test_hic_fetch_hic(file, resolution):
     f = hictkpy.hic.File(file, resolution)
     compare_pixels(f)
 

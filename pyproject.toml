@@ -34,7 +34,7 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-test-command = "cd {project} && python -m pytest"
+test-command = "python -m pytest {project}/test"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64"]
 

@@ -88,7 +88,6 @@ jobs:
           CIBW_ARCHS_LINUX: x86_64
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_ARCHS_WINDOWS: AMD64
-          CIBW_PRERELEASE_PYTHONS: "1"
 
       - name: Build wheels (PR)
         uses: pypa/cibuildwheel@v2.14
