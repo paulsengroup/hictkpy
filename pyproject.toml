@@ -32,7 +32,6 @@ filterwarnings = [
   "error",
   "ignore:(ast.Str|Attribute s|ast.NameConstant|ast.Num) is deprecated:DeprecationWarning:_pytest",
 ]
-testpaths = ["tests"]
 
 [tool.cibuildwheel]
 test-command = "pytest {project}"
