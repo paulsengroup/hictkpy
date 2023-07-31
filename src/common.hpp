@@ -14,6 +14,7 @@
 
 #include "hictk/balancing/methods.hpp"
 #include "hictk/bin_table.hpp"
+#include "hictk/cooler/cooler.hpp"
 #include "hictk/genomic_interval.hpp"
 #include "hictk/pixel.hpp"
 #include "hictk/suppress_warnings.hpp"
@@ -408,9 +409,33 @@ inline py::object file_fetch_dense(const File &f, std::string_view range1, std::
 }
 
 template <typename File>
+inline py::object file_fetch_sum_all(const File &f, std::string_view normalization,
+                                     std::string_view count_type) {
+  if (normalization != "NONE") {
+    count_type = "float";
+  }
+
+  auto sel = f.fetch(hictk::balancing::Method{normalization});
+  if (count_type == "int") {
+    return py::cast(std::accumulate(
+        sel.template begin<std::int32_t>(), sel.template end<std::int32_t>(), std::int64_t(0),
+        [](const auto accumulator, const hictk::ThinPixel<std::int32_t> &p) {
+          return accumulator + p.count;
+        }));
+  }
+  return py::cast(std::accumulate(sel.template begin<double>(), sel.template end<double>(), 0.0,
+                                  [](const auto accumulator, const hictk::ThinPixel<double> &p) {
+                                    return accumulator + p.count;
+                                  }));
+}
+
+template <typename File>
 inline py::object file_fetch_sum(const File &f, std::string_view range1, std::string_view range2,
                                  std::string_view normalization, std::string_view count_type,
                                  std::string_view query_type) {
+  if (range1.empty()) {
+    return file_fetch_sum_all(f, normalization, count_type);
+  }
   if (normalization != "NONE") {
     count_type = "float";
   }
@@ -434,10 +459,21 @@ inline py::object file_fetch_sum(const File &f, std::string_view range1, std::st
                                     return accumulator + p.count;
                                   }));
 }
+template <typename File>
+inline std::int64_t file_fetch_nnz_all(const File &f) {
+  if constexpr (std::is_same_v<File, hictk::cooler::File>) {
+    return static_cast<std::int64_t>(f.nnz());
+  }
+  auto sel = f.fetch();
+  return std::distance(sel.template begin<std::int32_t>(), sel.template end<std::int32_t>());
+}
 
 template <typename File>
 inline std::int64_t file_fetch_nnz(const File &f, std::string_view range1, std::string_view range2,
                                    std::string_view query_type) {
+  if (range1.empty()) {
+    return file_fetch_nnz_all(f);
+  }
   const auto qt =
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
 
