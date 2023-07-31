@@ -46,9 +46,12 @@ struct Dynamic1DA {
 };
 
 template <typename File>
-inline py::dict get_chromosomes_from_file(const File &f) {
+inline py::dict get_chromosomes_from_file(const File &f, bool include_all = false) {
   py::dict py_chroms{};  // NOLINT
   for (const auto &chrom : f.chromosomes()) {
+    if (!include_all && chrom.is_all()) {
+      continue;
+    }
     const std::string name{chrom.name()};
     py_chroms[name.c_str()] = chrom.size();
   }
@@ -157,11 +160,13 @@ inline py::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pi
 template <typename PixelIt>
 inline py::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pixel,
                                            std::size_t num_rows, std::size_t num_cols,
+                                           bool mirror_below_diagonal = true,
                                            std::size_t row_offset = 0, std::size_t col_offset = 0) {
   using N = decltype(first_pixel->count);
 
   py::array_t<N> matrix({num_rows, num_cols});
   auto m = matrix.mutable_unchecked();
+  std::fill(m.mutable_data(), m.mutable_data() + m.size(), 0);
 
   DISABLE_WARNING_PUSH
   DISABLE_WARNING_SIGN_COMPARE
@@ -170,13 +175,15 @@ inline py::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
     const auto i2 = static_cast<std::int64_t>(tp.bin2_id - col_offset);
     m(i1, i2) = tp.count;
 
-    //  Mirror matrix below diagonal
-    if (i2 - i1 < num_rows && i1 < num_cols && i2 < num_rows) {
-      m(i2, i1) = tp.count;
-    } else if (i2 - i1 > num_cols && i1 < num_cols && i2 < num_rows) {
-      const auto i3 = static_cast<std::int64_t>(tp.bin2_id - row_offset);
-      const auto i4 = static_cast<std::int64_t>(tp.bin1_id - col_offset);
-      m(i3, i4) = tp.count;
+    if (mirror_below_diagonal) {
+      //  Mirror matrix below diagonal
+      if (i2 - i1 < num_rows && i1 < num_cols && i2 < num_rows) {
+        m(i2, i1) = tp.count;
+      } else if (i2 - i1 > num_cols && i1 < num_cols && i2 < num_rows) {
+        const auto i3 = static_cast<std::int64_t>(tp.bin2_id - row_offset);
+        const auto i4 = static_cast<std::int64_t>(tp.bin1_id - col_offset);
+        m(i3, i4) = tp.count;
+      }
     }
   });
   DISABLE_WARNING_POP
@@ -360,12 +367,12 @@ inline py::object file_fetch_all_dense(File &f, std::string_view normalization,
   }
   auto sel = f.fetch(hictk::balancing::Method{normalization});
   if (count_type == "int") {
-    return pixel_iterators_to_dense(sel.template begin<std::int32_t>(),
+    return pixel_iterators_to_numpy(sel.template begin<std::int32_t>(),
                                     sel.template end<std::int32_t>(), f.bins().size(),
-                                    f.bins.size());
+                                    f.bins().size());
   }
-  return pixel_iterators_to_dense(sel.template begin<double>(), sel.template end<double>(),
-                                  f.bins().size(), f.bins.size());
+  return pixel_iterators_to_numpy(sel.template begin<double>(), sel.template end<double>(),
+                                  f.bins().size(), f.bins().size());
 }
 
 template <typename File>
@@ -373,7 +380,7 @@ inline py::object file_fetch_dense(const File &f, std::string_view range1, std::
                                    std::string_view normalization, std::string_view count_type,
                                    std::string_view query_type) {
   if (range1.empty()) {
-    return file_fetch_all_sparse(f, normalization, count_type);
+    return file_fetch_all_dense(f, normalization, count_type);
   }
   if (normalization != "NONE") {
     count_type = "float";
@@ -395,17 +402,19 @@ inline py::object file_fetch_dense(const File &f, std::string_view range1, std::
   const auto bin1 = f.bins().at(gi1.chrom(), gi1.start());
   const auto bin2 = f.bins().at(gi2.chrom(), gi2.start());
 
+  const auto mirror_matrix = gi1.chrom() == gi2.chrom();
+
   auto sel = range2.empty() || range1 == range2
                  ? f.fetch(range1, hictk::balancing::Method(normalization), qt)
                  : f.fetch(range1, range2, hictk::balancing::Method(normalization), qt);
 
   if (count_type == "int") {
     return pixel_iterators_to_numpy(sel.template begin<std::int32_t>(),
-                                    sel.template end<std::int32_t>(), num_rows, num_cols, bin1.id(),
-                                    bin2.id());
+                                    sel.template end<std::int32_t>(), num_rows, num_cols,
+                                    mirror_matrix, bin1.id(), bin2.id());
   }
   return pixel_iterators_to_numpy(sel.template begin<double>(), sel.template end<double>(),
-                                  num_rows, num_cols, bin1.id(), bin2.id());
+                                  num_rows, num_cols, mirror_matrix, bin1.id(), bin2.id());
 }
 
 template <typename File>

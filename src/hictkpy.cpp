@@ -38,7 +38,8 @@ static pybind11::module_ declare_cooler_submodule(pybind11::module_ &m) {
   cooler_file.def("nchroms", &hictk::cooler::File::nchroms);
   cooler_file.def("nnz", &hictk::cooler::File::nnz);
 
-  cooler_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::File>);
+  cooler_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::File>,
+                  py::arg("include_all") = false);
   cooler_file.def("bins", &get_bins_from_file<hictk::cooler::File>);
   cooler_file.def("attributes", &cooler::get_cooler_attrs);
 
@@ -79,7 +80,8 @@ static pybind11::module_ declare_hic_submodule(pybind11::module_ &m) {
   hic_file.def("nbins", &hictk::hic::File::nbins);
   hic_file.def("nchroms", &hictk::hic::File::nchroms);
 
-  hic_file.def("chromosomes", &get_chromosomes_from_file<hictk::hic::File>);
+  hic_file.def("chromosomes", &get_chromosomes_from_file<hictk::hic::File>,
+               py::arg("include_all") = false);
   hic_file.def("bins", &get_bins_from_file<hictk::hic::File>);
 
   hic_file.def("fetch", &hic::fetch, py::arg("range1") = "", py::arg("range2") = "",
@@ -110,7 +112,7 @@ static void declare_file_class(pybind11::module_ &m) {
   file.def("is_hic", &hictk::File::is_hic);
   file.def("is_cooler", &hictk::File::is_cooler);
 
-  file.def("chromosomes", &get_chromosomes_from_file<hictk::File>);
+  file.def("chromosomes", &get_chromosomes_from_file<hictk::File>, py::arg("include_all") = false);
   file.def("bins", &get_bins_from_file<hictk::File>);
 
   file.def("bin_size", &hictk::File::bin_size);
