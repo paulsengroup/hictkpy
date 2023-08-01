@@ -34,9 +34,9 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-test-command = "python -m pytest {project}/test"
+test-command = "pytest {project}/test"
 test-extras = ["test"]
-test-skip = ["*universal2:arm64"]
+test-skip = ["*universal2:arm64", "pp*"]
 
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-all = [

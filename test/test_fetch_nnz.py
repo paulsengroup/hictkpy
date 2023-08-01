@@ -1,3 +1,7 @@
+# Copyright (C) 2023 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
 import os
 
 import pytest
