@@ -4,14 +4,14 @@
 
 #include <pybind11/pybind11.h>
 
-#include "./common.hpp"
-#include "./hictkpy_cooler.hpp"
-#include "./hictkpy_file.hpp"
-#include "./hictkpy_hic.hpp"
 #include "hictk/cooler/cooler.hpp"
 #include "hictk/file.hpp"
 #include "hictk/hic.hpp"
 #include "hictk/hic/utils.hpp"
+#include "hictkpy/common.hpp"
+#include "hictkpy/cooler.hpp"
+#include "hictkpy/file.hpp"
+#include "hictkpy/hic.hpp"
 
 namespace hictkpy {
 

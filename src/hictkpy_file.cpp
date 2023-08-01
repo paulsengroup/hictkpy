@@ -1,0 +1,69 @@
+// Copyright (C) 2023 Roberto Rossini <roberros@uio.no>
+//
+// SPDX-License-Identifier: MIT
+
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <variant>
+
+#include "hictk/file.hpp"
+#include "hictkpy/file.hpp"
+
+namespace py = pybind11;
+
+namespace hictkpy::file {
+hictk::File ctor(std::string_view path, std::int32_t resolution, std::string_view matrix_type,
+                 std::string_view matrix_unit) {
+  return hictk::File{std::string{path}, static_cast<std::uint32_t>(resolution),
+                     hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
+                     hictk::hic::ParseUnitStr(std::string{matrix_unit})};
+}
+
+py::object fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
+                 std::string_view normalization, std::string_view count_type, bool join,
+                 std::string_view query_type) {
+  return std::visit(
+      [&](const auto &ff) -> py::object {
+        return file_fetch(ff, range1, range2, normalization, count_type, join, query_type);
+      },
+      f.get());
+}
+
+py::object fetch_sparse(const hictk::File &f, std::string_view range1, std::string_view range2,
+                        std::string_view normalization, std::string_view count_type,
+                        std::string_view query_type) {
+  return std::visit(
+      [&](const auto &ff) -> py::object {
+        return file_fetch_sparse(ff, range1, range2, normalization, count_type, query_type);
+      },
+      f.get());
+}
+
+py::object fetch_dense(const hictk::File &f, std::string_view range1, std::string_view range2,
+                       std::string_view normalization, std::string_view count_type,
+                       std::string_view query_type) {
+  return std::visit(
+      [&](const auto &ff) -> py::object {
+        return file_fetch_dense(ff, range1, range2, normalization, count_type, query_type);
+      },
+      f.get());
+}
+
+py::object fetch_sum(const hictk::File &f, std::string_view range1, std::string_view range2,
+                     std::string_view normalization, std::string_view count_type,
+                     std::string_view query_type) {
+  return std::visit(
+      [&](const auto &ff) -> py::object {
+        return file_fetch_sum(ff, range1, range2, normalization, count_type, query_type);
+      },
+      f.get());
+}
+
+std::int64_t fetch_nnz(const hictk::File &f, std::string_view range1, std::string_view range2,
+                       std::string_view query_type) {
+  return std::visit([&](const auto &ff) { return file_fetch_nnz(ff, range1, range2, query_type); },
+                    f.get());
+}
+
+}  // namespace hictkpy::file
