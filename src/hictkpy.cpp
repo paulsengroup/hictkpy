@@ -43,6 +43,16 @@ static void declare_pixel_class(pybind11::module_ &m, const std::string &suffix)
                              [](const hictk::Pixel<N> &p) { return p.coords.bin1.rel_id(); })
       .def_property_readonly("rel_bin2_id",
                              [](const hictk::Pixel<N> &p) { return p.coords.bin2.rel_id(); })
+      .def_property_readonly("chrom1",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin1.chrom().name(); })
+      .def_property_readonly("start1",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin1.start(); })
+      .def_property_readonly("end1", [](const hictk::Pixel<N> &p) { return p.coords.bin1.end(); })
+      .def_property_readonly("chrom2",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin2.chrom().name(); })
+      .def_property_readonly("start2",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin2.start(); })
+      .def_property_readonly("end2", [](const hictk::Pixel<N> &p) { return p.coords.bin2.end(); })
       .def_property_readonly("count", [](const hictk::Pixel<N> &p) { return p.count; })
       .def("__repr__",
            [](const hictk::Pixel<N> &p) {
