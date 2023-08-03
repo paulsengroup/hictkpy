@@ -23,4 +23,6 @@ namespace hictkpy::file {
                                            std::string_view count_type, bool join,
                                            std::string_view query_type);
 
+[[nodiscard]] pybind11::dict attributes(const hictk::File &f);
+
 }  // namespace hictkpy::file
