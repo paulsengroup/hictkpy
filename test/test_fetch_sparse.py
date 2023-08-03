@@ -69,4 +69,3 @@ class TestClass:
             m = f.fetch("chr2R:10,000,000-15,000,000", normalization="ICE").to_coo()
 
         assert np.isclose(59.349524704033215, m.sum())
-

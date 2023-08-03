@@ -28,3 +28,8 @@ class TestClass:
         assert "chr2L" in f.chromosomes()
         assert len(f.bins()) == 1380
         assert len(f.chromosomes()) == 8
+
+        if f.is_cooler():
+            assert f.attributes()["format"] == "HDF5::Cooler"
+        else:
+            assert f.attributes()["format"] == "HIC"
