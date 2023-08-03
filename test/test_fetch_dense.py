@@ -11,72 +11,48 @@ import hictkpy
 
 testdir = os.path.dirname(os.path.abspath(__file__))
 
-
-def fetch_and_compare(f):
-    m = f.fetch_dense()
-    assert m.shape == (1380, 1380)
-    assert m.sum() == 178_263_235
-
-    ### CIS
-    m = f.fetch_dense("chr2R:10,000,000-15,000,000")
-    assert m.shape == (50, 50)
-    assert m.sum() == 6_029_333
-
-    m = f.fetch_dense("chr2R:10,000,000-15,000,000", count_type="int")
-    assert m.dtype == np.int32
-
-    m = f.fetch_dense("chr2R:10,000,000-15,000,000", count_type="float")
-    assert m.dtype == np.float64
-
-    m = f.fetch_dense("chr2R\t10000000\t15000000", query_type="BED")
-    assert m.shape == (50, 50)
-
-    ### TRANS
-    m = f.fetch_dense("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000")
-    assert m.shape == (50, 100)
-    assert m.sum() == 83_604
-
-    m = f.fetch_dense("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="int")
-    assert m.dtype == np.int32
-
-    m = f.fetch_dense("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="float")
-    assert m.dtype == np.float64
-
-    m = f.fetch_dense("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED")
-    assert m.shape == (50, 100)
-
-
-@pytest.mark.parametrize(
+pytestmark = pytest.mark.parametrize(
     "file,resolution",
-    [(os.path.join(testdir, "data", "cooler_test_file.cool"), 100_000)],
+    [
+        (os.path.join(testdir, "data", "cooler_test_file.cool"), 100_000),
+        (os.path.join(testdir, "data", "hic_test_file.hic"), 100_000),
+    ],
 )
-def test_file_fetch_dense_file(file, resolution):
-    f = hictkpy.File(file, resolution)
-    fetch_and_compare(f)
-
-    df = f.fetch("chr2R:10,000,000-15,000,000", normalization="weight")
-    assert np.isclose(59.349524704033215, df["count"].sum())
 
 
-@pytest.mark.parametrize(
-    "file",
-    [(os.path.join(testdir, "data", "cooler_test_file.cool"))],
-)
-def test_cooler_fetch_dense_cooler(file):
-    f = hictkpy.cooler.File(file)
-    fetch_and_compare(f)
+class TestClass:
+    def test_genome_wide(self, file, resolution):
+        f = hictkpy.File(file, resolution)
+        m = f.fetch().to_numpy()
+        assert m.shape == (1380, 1380)
+        assert m.sum() == 178_263_235
 
-    df = f.fetch("chr2R:10,000,000-15,000,000", normalization="weight")
-    assert np.isclose(59.349524704033215, df["count"].sum())
+    def test_cis(self, file, resolution):
+        f = hictkpy.File(file, resolution)
+        m = f.fetch("chr2R:10,000,000-15,000,000").to_numpy()
+        assert m.shape == (50, 50)
+        assert m.sum() == 6_029_333
 
+        m = f.fetch("chr2R:10,000,000-15,000,000", count_type="int").to_numpy()
+        assert m.dtype == np.int32
 
-@pytest.mark.parametrize(
-    "file,resolution",
-    [(os.path.join(testdir, "data", "hic_test_file.hic"), 100_000)],
-)
-def test_hic_fetch_dense_hic(file, resolution):
-    f = hictkpy.hic.File(file, resolution)
-    fetch_and_compare(f)
+        m = f.fetch("chr2R:10,000,000-15,000,000", count_type="float").to_numpy()
+        assert m.dtype == np.float64
 
-    df = f.fetch("chr2R:10,000,000-15,000,000", normalization="ICE")
-    assert np.isclose(59.349524704033215, df["count"].sum())
+        m = f.fetch("chr2R\t10000000\t15000000", query_type="BED").to_numpy()
+        assert m.shape == (50, 50)
+
+    def test_trans(self, file, resolution):
+        f = hictkpy.File(file, resolution)
+        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000").to_numpy()
+        assert m.shape == (50, 100)
+        assert m.sum() == 83_604
+
+        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="int").to_numpy()
+        assert m.dtype == np.int32
+
+        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="float").to_numpy()
+        assert m.dtype == np.float64
+
+        m = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED").to_numpy()
+        assert m.shape == (50, 100)

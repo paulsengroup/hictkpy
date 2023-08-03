@@ -2,103 +2,95 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include "./common.hpp"
-#include "./hictkpy_cooler.hpp"
-#include "./hictkpy_file.hpp"
-#include "./hictkpy_hic.hpp"
 #include "hictk/cooler/cooler.hpp"
 #include "hictk/file.hpp"
 #include "hictk/hic.hpp"
 #include "hictk/hic/utils.hpp"
+#include "hictkpy/common.hpp"
+#include "hictkpy/file.hpp"
+#include "hictkpy/pixel_selector.hpp"
 
+namespace py = pybind11;
 namespace hictkpy {
 
-static pybind11::module_ declare_cooler_submodule(pybind11::module_ &m) {
-  auto cooler = m.def_submodule("cooler");
-  auto cooler_utils = cooler.def_submodule("utils");
-
-  cooler_utils.def("is_cooler", &cooler::is_cooler, "test whether path points to a cooler file");
-
-  auto cooler_file =
-      py::class_<hictk::cooler::File>(cooler, "File")
-          .def(py::init(py::overload_cast<std::string_view>(cooler::file_ctor)), py::arg("uri"))
-          .def(py::init(py::overload_cast<std::string_view, const py::dict &, std::uint32_t, bool>(
-                   cooler::file_ctor)),
-               py::arg("uri"), py::arg("chromosomes"), py::arg("bin_size"),
-               py::arg("overwrite_if_exists"));
-
-  cooler_file.def("uri", &hictk::cooler::File::uri);
-  cooler_file.def("hdf5_path", &hictk::cooler::File::hdf5_path);
-  cooler_file.def("path", &hictk::cooler::File::path);
-
-  cooler_file.def("bin_size", &hictk::cooler::File::bin_size);
-  cooler_file.def("nbins", &hictk::cooler::File::nbins);
-  cooler_file.def("nchroms", &hictk::cooler::File::nchroms);
-  cooler_file.def("nnz", &hictk::cooler::File::nnz);
-
-  cooler_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::File>,
-                  py::arg("include_all") = false);
-  cooler_file.def("bins", &get_bins_from_file<hictk::cooler::File>);
-  cooler_file.def("attributes", &cooler::get_cooler_attrs);
-
-  cooler_file.def("fetch", &cooler::fetch, py::arg("range1") = "", py::arg("range2") = "",
-                  py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-                  py::arg("join") = false, py::arg("query_type") = "UCSC");
-  cooler_file.def("fetch_sparse", &cooler::fetch_sparse, py::arg("range1") = "",
-                  py::arg("range2") = "", py::arg("normalization") = "NONE",
-                  py::arg("count_type") = "int", py::arg("query_type") = "UCSC");
-  cooler_file.def("fetch_dense", &cooler::fetch_dense, py::arg("range1") = "",
-                  py::arg("range2") = "", py::arg("normalization") = "NONE",
-                  py::arg("count_type") = "int", py::arg("query_type") = "UCSC");
-  cooler_file.def("fetch_sum", &cooler::fetch_sum, py::arg("range1") = "", py::arg("range2") = "",
-                  py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-                  py::arg("query_type") = "UCSC");
-  cooler_file.def("fetch_nnz", &cooler::fetch_nnz, py::arg("range1") = "", py::arg("range2") = "",
-                  py::arg("query_type") = "UCSC");
-
-  return cooler;
+template <typename N>
+static void declare_thin_pixel_class(pybind11::module_ &m, const std::string &suffix) {
+  const auto type_name = std::string{"ThinPixel"} + suffix;
+  py::class_<hictk::ThinPixel<N>>(m, type_name.c_str())
+      .def_property_readonly("bin1_id", [](const hictk::ThinPixel<N> &tp) { return tp.bin1_id; })
+      .def_property_readonly("bin2_id", [](const hictk::ThinPixel<N> &tp) { return tp.bin2_id; })
+      .def_property_readonly("count", [](const hictk::ThinPixel<N> &tp) { return tp.count; })
+      .def("__repr__",
+           [](const hictk::ThinPixel<N> &tp) {
+             return fmt::format(FMT_COMPILE("bin1_id={}; bin2_id={}; count={};"), tp.bin1_id,
+                                tp.bin2_id, tp.count);
+           })
+      .def("__str__", [](const hictk::ThinPixel<N> &tp) {
+        return fmt::format(FMT_COMPILE("{}\t{}\t{}"), tp.bin1_id, tp.bin2_id, tp.count);
+      });
 }
 
-static pybind11::module_ declare_hic_submodule(pybind11::module_ &m) {
-  auto hic = m.def_submodule("hic");
-  auto hic_utils = hic.def_submodule("utils");
+template <typename N>
+static void declare_pixel_class(pybind11::module_ &m, const std::string &suffix) {
+  const auto type_name = std::string{"Pixel"} + suffix;
+  py::class_<hictk::Pixel<N>>(m, type_name.c_str())
+      .def_property_readonly("bin1_id", [](const hictk::Pixel<N> &p) { return p.coords.bin1.id(); })
+      .def_property_readonly("bin2_id", [](const hictk::Pixel<N> &p) { return p.coords.bin2.id(); })
+      .def_property_readonly("rel_bin1_id",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin1.rel_id(); })
+      .def_property_readonly("rel_bin2_id",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin2.rel_id(); })
+      .def_property_readonly("chrom1",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin1.chrom().name(); })
+      .def_property_readonly("start1",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin1.start(); })
+      .def_property_readonly("end1", [](const hictk::Pixel<N> &p) { return p.coords.bin1.end(); })
+      .def_property_readonly("chrom2",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin2.chrom().name(); })
+      .def_property_readonly("start2",
+                             [](const hictk::Pixel<N> &p) { return p.coords.bin2.start(); })
+      .def_property_readonly("end2", [](const hictk::Pixel<N> &p) { return p.coords.bin2.end(); })
+      .def_property_readonly("count", [](const hictk::Pixel<N> &p) { return p.count; })
+      .def("__repr__",
+           [](const hictk::Pixel<N> &p) {
+             return fmt::format(
+                 FMT_COMPILE("chrom1={}; start1={}; end1={}; chrom2={}; start2={}; end2={};"),
+                 p.coords.bin1.chrom().name(), p.coords.bin1.start(), p.coords.bin1.end(),
+                 p.coords.bin2.chrom().name(), p.coords.bin2.start(), p.coords.bin2.end(), p.count);
+           })
+      .def("__str__", [](const hictk::Pixel<N> &p) {
+        return fmt::format(FMT_COMPILE("{}\t{}\t{}\t{}\t{}\t{}"), p.coords.bin1.chrom().name(),
+                           p.coords.bin1.start(), p.coords.bin1.end(), p.coords.bin2.chrom().name(),
+                           p.coords.bin2.start(), p.coords.bin2.end(), p.count);
+      });
+}
 
-  hic_utils.def("is_hic_file", &hictk::hic::utils::is_hic_file,
-                "test whether path points to a .hic file");
+static void declare_pixel_selector_class(pybind11::module_ &m) {
+  auto sel =
+      py::class_<PixelSelector>(m, "PixelSelector")
+          .def(py::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view,
+                        bool>(),
+               py::arg("selector"), py::arg("type"), py::arg("join"))
+          .def(py::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool>(),
+               py::arg("selector"), py::arg("type"), py::arg("join"))
+          .def(py::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view,
+                        bool>(),
+               py::arg("selector"), py::arg("type"), py::arg("join"));
 
-  auto hic_file = py::class_<hictk::hic::File>(hic, "File")
-                      .def(py::init(&hic::file_ctor), py::arg("path"), py::arg("resolution"),
-                           py::arg("matrix_type") = "observed", py::arg("matrix_unit") = "BP");
+  sel.def("coord1", &PixelSelector::get_coord1);
+  sel.def("coord2", &PixelSelector::get_coord2);
 
-  hic_file.def("path", &hictk::hic::File::url);
-  hic_file.def("name", &hictk::hic::File::name);
-  hic_file.def("version", &hictk::hic::File::version);
+  sel.def("__iter__", &PixelSelector::make_iterable, py::keep_alive<0, 1>());
 
-  hic_file.def("bin_size", &hictk::hic::File::resolution);
-  hic_file.def("nbins", &hictk::hic::File::nbins);
-  hic_file.def("nchroms", &hictk::hic::File::nchroms);
+  sel.def("to_df", &PixelSelector::to_df);
+  sel.def("to_numpy", &PixelSelector::to_numpy);
+  sel.def("to_coo", &PixelSelector::to_coo);
 
-  hic_file.def("chromosomes", &get_chromosomes_from_file<hictk::hic::File>,
-               py::arg("include_all") = false);
-  hic_file.def("bins", &get_bins_from_file<hictk::hic::File>);
-
-  hic_file.def("fetch", &hic::fetch, py::arg("range1") = "", py::arg("range2") = "",
-               py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-               py::arg("join") = false, py::arg("query_type") = "UCSC");
-  hic_file.def("fetch_sparse", &hic::fetch_sparse, py::arg("range1") = "", py::arg("range2") = "",
-               py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-               py::arg("query_type") = "UCSC");
-  hic_file.def("fetch_dense", &hic::fetch_dense, py::arg("range1") = "", py::arg("range2") = "",
-               py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-               py::arg("query_type") = "UCSC");
-  hic_file.def("fetch_sum", &hic::fetch_sum, py::arg("range1") = "", py::arg("range2") = "",
-               py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-               py::arg("query_type") = "UCSC");
-  hic_file.def("fetch_nnz", &hic::fetch_nnz, py::arg("range1") = "", py::arg("range2") = "",
-               py::arg("query_type") = "UCSC");
-  return hic;
+  sel.def("nnz", &PixelSelector::nnz);
+  sel.def("sum", &PixelSelector::sum);
 }
 
 static void declare_file_class(pybind11::module_ &m) {
@@ -119,20 +111,11 @@ static void declare_file_class(pybind11::module_ &m) {
   file.def("nbins", &hictk::File::nbins);
   file.def("nchroms", &hictk::File::nchroms);
 
+  file.def("attributes", &file::attributes);
+
   file.def("fetch", &file::fetch, py::arg("range1") = "", py::arg("range2") = "",
            py::arg("normalization") = "NONE", py::arg("count_type") = "int",
            py::arg("join") = false, py::arg("query_type") = "UCSC");
-  file.def("fetch_sparse", &file::fetch_sparse, py::arg("range1") = "", py::arg("range2") = "",
-           py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-           py::arg("query_type") = "UCSC");
-  file.def("fetch_dense", &file::fetch_dense, py::arg("range1") = "", py::arg("range2") = "",
-           py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-           py::arg("query_type") = "UCSC");
-  file.def("fetch_sum", &file::fetch_sum, py::arg("range1") = "", py::arg("range2") = "",
-           py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-           py::arg("query_type") = "UCSC");
-  file.def("fetch_nnz", &file::fetch_nnz, py::arg("range1") = "", py::arg("range2") = "",
-           py::arg("query_type") = "UCSC");
 }
 
 namespace py = pybind11;
@@ -146,9 +129,15 @@ PYBIND11_MODULE(hictkpy, m) {
 
   m.doc() = "Blazing fast toolkit to work with .hic and .cool files";
 
-  declare_cooler_submodule(m);
-  declare_hic_submodule(m);
+  m.def("is_cooler", &file::is_cooler, "test whether path points to a cooler file");
+  m.def("is_hic_file", &hictk::hic::utils::is_hic_file, "test whether path points to a .hic file");
+
   declare_file_class(m);
+  declare_pixel_selector_class(m);
+  declare_thin_pixel_class<std::int32_t>(m, "Int");
+  declare_thin_pixel_class<double>(m, "FP");
+  declare_pixel_class<std::int32_t>(m, "Int");
+  declare_pixel_class<double>(m, "FP");
 }
 
 }  // namespace hictkpy
