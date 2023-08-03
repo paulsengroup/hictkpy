@@ -2,13 +2,16 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <cassert>
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <variant>
 
+#include "hictk/balancing/methods.hpp"
 #include "hictk/file.hpp"
 #include "hictkpy/file.hpp"
+#include "hictkpy/pixel_selector.hpp"
 
 namespace py = pybind11;
 
@@ -20,50 +23,40 @@ hictk::File ctor(std::string_view path, std::int32_t resolution, std::string_vie
                      hictk::hic::ParseUnitStr(std::string{matrix_unit})};
 }
 
-py::object fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
-                 std::string_view normalization, std::string_view count_type, bool join,
-                 std::string_view query_type) {
+bool is_cooler(std::string_view uri) { return bool(hictk::cooler::utils::is_cooler(uri)); }
+
+hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
+                             std::string_view normalization, std::string_view count_type, bool join,
+                             std::string_view query_type) {
+  if (normalization != "NONE") {
+    count_type = "float";
+  }
+
+  if (range1.empty()) {
+    assert(range2.empty());
+    return std::visit(
+        [&](const auto &ff) {
+          auto sel = ff.fetch(hictk::balancing::Method{normalization});
+          using SelT = decltype(sel);
+          return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
+                                        join);
+        },
+        f.get());
+  }
+
+  const auto qt =
+      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+
   return std::visit(
-      [&](const auto &ff) -> py::object {
-        return file_fetch(ff, range1, range2, normalization, count_type, join, query_type);
+      [&](const auto &ff) {
+        auto sel = range2.empty() || range1 == range2
+                       ? ff.fetch(range1, hictk::balancing::Method(normalization), qt)
+                       : ff.fetch(range1, range2, hictk::balancing::Method(normalization), qt);
+        using SelT = decltype(sel);
+        return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
+                                      join);
       },
       f.get());
-}
-
-py::object fetch_sparse(const hictk::File &f, std::string_view range1, std::string_view range2,
-                        std::string_view normalization, std::string_view count_type,
-                        std::string_view query_type) {
-  return std::visit(
-      [&](const auto &ff) -> py::object {
-        return file_fetch_sparse(ff, range1, range2, normalization, count_type, query_type);
-      },
-      f.get());
-}
-
-py::object fetch_dense(const hictk::File &f, std::string_view range1, std::string_view range2,
-                       std::string_view normalization, std::string_view count_type,
-                       std::string_view query_type) {
-  return std::visit(
-      [&](const auto &ff) -> py::object {
-        return file_fetch_dense(ff, range1, range2, normalization, count_type, query_type);
-      },
-      f.get());
-}
-
-py::object fetch_sum(const hictk::File &f, std::string_view range1, std::string_view range2,
-                     std::string_view normalization, std::string_view count_type,
-                     std::string_view query_type) {
-  return std::visit(
-      [&](const auto &ff) -> py::object {
-        return file_fetch_sum(ff, range1, range2, normalization, count_type, query_type);
-      },
-      f.get());
-}
-
-std::int64_t fetch_nnz(const hictk::File &f, std::string_view range1, std::string_view range2,
-                       std::string_view query_type) {
-  return std::visit([&](const auto &ff) { return file_fetch_nnz(ff, range1, range2, query_type); },
-                    f.get());
 }
 
 }  // namespace hictkpy::file

@@ -15,9 +15,8 @@ pybind11_add_module(
   hictkpy
   MODULE
   hictkpy.cpp
-  hictkpy_cooler.cpp
   hictkpy_file.cpp
-  hictkpy_hic.cpp)
+  hictkpy_pixel_selector.cpp)
 
 target_include_directories(hictkpy PRIVATE include)
 target_link_libraries(
