@@ -117,6 +117,29 @@ class CMakeBuild(build_ext):
         if not build_temp.exists():
             build_temp.mkdir(parents=True)
 
+        # profile detect fails if profile already exists
+        subprocess.run(["conan", "profile", "detect"], check=False)
+        subprocess.run(["conan", "profile", "detect", "--name", self.plat_name], check=False)
+        subprocess.run(
+            [
+                "conan",
+                "install",
+                ext.sourcedir,
+                f"-pr:b=default",
+                f"-pr:h={self.plat_name}",
+                "-s",
+                f"build_type={cfg}",
+                "-s",
+                "compiler.cppstd=17",
+                f"--output-folder={build_temp.absolute()}",
+                "-o",
+                "*/*:shared=True",
+                "--build=missing",
+            ],
+            check=True,
+        )
+        cmake_args += [f"-DCMAKE_PREFIX_PATH={build_temp.absolute()}"]
+
         subprocess.run(["cmake", ext.sourcedir, *cmake_args], cwd=build_temp, check=True)
         subprocess.run(["cmake", "--build", ".", *build_args], cwd=build_temp, check=True)
 
