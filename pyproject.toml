@@ -38,7 +38,7 @@ filterwarnings = [
 skip = ["*musllinux*"]
 test-command = "pytest {project}/test"
 test-extras = ["test"]
-test-skip = ["*universal2:arm64", "pp*", "cp36*", "cp37*", "*macosx*"]
+test-skip = ["*universal2:arm64", "pp*", "cp36*", "cp37*"]
 
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-build = [
