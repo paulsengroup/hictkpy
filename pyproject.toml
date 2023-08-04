@@ -36,10 +36,10 @@ filterwarnings = [
 
 [tool.cibuildwheel]
 skip = ["*musllinux*"]
-test-command = "python -v -c 'import hictkpy'"
+test-command = "python -m pip install {wheel}[test] && which python && python -m pip list && python -v -c 'import hictkpy'"
 # test-command = "pytest {project}/test -vv"
 test-extras = ["test"]
-test-skip = ["*universal2:arm64", "pp*", "cp36*", "cp37*"]
+test-skip = ["*universal2:arm64", "pp*"]
 
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-build = [
