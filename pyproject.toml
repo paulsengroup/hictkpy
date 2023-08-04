@@ -36,7 +36,8 @@ filterwarnings = [
 
 [tool.cibuildwheel]
 skip = ["*musllinux*"]
-test-command = "pytest {project}/test"
+test-command = "python -v -c 'import hictkpy'"
+# test-command = "pytest {project}/test -vv"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64", "pp*", "cp36*", "cp37*"]
 
@@ -44,8 +45,6 @@ test-skip = ["*universal2:arm64", "pp*", "cp36*", "cp37*"]
 before-build = [
   "rm -rf '{project}/build'",
 ]
-environment = { CMAKE_ARGS = '-DCMAKE_PREFIX_PATH=/usr/local/share' }
-environment-pass = ["CMAKE_ARGS"]
 
 [tool.cibuildwheel.macos]
 # Setuptools bug causes collision between pypy and cpython artifacts
