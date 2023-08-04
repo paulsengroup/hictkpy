@@ -64,6 +64,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
+          name: sdist
           path: dist/*.tar.gz
 
 
@@ -125,6 +126,12 @@ jobs:
       - name: Fix wheels
         run: |
           delocate-wheel --check-archs -v hictkpy*.whl
+
+      - name: Test wheels
+        run: |
+          wheel=(hictkpy*.whl)
+          pip install "${wheel[@]}[test]"
+          pytest test -v
 
       - name: Upload wheels
         uses: actions/upload-artifact@v3
