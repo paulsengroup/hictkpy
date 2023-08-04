@@ -36,8 +36,7 @@ filterwarnings = [
 
 [tool.cibuildwheel]
 skip = ["*musllinux*"]
-test-command = "python -m pip install {wheel}[test] && which python && python -m pip list && python -v -c 'import hictkpy'"
-# test-command = "pytest {project}/test -vv"
+test-command = "pytest {project}/test"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64", "pp*"]
 
