@@ -52,7 +52,7 @@ before-build = [
   "rm -rf '{project}/build'",
   'pip3 install "conan>=2"',
   "sudo conan profile detect --force",
-  "cd '{project}/devel/cibw/macos' && sudo ./cibw_setup_deps.sh"
+  "cd '{project}/devel/cibw/macos' && sudo ./cibw_setup_deps.sh /usr/local/ {arch}"
 ]
 environment = { HICTKPY_SETUP_SKIP_CONAN = '1', CMAKE_ARGS = '-DCMAKE_PREFIX_PATH=/usr/local/share', MACOSX_DEPLOYMENT_TARGET = '10.15' }
 

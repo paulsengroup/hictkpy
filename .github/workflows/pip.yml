@@ -80,7 +80,7 @@ jobs:
         path: ${{ env.CONAN_HOME }}
 
     - name: Build and install
-      run: pip install --verbose .[test]
+      run: pip install --verbose '.[test]'
 
     - name: Save Conan cache
       uses: actions/cache/save@v3
