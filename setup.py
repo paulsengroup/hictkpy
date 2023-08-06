@@ -53,6 +53,7 @@ class CMakeBuild(build_ext):
             "-DHICTK_BUILD_BENCHMARKS=OFF",
             "-DHICTK_BUILD_TOOLS=OFF",
             "-DBUILD_SHARED_LIBS=ON",
+            "-DHICTK_ENABLE_GIT_VERSION_TRACKING=OFF",
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}{os.sep}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
         ]
