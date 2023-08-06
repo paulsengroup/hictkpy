@@ -48,11 +48,11 @@ m2 = sel.to_coo()    # Get interactions as a scipy.sparse.coo_matrix
 
 # Loop over interactions
 for bin1_id, bin2_id, count in clr.fetch("chr1"):
-  print(bin1_id ...)
+  print(bin1_id, ...)
 
 # Loop over interactions
 for chrom1, start1, end1, chrom2, start2, end2, count in clr.fetch("chr1", join=True):
-  print(chrom1 ...)
+  print(chrom1, ...)
 
 # Fetch interactions using UCSC queries
 clr.fetch("chr1:0-10,000,000").to_df()
