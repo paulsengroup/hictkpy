@@ -154,8 +154,29 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          hash="${{ hashFiles('conanfile.txt', '.github/workflows/wheels.yml') }}"
+
+          echo "conan-key=pip-$hash" >> $GITHUB_OUTPUT
+
+      - name: Restore Conan cache
+        id: cache-conan
+        uses: actions/cache/restore@v3
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}
+
       - name: Build wheels
         run: pip wheel . -vv --no-deps
+
+      - name: Save Conan cache
+        uses: actions/cache/save@v3
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}
 
       - name: Fix wheels
         run: |
