@@ -230,10 +230,18 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
-          path: artifacts/dist
+          path: artifacts
+
+      - name: Archive artifacts
+        run: |
+          mkdir dist/
+          find artifacts -type f -name "hictkpy*.whl" -exec cp '{}' dist/ \;
+          find artifacts -type f -name "hictkpy*.tar.gz" -exec cp '{}' dist/ \;
+
+          tar -cf dist.tar dist/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
           name: dist
-          path: artifacts/
+          path: dist.tar
