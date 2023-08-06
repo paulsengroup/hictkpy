@@ -180,17 +180,19 @@ jobs:
 
       - name: Fix wheels
         run: |
-          mkdir hictkpy/
-          find "$CONAN_HOME/p/" -type f -name deflate.dll -exec cp '{}' hictkpy/ \;
-          find "$CONAN_HOME/p/" -type f -name hdf5.dll -exec cp '{}' hictkpy/ \;
-          find "$CONAN_HOME/p/" -type f -name zlib.dll -exec cp '{}' hictkpy/ \;
+          pip install delvewheel
 
-          wheel=(hictkpy*.whl)
+          mkdir dlls/
+          find "$CONAN_HOME/p/" -type f -name deflate.dll -exec cp '{}' dlls/ \;
+          find "$CONAN_HOME/p/" -type f -name hdf5.dll -exec cp '{}' dlls/ \;
+          find "$CONAN_HOME/p/" -type f -name zlib.dll -exec cp '{}' dlls/ \;
+
+          delvewheel repair --add-path ./dlls/ hictkpy*.whl
           7z a "$wheel" -tzip hictkpy/*.dll
 
       - name: Test wheels
         run: |
-          wheel=(hictkpy*.whl)
+          wheel=(wheelhouse/hictkpy*.whl)
           pip install "${wheel[@]}[test]"
           pytest test -v
 
@@ -198,4 +200,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: wheels-windows-py${{ matrix.python-version }}
-          path: ./*.whl
+          path: wheelhouse/*.whl
