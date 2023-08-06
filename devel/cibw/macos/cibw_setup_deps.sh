@@ -43,28 +43,28 @@ cd "$wd"
 # cmake --install fast_float_build
 
 
-tar -xf "$data_dir/fmt-v10.0.0.tar.xz"
-cmake -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX="$install_prefix" \
-      -DFMT_TEST=OFF \
-      -DFMT_LIB_DIR="lib" \
-      -DFMT_INSTALL=ON \
-      -S fmt* \
-      -B fmt_build
-cmake --build fmt_build
-cmake --install fmt_build
+# tar -xf "$data_dir/fmt-v10.0.0.tar.xz"
+# cmake -DCMAKE_BUILD_TYPE=Release \
+#       -DCMAKE_INSTALL_PREFIX="$install_prefix" \
+#       -DFMT_TEST=OFF \
+#       -DFMT_LIB_DIR="lib" \
+#       -DFMT_INSTALL=ON \
+#       -S fmt* \
+#       -B fmt_build
+# cmake --build fmt_build
+# cmake --install fmt_build
 
 
-tar -xf "$data_dir/spdlog-v1.12.0.tar.xz"
-cmake -DCMAKE_BUILD_TYPE=Release \
-      -DSPDLOG_FMT_EXTERNAL_HO=ON \
-      -DSPDLOG_INSTALL=ON \
-      -DSPDLOG_BUILD_SHARED=OFF \
-      -DCMAKE_INSTALL_PREFIX="$install_prefix" \
-      -S spdlog* \
-      -B spdlog_build
-cmake --build spdlog_build
-cmake --install spdlog_build
+# tar -xf "$data_dir/spdlog-v1.12.0.tar.xz"
+# cmake -DCMAKE_BUILD_TYPE=Release \
+#       -DSPDLOG_FMT_EXTERNAL_HO=ON \
+#       -DSPDLOG_INSTALL=ON \
+#       -DSPDLOG_BUILD_SHARED=OFF \
+#       -DCMAKE_INSTALL_PREFIX="$install_prefix" \
+#       -S spdlog* \
+#       -B spdlog_build
+# cmake --build spdlog_build
+# cmake --install spdlog_build
 
 
 tar -xf "$data_dir/zlib-v1.2.13.tar.xz"
