@@ -89,7 +89,7 @@ jobs:
         path: ${{ env.CONAN_HOME }}
 
     - name: Test
-      if: matrix.os != 'windows-latest'
+      if: matrix.platform != 'windows-latest'
       run: python -m pytest test -v
 
 
