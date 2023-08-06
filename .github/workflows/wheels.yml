@@ -141,7 +141,6 @@ jobs:
 
           mkdir lib/
           find "$CONAN_HOME/p/" -name '*.dylib' -exec cp '{}' lib/ \;
-          ls -lah lib/
 
           DYLD_LIBRARY_PATH="$PWD/lib/:/usr/local/lib:/usr/lib" \
           delocate-wheel --check-archs -v hictkpy*.whl
