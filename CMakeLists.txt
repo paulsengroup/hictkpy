@@ -21,13 +21,13 @@ project(
   hictkpy
   LANGUAGES C CXX
   HOMEPAGE_URL https://github.com/paulsengroup/hictkpy
-  DESCRIPTION "High-performance C++ library to read and write .cool files.")
+  DESCRIPTION "Python bindings for hictk.")
 
 include(FetchContent)
 FetchContent_Declare(
   hictk
-  GIT_REPOSITORY "https://github.com/paulsengroup/hictk.git"
-  GIT_TAG        "5a27e5c4a071c3384bfc521747c0fe5c329b221f"
+  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v0.0.1.tar.xz"
+  URL_HASH  "SHA256=bd87511fc75e336b1a85fe6e06a97f8035cd2e1f8cd1cf18c1d835508e4fe262"
   SYSTEM)
 
 set(BUILD_SHARED_LIBS ON)
