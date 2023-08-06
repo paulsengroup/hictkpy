@@ -188,7 +188,6 @@ jobs:
           find "$CONAN_HOME/p/" -type f -name zlib.dll -exec cp '{}' dlls/ \;
 
           delvewheel repair --add-path ./dlls/ hictkpy*.whl
-          7z a "$wheel" -tzip hictkpy/*.dll
 
       - name: Test wheels
         run: |
