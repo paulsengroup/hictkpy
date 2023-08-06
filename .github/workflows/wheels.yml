@@ -157,7 +157,7 @@ jobs:
       - name: Generate cache key
         id: cache-key
         run: |
-          hash="${{ hashFiles('conanfile.txt', '.github/workflows/wheels.yml') }}"
+          hash="${{ hashFiles('conanfile.txt') }}" #, '.github/workflows/wheels.yml') }}"
 
           echo "conan-key=conan-windows-$hash" >> $GITHUB_OUTPUT
 
@@ -180,6 +180,8 @@ jobs:
 
       - name: Fix wheels
         run: |
+          set -x
+
           wheel=(hictkpy*.whl)
           7z x "$wheel"
 
