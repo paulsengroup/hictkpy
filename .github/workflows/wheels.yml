@@ -180,14 +180,15 @@ jobs:
 
       - name: Fix wheels
         run: |
-          set -x
-
           wheel=(hictkpy*.whl)
           7z x "$wheel"
 
           find "$CONAN_HOME/p/" -type f -name deflate.dll -exec cp '{}' hictkpy/ \;
           find "$CONAN_HOME/p/" -type f -name hdf5.dll -exec cp '{}' hictkpy/ \;
           find "$CONAN_HOME/p/" -type f -name zlib.dll -exec cp '{}' hictkpy/ \;
+
+          ls -lah
+          ls  -lah hictkpy
 
           rm "$wheel"
           7z a "$wheel" -tzip -r hictkpy-*.dist-info/ hictkpy/
