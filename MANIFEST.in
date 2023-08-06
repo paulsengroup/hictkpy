@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-include conanfile.txt README.md LICENSE
-graft cmake/ src/
-global-include CMakeLists.txt
+include CMakeLists.txt conanfile.txt README.md LICENSE
+recursive-include cmake *.cmake
+recursive-include src *.cpp *.hpp CMakeLists.txt
+prune test

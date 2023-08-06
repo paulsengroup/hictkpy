@@ -53,6 +53,7 @@ class CMakeBuild(build_ext):
             "-DHICTK_BUILD_BENCHMARKS=OFF",
             "-DHICTK_BUILD_TOOLS=OFF",
             "-DBUILD_SHARED_LIBS=ON",
+            "-DHICTK_ENABLE_GIT_VERSION_TRACKING=OFF",
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}{os.sep}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
         ]
@@ -116,6 +117,30 @@ class CMakeBuild(build_ext):
         build_temp = Path(self.build_temp) / ext.name
         if not build_temp.exists():
             build_temp.mkdir(parents=True)
+
+        if "HICTKPY_SETUP_SKIP_CONAN" not in os.environ:
+            # profile detect fails if profile already exists
+            subprocess.run(["conan", "profile", "detect"], check=False)
+            subprocess.run(["conan", "profile", "detect", "--name", self.plat_name], check=False)
+            subprocess.run(
+                [
+                    "conan",
+                    "install",
+                    ext.sourcedir,
+                    f"-pr:b=default",
+                    f"-pr:h={self.plat_name}",
+                    "-s",
+                    f"build_type={cfg}",
+                    "-s",
+                    "compiler.cppstd=17",
+                    f"--output-folder={build_temp.absolute()}",
+                    "-o",
+                    "*/*:shared=True",
+                    "--build=missing",
+                ],
+                check=True,
+            )
+            cmake_args += [f"-DCMAKE_PREFIX_PATH={build_temp.absolute()}"]
 
         subprocess.run(["cmake", ext.sourcedir, *cmake_args], cwd=build_temp, check=True)
         subprocess.run(["cmake", "--build", ".", *build_args], cwd=build_temp, check=True)
