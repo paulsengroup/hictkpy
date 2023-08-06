@@ -50,7 +50,7 @@ env:
   CCACHE_DIR: "${{ github.workspace }}/ccache/"
 
 jobs:
-  build_sdist:
+  build-sdist:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
@@ -138,3 +138,65 @@ jobs:
         with:
           name: wheels-macos-py${{ matrix.python-version }}
           path: ./*.whl
+
+  build-wheels-windows:
+    name: Wheels on Windows
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.7', '3.8', '3.9', '3.10', '3.11' ]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          hash="${{ hashFiles('conanfile.txt') }}" #, '.github/workflows/wheels.yml') }}"
+
+          echo "conan-key=conan-windows-$hash" >> $GITHUB_OUTPUT
+
+      - name: Restore Conan cache
+        id: cache-conan
+        uses: actions/cache/restore@v3
+        with:
+          key: ${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}
+
+      - name: Build wheels
+        run: pip wheel . -vv --no-deps
+
+      - name: Save Conan cache
+        uses: actions/cache/save@v3
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          key: ${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}
+
+      - name: Fix wheels
+        run: |
+          pip install delvewheel
+
+          mkdir dlls/
+          find "$CONAN_HOME/p/" -type f -name deflate.dll -exec cp '{}' dlls/ \;
+          find "$CONAN_HOME/p/" -type f -name hdf5.dll -exec cp '{}' dlls/ \;
+          find "$CONAN_HOME/p/" -type f -name zlib.dll -exec cp '{}' dlls/ \;
+
+          delvewheel repair --add-path ./dlls/ hictkpy*.whl
+
+      - name: Test wheels
+        run: |
+          wheel=(wheelhouse/hictkpy*.whl)
+          pip install "${wheel[@]}[test]"
+          pytest test -v
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels-windows-py${{ matrix.python-version }}
+          path: wheelhouse/*.whl

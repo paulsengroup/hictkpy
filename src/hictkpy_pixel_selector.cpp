@@ -158,7 +158,7 @@ py::object PixelSelector::to_coo() const {
   const auto num_rows = span1 == 0 ? bins().size() : (span1 + bin_size - 1) / bin_size;
   const auto num_cols = span2 == 0 ? bins().size() : (span2 + bin_size - 1) / bin_size;
   return std::visit(
-      [&](const auto& s) {
+      [&, num_rows, num_cols](const auto& s) {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_coo(s->template begin<T>(), s->template end<T>(), num_rows,
@@ -183,7 +183,7 @@ py::object PixelSelector::to_numpy() const {
   const auto mirror_matrix = coord1().bin1.chrom() == coord2().bin1.chrom();
 
   return std::visit(
-      [&](const auto& s) {
+      [&, num_rows, num_cols, mirror_matrix](const auto& s) {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_numpy(s->template begin<T>(), s->template end<T>(), num_rows,
