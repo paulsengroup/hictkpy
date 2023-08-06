@@ -181,7 +181,7 @@ jobs:
       - name: Fix wheels
         run: |
           wheel=(hictkpy*.whl)
-          7zip x "$wheel"
+          7z x "$wheel"
 
           mkdir hictkpy
           cp hictkpy*.pyd hictkpy/
@@ -191,7 +191,7 @@ jobs:
           find "$CONAN_HOME/p/" -type f -name zlib.dll -exec sh -c 'cp "$1" hictkpy/' {} +
 
           rm "$wheel"
-          7zip a "$wheel" -tzip -r hictkpy-*.dist-info/ hictkpy/
+          7z a "$wheel" -tzip -r hictkpy-*.dist-info/ hictkpy/
 
       - name: Test wheels
         run: |
