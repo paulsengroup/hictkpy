@@ -159,13 +159,13 @@ jobs:
         run: |
           hash="${{ hashFiles('conanfile.txt', '.github/workflows/wheels.yml') }}"
 
-          echo "conan-key=pip-$hash" >> $GITHUB_OUTPUT
+          echo "conan-key=conan-windows-$hash" >> $GITHUB_OUTPUT
 
       - name: Restore Conan cache
         id: cache-conan
         uses: actions/cache/restore@v3
         with:
-          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          key: ${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}
 
       - name: Build wheels
@@ -175,13 +175,13 @@ jobs:
         uses: actions/cache/save@v3
         if: steps.cache-conan.outputs.cache-hit != 'true'
         with:
-          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          key: ${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}
 
       - name: Fix wheels
         run: |
           wheel=(hictkpy*.whl)
-          7zip x "*.whl
+          7zip x "$wheel"
 
           mkdir hictkpy
           cp hictkpy*.pyd hictkpy/
