@@ -186,9 +186,9 @@ jobs:
           mkdir hictkpy
           cp hictkpy*.pyd hictkpy/
 
-          find "$CONAN_HOME/p/" -type f -name deflate.dll -exec sh -c 'cp "$1 hictkpy/" {} +
-          find "$CONAN_HOME/p/" -type f -name hdf5.dll -exec sh -c 'cp "$1 hictkpy/" {} +
-          find "$CONAN_HOME/p/" -type f -name zlib.dll -exec sh -c 'cp "$1 hictkpy/" {} +
+          find "$CONAN_HOME/p/" -type f -name deflate.dll -exec sh -c 'cp "$1" hictkpy/' {} +
+          find "$CONAN_HOME/p/" -type f -name hdf5.dll -exec sh -c 'cp "$1" hictkpy/' {} +
+          find "$CONAN_HOME/p/" -type f -name zlib.dll -exec sh -c 'cp "$1" hictkpy/' {} +
 
           rm "$wheel"
           7zip a "$wheel" -tzip -r hictkpy-*.dist-info/ hictkpy/
