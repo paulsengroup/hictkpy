@@ -185,15 +185,12 @@ jobs:
           wheel=(hictkpy*.whl)
           7z x "$wheel"
 
-          mkdir hictkpy
-          cp hictkpy*.pyd hictkpy/
-
-          find "$CONAN_HOME/p/" -type f -name deflate.dll -exec cp '{}' hictkpy/ \;
-          find "$CONAN_HOME/p/" -type f -name hdf5.dll -exec cp '{}' hictkpy/ \;
-          find "$CONAN_HOME/p/" -type f -name zlib.dll -exec cp '{}' hictkpy/ \;
+          find "$CONAN_HOME/p/" -type f -name deflate.dll -exec cp '{}' . \;
+          find "$CONAN_HOME/p/" -type f -name hdf5.dll -exec cp '{}' . \;
+          find "$CONAN_HOME/p/" -type f -name zlib.dll -exec cp '{}' . \;
 
           rm "$wheel"
-          7z a "$wheel" -tzip -r hictkpy-*.dist-info/ hictkpy/
+          7z a "$wheel" -tzip -r hictkpy-*.dist-info/ hictkpy*.pyd *.dll
 
       - name: Test wheels
         run: |
