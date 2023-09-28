@@ -113,8 +113,8 @@ static void declare_file_class(pybind11::module_ &m) {
 
   file.def("attributes", &file::attributes);
 
-  file.def("fetch", &file::fetch, py::arg("range1") = "", py::arg("range2") = "",
-           py::arg("normalization") = "NONE", py::arg("count_type") = "int",
+  file.def("fetch", &file::fetch, py::keep_alive<0, 1>(), py::arg("range1") = "",
+           py::arg("range2") = "", py::arg("normalization") = "NONE", py::arg("count_type") = "int",
            py::arg("join") = false, py::arg("query_type") = "UCSC");
 }
 
