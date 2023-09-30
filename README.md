@@ -7,30 +7,19 @@ SPDX-License-Identifier: MIT
 # hictkpy
 
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![CI](https://github.com/paulsengroup/hictkpy/actions/workflows/pip.yml/badge.svg)](https://github.com/paulsengroup/hictkpy/actions/workflows/pip.yml)
 [![Download from Bioconda](https://img.shields.io/conda/vn/bioconda/hictkpy?label=bioconda&logo=Anaconda)](https://anaconda.org/bioconda/hictkpy)
-
-<!-- [![Zenodo DOI]()]() -->
+[![docs](https://readthedocs.org/projects/hictkpy/badge/?version=latest)](https://hictkpy.readthedocs.io/en/latest/?badge=latest)
+[![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8220299.svg)](https://doi.org/10.5281/zenodo.8220299)
 ---
 
 Python bindings for hictk, a blazing fast toolkit to work with .hic and .cool files.
 
 ## Installing hictkpy
 
-hictkpy can be installed in various ways.
+hictkpy can be installed in various ways. The simples method is using pip: `pip install hictkpy`.
 
-### PIP
-
-`pip install hictkpy`
-
-### Conda (bioconda)
-
-`conda install -c conda-forge -c bioconda hictkpy`
-
-### From source
-
-`pip install 'git+https://github.com/paulsengroup/hictkpy.git@main'`
-
-On Windows you will have to manually install some of hictk dependencies, namely hdf5 (with zlib support) and libdeflate.
+Refer to [Installation](https://hictkpy.readthedocs.io/en/latest/installation.html) for alternative methods.
 
 ## Using hictkpy
 
@@ -45,29 +34,28 @@ sel = clr.fetch("chr1")
 df = sel.to_df()     # Get interactions as a pd.DataFrame
 m1 = sel.to_numpy()  # Get interactions as a numpy matrix
 m2 = sel.to_coo()    # Get interactions as a scipy.sparse.coo_matrix
-
-# Loop over interactions
-for bin1_id, bin2_id, count in clr.fetch("chr1"):
-  print(bin1_id, ...)
-
-# Loop over interactions
-for chrom1, start1, end1, chrom2, start2, end2, count in clr.fetch("chr1", join=True):
-  print(chrom1, ...)
-
-# Fetch interactions using UCSC queries
-clr.fetch("chr1:0-10,000,000").to_df()
-clr.fetch("chr1:0-10,000,000", "chr2:100,000,000-105,000,000").to_df()
-
-# Fetch interactions using BED queries
-clr.fetch("chr1\t0\t10000000", query_type="BED").to_df()
-
-# Fetch balanced interactions
-clr.fetch("chr1", normalization="weight").to_df()
-clr.fetch("chr1", normalization="VC").to_df()
-
-# Sum interactions overlapping query
-clr.fetch("chr1").sum()
-
-# Count non-zero entries
-clr.fetch("chr1").nnz()
 ```
+
+For more detailed examples refer to [Quickstart](https://hictkpy.readthedocs.io/en/latest/quickstart.html).
+
+The complete documentation for hictkpy API is available [here](https://hictkpy.readthedocs.io/en/latest/hictkpy.html).
+
+## Citing
+
+If you use hictkpy in you reaserch, please cite the following publication:
+
+Preprint available soon.
+
+<details>
+<summary>BibTex</summary>
+
+```bibtex
+@misc{hictk,
+author = {Roberto Rossini},
+year = {2023},
+note = {https://github.com/paulsengroup/hictk},
+title = {hictk: blazing fast toolkit to work with .hic and .cool files}
+}
+```
+
+</details>
