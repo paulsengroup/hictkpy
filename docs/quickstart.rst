@@ -11,17 +11,24 @@ hictkpy provides Python bindings for hictk through pybind11.
 
 The example use file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_, which can be downloaded from `here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
 
-Read file metadata
-------------------
+Opening files
+-------------
 
 .. code-block:: ipythonconsole
 
   In [1]: import hictkpy as htk
 
+  # .mcool and .cool files work as well
   In [2]: f = htk.File("4DNFIOTPSS3L.hic", 10_000)
 
   In [3]: f.path()
   Out[3]: '4DNFIOTPSS3L.hic'
+
+
+Reading file metadata
+---------------------
+
+.. code-block:: ipythonconsole
 
   In [4]: f.bin_size()
   Out[4]: 10000
@@ -50,22 +57,41 @@ Read file metadata
 Fetch interactions
 ------------------
 
+Interactions can be fetched by calling the :py:meth:`hictkpy.File.fetch` method on :py:meth:`hictkpy.File` objects.
+
+:py:meth:`hictkpy.File.fetch` returns :py:meth:`hictkpy.PixelSelector` objects, which are very cheap to create.
+
 .. code-block:: ipythonconsole
 
-  In [1]: import hictkpy as htk
+  # Fetch all interactions (genome-wide query) in COO format (row, column, count)
+  In [7]: sel = f.fetch()
 
-  In [2]: f = htk.File("4DNFIOTPSS3L.hic", 10_000)
+  # Fetch all interactions (genome-wide query) in bedgraph2 format
+  In [8]: sel = f.fetch(join=True)
 
-  In [3]: sel = f.fetch("2L:10,000,000-20,000,000", join=True)
+  # Fetch KR-normalized interactions
+  In [9]: sel = f.fetch(normalization="KR")
 
-  In [4]: sel.nnz()
-  Out[4]: 339041
+  # Fetch interactions for a region of interest
+  In [9]: sel = f.fetch("2L:10,000,000-20,000,000")
 
-  In [5]: sel.sum()
-  Out[5]: 7163361
+  In [10]: sel = f.fetch("2L:10,000,000-20,000,000", "X")
 
-  In [6]: sel.to_df()
-  Out[6]:
+  In [11]: sel.nnz()
+  Out[11]: 2247057
+
+  In [12]: sel.sum()
+  Out[12]: 7163361
+
+Fetching interactions as pandas DataFrames
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: ipythonconsole
+
+  In [13]: sel = f.fetch("2L:10,000,000-20,000,000", join=True)
+
+  In [14]: sel.to_df()
+  Out[14]:
          chrom1    start1      end1 chrom2    start2      end2  count
   0          2L  10000000  10010000     2L  10000000  10010000   6759
   1          2L  10000000  10010000     2L  10010000  10020000   3241
@@ -81,34 +107,33 @@ Fetch interactions
 
   [339041 rows x 7 columns]
 
-  In [7]: sel.to_coo()
-  Out[7]:
-  <1000x1000 sparse matrix of type '<class 'numpy.int32'>'
-          with 339041 stored elements in COOrdinate format>
-
-  In [8]: m = sel.to_numpy()
-
-  In [9]: import matplotlib.pyplot as plt
-
-  In [10]: from matplotlib.colors import LogNorm
-
-  In [11]: plt.imshow(m, norm=LogNorm())
-
-  In [12]: plt.show()
-
-.. image:: assets/heatmap_001.avif
+Fetching interactions as scipy.sparse.coo_matrix
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: ipythonconsole
 
-  In [13]: plt.clf()
+  In [15]: sel = f.fetch("2L:10,000,000-20,000,000", join=True)
 
-  In [37]: sel = f.fetch("2L:10,000,000-20,000,000", "X")
+  In [16]: sel.to_coo()
+  Out[16]:
+  <1000x1000 sparse matrix of type '<class 'numpy.int32'>'
+          with 339041 stored elements in COOrdinate format>
 
-  In [38]: m = sel.to_numpy()
+Fetching interactions as numpy NDarray
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  In [39]: plt.imshow(m, norm=LogNorm())
-  Out[39]: <matplotlib.image.AxesImage at 0x7faadbcb1150>
+.. code-block:: ipythonconsole
 
-  In [40]: plt.savefig("/tmp/test.png", dpi=600)
+  In [17]: sel = f.fetch("2L:10,000,000-20,000,000", join=True)
 
-.. image:: assets/heatmap_002.avif
+  In [18]: m = sel.to_numpy()
+
+  In [19]: import matplotlib.pyplot as plt
+
+  In [20]: from matplotlib.colors import LogNorm
+
+  In [21]: plt.imshow(m, norm=LogNorm())
+
+  In [22]: plt.show()
+
+.. image:: assets/heatmap_001.avif
