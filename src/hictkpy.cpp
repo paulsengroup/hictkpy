@@ -134,10 +134,11 @@ PYBIND11_MODULE(hictkpy, m) {
   [[maybe_unused]] auto ss = py::module::import("scipy.sparse");
   m.attr("__version__") = hictk::config::version::str();
 
-  m.doc() = "Blazing fast toolkit to work with .hic and .cool files";
+  m.doc() = "Blazing fast toolkit to work with .hic and .cool files.";
 
-  m.def("is_cooler", &file::is_cooler, "Test whether path points to a cooler file");
-  m.def("is_hic_file", &hictk::hic::utils::is_hic_file, "Test whether path points to a .hic file");
+  m.def("is_cooler", &file::is_cooler, py::arg("path"),
+        "Test whether path points to a cooler file.");
+  m.def("is_hic", &file::is_hic, py::arg("path"), "Test whether path points to a .hic file.");
 
   declare_thin_pixel_class<std::int32_t>(m, "Int");
   declare_thin_pixel_class<double>(m, "FP");

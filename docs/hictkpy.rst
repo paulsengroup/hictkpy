@@ -14,4 +14,4 @@ Python API
 
 .. autofunction:: is_cooler
 
-.. autofunction:: is_hic_file
+.. autofunction:: is_hic
