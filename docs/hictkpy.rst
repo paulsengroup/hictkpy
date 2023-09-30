@@ -7,6 +7,11 @@ Python API
 
 .. autoclass:: File
    :members:
+   :special-members: __init__
 
 .. autoclass:: PixelSelector
    :members:
+
+.. autofunction:: is_cooler
+
+.. autofunction:: is_hic_file
