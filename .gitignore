@@ -4,6 +4,7 @@
 
 cmake-build-*/
 conan_build/
+docs/_build
 src/_version.py
 
 # Byte-compiled / optimized / DLL files

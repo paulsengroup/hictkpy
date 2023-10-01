@@ -29,6 +29,8 @@ std::string repr(const hictk::File &f) { return fmt::format(FMT_STRING("File({})
 
 bool is_cooler(std::string_view uri) { return bool(hictk::cooler::utils::is_cooler(uri)); }
 
+bool is_hic(std::string_view uri) { return hictk::hic::utils::is_hic_file(std::string{uri}); }
+
 hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
                              std::string_view normalization, std::string_view count_type, bool join,
                              std::string_view query_type) {
