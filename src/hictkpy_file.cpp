@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <fmt/format.h>
+
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -22,6 +24,8 @@ hictk::File ctor(std::string_view path, std::int32_t resolution, std::string_vie
                      hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
                      hictk::hic::ParseUnitStr(std::string{matrix_unit})};
 }
+
+std::string repr(const hictk::File &f) { return fmt::format(FMT_STRING("File({})"), f.uri()); }
 
 bool is_cooler(std::string_view uri) { return bool(hictk::cooler::utils::is_cooler(uri)); }
 
@@ -140,7 +144,5 @@ std::vector<std::string> avail_normalizations(const hictk::File &f) {
 
   return norms;
 }
-
-
 
 }  // namespace hictkpy::file

@@ -40,6 +40,7 @@ class CMakeBuild(build_ext):
         with open(extdir / "__init__.py", "w") as f:
             symbols = ["File", "is_cooler", "is_hic_file", "__version__"]
             f.write("from .hictkpy import " + ", ".join(symbols) + "\n")
+            f.write("from .hictkpy import cooler")
 
         # Using this requires trailing slash for auto-detection & inclusion of
         # auxiliary "native" libs

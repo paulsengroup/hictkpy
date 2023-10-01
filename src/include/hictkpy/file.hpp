@@ -16,6 +16,8 @@ namespace hictkpy::file {
 [[nodiscard]] hictk::File ctor(std::string_view path, std::int32_t resolution,
                                std::string_view matrix_type, std::string_view matrix_unit);
 
+[[nodiscard]] std::string repr(const hictk::File& f);
+
 [[nodiscard]] bool is_cooler(std::string_view uri);
 
 [[nodiscard]] hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1,

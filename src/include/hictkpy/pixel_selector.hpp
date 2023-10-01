@@ -38,6 +38,8 @@ struct PixelSelector {
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_, std::string_view type,
                 bool join_);
 
+  [[nodiscard]] std::string repr() const;
+
   using PixelCoordTuple =
       std::tuple<std::string, std::int32_t, std::int32_t, std::string, std::int32_t, std::int32_t>;
 

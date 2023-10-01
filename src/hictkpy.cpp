@@ -5,12 +5,13 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include "hictk/cooler/cooler.hpp"
+#include "hictk/cooler.hpp"
 #include "hictk/file.hpp"
 #include "hictk/hic.hpp"
 #include "hictk/hic/utils.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/file.hpp"
+#include "hictkpy/multires_file.hpp"
 #include "hictkpy/pixel_selector.hpp"
 
 namespace py = pybind11;
@@ -80,6 +81,8 @@ static void declare_pixel_selector_class(pybind11::module_ &m) {
                         bool>(),
                py::arg("selector"), py::arg("type"), py::arg("join"));
 
+  sel.def("__repr__", &PixelSelector::repr);
+
   sel.def("coord1", &PixelSelector::get_coord1);
   sel.def("coord2", &PixelSelector::get_coord2);
 
@@ -97,6 +100,8 @@ static void declare_file_class(pybind11::module_ &m) {
   auto file = py::class_<hictk::File>(m, "File").def(
       py::init(&file::ctor), py::arg("path"), py::arg("resolution"),
       py::arg("matrix_type") = "observed", py::arg("matrix_unit") = "BP");
+
+  file.def("__repr__", &file::repr);
 
   file.def("uri", &hictk::File::uri);
   file.def("path", &hictk::File::path);
@@ -123,6 +128,26 @@ static void declare_file_class(pybind11::module_ &m) {
            "Check whether a given normalization is available.");
 }
 
+static void declare_multires_file_class(pybind11::module_ &m) {
+  auto cooler = m.def_submodule("cooler");
+
+  auto mres_file = py::class_<hictk::cooler::MultiResFile>(cooler, "MultiResFile")
+                       .def(py::init(&multires_file::ctor), py::arg("path"),
+                            "Open a multi-resolution Cooler file (.mcool).");
+
+  mres_file.def("__repr__", &multires_file::repr);
+
+  mres_file.def("path", &hictk::cooler::MultiResFile::path, "Get the file path.");
+  mres_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::MultiResFile>,
+                py::arg("include_all") = false,
+                "Get chromosomes sizes as a dictionary mapping names to sizes.");
+  mres_file.def("attributes", &multires_file::get_attrs, "Get file attributes as a dictionary.");
+  mres_file.def("resolutions", &hictk::cooler::MultiResFile::resolutions,
+                "Get the list of available resolutions.");
+  mres_file.def("__getitem__", &multires_file::getitem,
+                "Open the Cooler file corresponding to the resolution given as input.");
+}
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -143,6 +168,7 @@ PYBIND11_MODULE(hictkpy, m) {
   declare_thin_pixel_class<double>(m, "FP");
   declare_pixel_class<std::int32_t>(m, "Int");
   declare_pixel_class<double>(m, "FP");
+  declare_multires_file_class(m);
 }
 
 }  // namespace hictkpy
