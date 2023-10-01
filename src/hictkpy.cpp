@@ -173,8 +173,7 @@ static void declare_singlecell_file_class(pybind11::module_ &m) {
   scell_file.def("bins", &get_bins_from_file<hictk::cooler::SingleCellFile>,
                  "Get bins as a pandas DataFrame.");
   scell_file.def("attributes", &singlecell_file::get_attrs, "Get file attributes as a dictionary.");
-  scell_file.def("cells", &hictk::cooler::SingleCellFile::cells,
-                 "Get the list of available cells.");
+  scell_file.def("cells", &singlecell_file::get_cells, "Get the list of available cells.");
   scell_file.def("__getitem__", &singlecell_file::getitem,
                  "Open the Cooler file corresponding to the cell ID given as input.");
 }

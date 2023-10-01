@@ -22,4 +22,6 @@ namespace hictkpy::singlecell_file {
 
 [[nodiscard]] hictk::File getitem(const hictk::cooler::SingleCellFile& sclr,
                                   std::string_view cell_id);
+
+[[nodiscard]] std::vector<std::string> get_cells(const hictk::cooler::SingleCellFile& sclr);
 }  // namespace hictkpy::singlecell_file

@@ -25,6 +25,7 @@ class TestClass:
         assert f.path() == file
         assert f.bin_size() == 100_000
         assert len(f.chromosomes()) == 20
+        assert len(f.cells()) == 5
 
         assert f.attributes()["format"] == "HDF5::SCOOL"
         assert f["GSM2687248_41669_ACAGTG-R1-DpnII.100000.cool"].bin_size() == 100_000

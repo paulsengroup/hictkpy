@@ -5,8 +5,10 @@
 #include <fmt/format.h>
 #include <pybind11/pybind11.h>
 
+#include <algorithm>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "hictkpy/singlecell_file.hpp"
 
@@ -70,6 +72,14 @@ py::dict get_attrs(const hictk::cooler::SingleCellFile& sclr) {
 
 hictk::File getitem(const hictk::cooler::SingleCellFile& sclr, std::string_view cell_id) {
   return hictk::File(sclr.open(cell_id));
+}
+
+std::vector<std::string> get_cells(const hictk::cooler::SingleCellFile& sclr) {
+  std::vector<std::string> cells{sclr.cells().size()};
+  std::copy(sclr.cells().begin(), sclr.cells().end(), cells.begin());
+  std::sort(cells.begin(), cells.end());
+
+  return cells;
 }
 
 }  // namespace hictkpy::singlecell_file
