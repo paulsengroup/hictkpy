@@ -178,7 +178,7 @@ PYBIND11_MODULE(hictkpy, m) {
   [[maybe_unused]] auto np = py::module::import("numpy");
   [[maybe_unused]] auto pd = py::module::import("pandas");
   [[maybe_unused]] auto ss = py::module::import("scipy.sparse");
-  m.attr("__version__") = hictk::config::version::str();
+  m.attr("__hictk_version__") = hictk::config::version::str();
 
   m.doc() = "Blazing fast toolkit to work with .hic and .cool files";
 
