@@ -14,6 +14,7 @@ pybind11/2.10.4#dd44c80a5ed6a2ef11194380daae1248
 span-lite/0.10.3#1967d71abb32b314387c2ab9c558dd22
 spdlog/1.12.0#248c215bc5f0718402fbf1de126ef847
 xxhash/0.8.1#7bf1cd1fe3d31f1fbcc758d93c907e8d
+zstd/1.5.5#93372fe14bb7883bd4de82914e0a1841
 
 [generators]
 CMakeDeps
