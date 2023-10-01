@@ -26,8 +26,8 @@ project(
 include(FetchContent)
 FetchContent_Declare(
   hictk
-  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v0.0.2.tar.xz"
-  URL_HASH  "SHA256=e2df4eb708e51017f595ac7e54cb5fa5c72aadb36766fbaabb50af7cf67d3656"
+  GIT_REPOSITORY "https://github.com/paulsengroup/hictk.git"
+  GIT_TAG        6e3a0b2
   SYSTEM)
 
 set(BUILD_SHARED_LIBS ON)
