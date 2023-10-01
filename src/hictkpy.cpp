@@ -116,6 +116,11 @@ static void declare_file_class(pybind11::module_ &m) {
   file.def("fetch", &file::fetch, py::keep_alive<0, 1>(), py::arg("range1") = "",
            py::arg("range2") = "", py::arg("normalization") = "NONE", py::arg("count_type") = "int",
            py::arg("join") = false, py::arg("query_type") = "UCSC");
+
+  file.def("avail_normalizations", &file::avail_normalizations,
+           "Get the list of available normalizations.");
+  file.def("has_normalization", &hictk::File::has_normalization, py::arg("normalization"),
+           "Check whether a given normalization is available.");
 }
 
 namespace py = pybind11;

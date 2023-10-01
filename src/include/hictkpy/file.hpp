@@ -25,4 +25,6 @@ namespace hictkpy::file {
 
 [[nodiscard]] pybind11::dict attributes(const hictk::File &f);
 
+[[nodiscard]] std::vector<std::string> avail_normalizations(const hictk::File &f);
+
 }  // namespace hictkpy::file

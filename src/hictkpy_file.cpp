@@ -132,4 +132,15 @@ pybind11::dict attributes(const hictk::File &f) {
   return get_hic_attrs(f.get<hictk::hic::File>());
 }
 
+std::vector<std::string> avail_normalizations(const hictk::File &f) {
+  const auto norms_ = f.avail_normalizations();
+  std::vector<std::string> norms{norms_.size()};
+  std::transform(norms_.begin(), norms_.end(), norms.begin(),
+                 [](const auto &norm) { return norm.to_string(); });
+
+  return norms;
+}
+
+
+
 }  // namespace hictkpy::file
