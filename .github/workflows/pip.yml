@@ -1,7 +1,7 @@
 # Copyright (C) 2023 Roberto Rossini (roberros@uio.no)
 # SPDX-License-Identifier: MIT
 
-name: Pip
+name: CI
 
 on:
   workflow_dispatch:
@@ -94,7 +94,7 @@ jobs:
 
 
   pip-status-check:
-    name: Status Check (pip)
+    name: Status Check (CI)
     if: ${{ always() }}
     runs-on: ubuntu-latest
     needs:

@@ -80,42 +80,49 @@ static void declare_pixel_selector_class(pybind11::module_ &m) {
                         bool>(),
                py::arg("selector"), py::arg("type"), py::arg("join"));
 
-  sel.def("coord1", &PixelSelector::get_coord1);
-  sel.def("coord2", &PixelSelector::get_coord2);
+  sel.def("coord1", &PixelSelector::get_coord1, "Get query coordinates for the first dimension.");
+  sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.");
 
   sel.def("__iter__", &PixelSelector::make_iterable, py::keep_alive<0, 1>());
 
-  sel.def("to_df", &PixelSelector::to_df);
-  sel.def("to_numpy", &PixelSelector::to_numpy);
-  sel.def("to_coo", &PixelSelector::to_coo);
+  sel.def("to_df", &PixelSelector::to_df, "Retrieve interactions as a pandas DataFrame.");
+  sel.def("to_numpy", &PixelSelector::to_numpy, "Retrieve interactions as a numpy 2D matrix.");
+  sel.def("to_coo", &PixelSelector::to_coo, "Retrieve interactions as a scipy.sparse.coo_matrix.");
 
-  sel.def("nnz", &PixelSelector::nnz);
-  sel.def("sum", &PixelSelector::sum);
+  sel.def("nnz", &PixelSelector::nnz,
+          "Get the number of non-zero entries for the current pixel selection.");
+  sel.def("sum", &PixelSelector::sum,
+          "Get the total number of interactions for the current pixel selection.");
 }
 
 static void declare_file_class(pybind11::module_ &m) {
   auto file = py::class_<hictk::File>(m, "File").def(
       py::init(&file::ctor), py::arg("path"), py::arg("resolution"),
-      py::arg("matrix_type") = "observed", py::arg("matrix_unit") = "BP");
+      py::arg("matrix_type") = "observed", py::arg("matrix_unit") = "BP",
+      "Construct a file object to a .hic, .cool or .mcool file given the file path and "
+      "resolution.\n"
+      "Resolution is ignored when opening single-resolution Cooler files.");
 
-  file.def("uri", &hictk::File::uri);
-  file.def("path", &hictk::File::path);
+  file.def("uri", &hictk::File::uri, "Return the file URI.");
+  file.def("path", &hictk::File::path, "Return the file path.");
 
-  file.def("is_hic", &hictk::File::is_hic);
-  file.def("is_cooler", &hictk::File::is_cooler);
+  file.def("is_hic", &hictk::File::is_hic, "Test whether file is in .hic format.");
+  file.def("is_cooler", &hictk::File::is_cooler, "Test whether file is in .cool format.");
 
-  file.def("chromosomes", &get_chromosomes_from_file<hictk::File>, py::arg("include_all") = false);
-  file.def("bins", &get_bins_from_file<hictk::File>);
+  file.def("chromosomes", &get_chromosomes_from_file<hictk::File>, py::arg("include_all") = false,
+           "Get chromosomes sizes as a dictionary mapping names to sizes.");
+  file.def("bins", &get_bins_from_file<hictk::File>, "Get bins as a pandas DataFrame.");
 
-  file.def("bin_size", &hictk::File::bin_size);
-  file.def("nbins", &hictk::File::nbins);
-  file.def("nchroms", &hictk::File::nchroms);
+  file.def("bin_size", &hictk::File::bin_size, "Get the bin size in bp.");
+  file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
+  file.def("nchroms", &hictk::File::nchroms, "Get the total number of chromosomes.");
 
-  file.def("attributes", &file::attributes);
+  file.def("attributes", &file::attributes, "Get file attributes as a dictionary");
 
   file.def("fetch", &file::fetch, py::keep_alive<0, 1>(), py::arg("range1") = "",
            py::arg("range2") = "", py::arg("normalization") = "NONE", py::arg("count_type") = "int",
-           py::arg("join") = false, py::arg("query_type") = "UCSC");
+           py::arg("join") = false, py::arg("query_type") = "UCSC",
+           "Fetch interactions overlapping a region of interest.");
 }
 
 namespace py = pybind11;
@@ -127,17 +134,18 @@ PYBIND11_MODULE(hictkpy, m) {
   [[maybe_unused]] auto ss = py::module::import("scipy.sparse");
   m.attr("__version__") = hictk::config::version::str();
 
-  m.doc() = "Blazing fast toolkit to work with .hic and .cool files";
+  m.doc() = "Blazing fast toolkit to work with .hic and .cool files.";
 
-  m.def("is_cooler", &file::is_cooler, "test whether path points to a cooler file");
-  m.def("is_hic_file", &hictk::hic::utils::is_hic_file, "test whether path points to a .hic file");
+  m.def("is_cooler", &file::is_cooler, py::arg("path"),
+        "Test whether path points to a cooler file.");
+  m.def("is_hic", &file::is_hic, py::arg("path"), "Test whether path points to a .hic file.");
 
-  declare_file_class(m);
-  declare_pixel_selector_class(m);
   declare_thin_pixel_class<std::int32_t>(m, "Int");
   declare_thin_pixel_class<double>(m, "FP");
   declare_pixel_class<std::int32_t>(m, "Int");
   declare_pixel_class<double>(m, "FP");
+  declare_pixel_selector_class(m);
+  declare_file_class(m);
 }
 
 }  // namespace hictkpy
