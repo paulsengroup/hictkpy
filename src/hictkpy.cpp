@@ -123,7 +123,7 @@ static void declare_file_class(pybind11::module_ &m) {
   file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
   file.def("nchroms", &hictk::File::nchroms, "Get the total number of chromosomes.");
 
-  file.def("attributes", &file::attributes, "Get file attributes as a dictionary");
+  file.def("attributes", &file::attributes, "Get file attributes as a dictionary.");
 
   file.def("fetch", &file::fetch, py::keep_alive<0, 1>(), py::arg("range1") = "",
            py::arg("range2") = "", py::arg("normalization") = "NONE", py::arg("count_type") = "int",
