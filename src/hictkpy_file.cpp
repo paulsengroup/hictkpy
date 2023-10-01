@@ -80,7 +80,6 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   if (attrs.storage_mode.has_value()) {
     py_attrs["storage-mode"] = *attrs.storage_mode;
   }
-
   if (attrs.creation_date.has_value()) {
     py_attrs["creation-date"] = *attrs.creation_date;
   }

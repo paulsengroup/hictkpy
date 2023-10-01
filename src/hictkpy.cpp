@@ -13,6 +13,7 @@
 #include "hictkpy/file.hpp"
 #include "hictkpy/multires_file.hpp"
 #include "hictkpy/pixel_selector.hpp"
+#include "hictkpy/singlecell_file.hpp"
 
 namespace py = pybind11;
 namespace hictkpy {
@@ -148,6 +149,28 @@ static void declare_multires_file_class(pybind11::module_ &m) {
                 "Open the Cooler file corresponding to the resolution given as input.");
 }
 
+static void declare_singlecell_file_class(pybind11::module_ &m) {
+  auto cooler = m.def_submodule("cooler");
+
+  auto scell_file = py::class_<hictk::cooler::SingleCellFile>(cooler, "SingleCellFile")
+                        .def(py::init(&singlecell_file::ctor), py::arg("path"),
+                             "Open a single-cell Cooler file (.scool).");
+
+  scell_file.def("__repr__", &singlecell_file::repr);
+
+  scell_file.def("path", &hictk::cooler::SingleCellFile::path, "Get the file path.");
+  scell_file.def("bin_size", &hictk::cooler::SingleCellFile::bin_size, "Get the bin size in bp.");
+  scell_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::SingleCellFile>,
+                 py::arg("include_all") = false,
+                 "Get chromosomes sizes as a dictionary mapping names to sizes.");
+  scell_file.def("bins", &get_bins_from_file<hictk::cooler::SingleCellFile>, "Get bins as a pandas DataFrame.");
+  scell_file.def("attributes", &singlecell_file::get_attrs, "Get file attributes as a dictionary.");
+  scell_file.def("cells", &hictk::cooler::SingleCellFile::cells,
+                 "Get the list of available cells.");
+  scell_file.def("__getitem__", &singlecell_file::getitem,
+                 "Open the Cooler file corresponding to the cell ID given as input.");
+}
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -169,6 +192,7 @@ PYBIND11_MODULE(hictkpy, m) {
   declare_pixel_class<std::int32_t>(m, "Int");
   declare_pixel_class<double>(m, "FP");
   declare_multires_file_class(m);
+  declare_singlecell_file_class(m);
 }
 
 }  // namespace hictkpy
