@@ -5,6 +5,11 @@ Python API
 .. py:module:: hictkpy
 .. py:currentmodule:: hictkpy
 
+
+.. autofunction:: is_cooler
+
+.. autofunction:: is_hic
+
 .. autoclass:: File
    :members:
    :special-members: __init__
@@ -12,6 +17,13 @@ Python API
 .. autoclass:: PixelSelector
    :members:
 
-.. autofunction:: is_cooler
+.. py:module:: hictkpy.cooler
+.. py:currentmodule:: hictkpy.cooler
 
-.. autofunction:: is_hic
+.. autoclass:: MultiResFile
+   :members:
+   :special-members: __init__
+
+.. autoclass:: SingleCellFile
+   :members:
+   :special-members: __init__

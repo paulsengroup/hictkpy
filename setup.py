@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 from setuptools import Extension, setup
@@ -38,8 +39,22 @@ class CMakeBuild(build_ext):
         extdir = ext_fullpath.parent.resolve() / ext.name
         extdir.mkdir(exist_ok=True, parents=True)
         with open(extdir / "__init__.py", "w") as f:
-            symbols = ["File", "PixelSelector", "is_cooler", "is_hic", "__version__"]
-            f.write("from .hictkpy import " + ", ".join(symbols) + "\n")
+            symbols = ", ".join(("File", "PixelSelector", "is_cooler", "is_hic", "__hictk_version__"))
+            f.write(
+                textwrap.dedent(
+                    f"""
+                    from .hictkpy import {symbols}
+                    from .hictkpy import cooler
+
+                    try:
+                        from importlib.metadata import version
+                    except ModuleNotFoundError:
+                        from importlib_metadata import version
+
+                    __version__ = version("hictkpy")
+                    """
+                )
+            )
 
         # Using this requires trailing slash for auto-detection & inclusion of
         # auxiliary "native" libs

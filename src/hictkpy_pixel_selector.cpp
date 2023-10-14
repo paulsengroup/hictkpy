@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <fmt/format.h>
 #include <pybind11/pybind11.h>
 
 #include <variant>
 
 #include "hictk/cooler/cooler.hpp"
+#include "hictk/fmt.hpp"
 #include "hictk/hic.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/pixel_selector.hpp"
@@ -55,6 +57,14 @@ PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll>
   } else {
     pixel_count = double{};
   }
+}
+
+std::string PixelSelector::repr() const {
+  if (!coord1()) {
+    return "PixelSelector(ALL)";
+  }
+
+  return fmt::format(FMT_STRING("PixelSelector({}, {})"), coord1(), coord2());
 }
 
 constexpr bool PixelSelector::int_pixels() const noexcept {

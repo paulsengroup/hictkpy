@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <fmt/format.h>
+
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -22,6 +24,8 @@ hictk::File ctor(std::string_view path, std::int32_t resolution, std::string_vie
                      hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
                      hictk::hic::ParseUnitStr(std::string{matrix_unit})};
 }
+
+std::string repr(const hictk::File &f) { return fmt::format(FMT_STRING("File({})"), f.uri()); }
 
 bool is_cooler(std::string_view uri) { return bool(hictk::cooler::utils::is_cooler(uri)); }
 
@@ -78,7 +82,6 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   if (attrs.storage_mode.has_value()) {
     py_attrs["storage-mode"] = *attrs.storage_mode;
   }
-
   if (attrs.creation_date.has_value()) {
     py_attrs["creation-date"] = *attrs.creation_date;
   }
@@ -132,6 +135,15 @@ pybind11::dict attributes(const hictk::File &f) {
     return get_cooler_attrs(f.get<hictk::cooler::File>());
   }
   return get_hic_attrs(f.get<hictk::hic::File>());
+}
+
+std::vector<std::string> avail_normalizations(const hictk::File &f) {
+  const auto norms_ = f.avail_normalizations();
+  std::vector<std::string> norms{norms_.size()};
+  std::transform(norms_.begin(), norms_.end(), norms.begin(),
+                 [](const auto &norm) { return norm.to_string(); });
+
+  return norms;
 }
 
 }  // namespace hictkpy::file

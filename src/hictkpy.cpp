@@ -5,13 +5,15 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include "hictk/cooler/cooler.hpp"
+#include "hictk/cooler.hpp"
 #include "hictk/file.hpp"
 #include "hictk/hic.hpp"
 #include "hictk/hic/utils.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/file.hpp"
+#include "hictkpy/multires_file.hpp"
 #include "hictkpy/pixel_selector.hpp"
+#include "hictkpy/singlecell_file.hpp"
 
 namespace py = pybind11;
 namespace hictkpy {
@@ -80,6 +82,8 @@ static void declare_pixel_selector_class(pybind11::module_ &m) {
                         bool>(),
                py::arg("selector"), py::arg("type"), py::arg("join"));
 
+  sel.def("__repr__", &PixelSelector::repr);
+
   sel.def("coord1", &PixelSelector::get_coord1, "Get query coordinates for the first dimension.");
   sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.");
 
@@ -103,6 +107,8 @@ static void declare_file_class(pybind11::module_ &m) {
       "resolution.\n"
       "Resolution is ignored when opening single-resolution Cooler files.");
 
+  file.def("__repr__", &file::repr);
+
   file.def("uri", &hictk::File::uri, "Return the file URI.");
   file.def("path", &hictk::File::path, "Return the file path.");
 
@@ -117,12 +123,59 @@ static void declare_file_class(pybind11::module_ &m) {
   file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
   file.def("nchroms", &hictk::File::nchroms, "Get the total number of chromosomes.");
 
-  file.def("attributes", &file::attributes, "Get file attributes as a dictionary");
+  file.def("attributes", &file::attributes, "Get file attributes as a dictionary.");
 
   file.def("fetch", &file::fetch, py::keep_alive<0, 1>(), py::arg("range1") = "",
            py::arg("range2") = "", py::arg("normalization") = "NONE", py::arg("count_type") = "int",
            py::arg("join") = false, py::arg("query_type") = "UCSC",
            "Fetch interactions overlapping a region of interest.");
+
+  file.def("avail_normalizations", &file::avail_normalizations,
+           "Get the list of available normalizations.");
+  file.def("has_normalization", &hictk::File::has_normalization, py::arg("normalization"),
+           "Check whether a given normalization is available.");
+}
+
+static void declare_multires_file_class(pybind11::module_ &m) {
+  auto cooler = m.def_submodule("cooler");
+
+  auto mres_file = py::class_<hictk::cooler::MultiResFile>(cooler, "MultiResFile")
+                       .def(py::init(&multires_file::ctor), py::arg("path"),
+                            "Open a multi-resolution Cooler file (.mcool).");
+
+  mres_file.def("__repr__", &multires_file::repr);
+
+  mres_file.def("path", &hictk::cooler::MultiResFile::path, "Get the file path.");
+  mres_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::MultiResFile>,
+                py::arg("include_all") = false,
+                "Get chromosomes sizes as a dictionary mapping names to sizes.");
+  mres_file.def("attributes", &multires_file::get_attrs, "Get file attributes as a dictionary.");
+  mres_file.def("resolutions", &hictk::cooler::MultiResFile::resolutions,
+                "Get the list of available resolutions.");
+  mres_file.def("__getitem__", &multires_file::getitem,
+                "Open the Cooler file corresponding to the resolution given as input.");
+}
+
+static void declare_singlecell_file_class(pybind11::module_ &m) {
+  auto cooler = m.def_submodule("cooler");
+
+  auto scell_file = py::class_<hictk::cooler::SingleCellFile>(cooler, "SingleCellFile")
+                        .def(py::init(&singlecell_file::ctor), py::arg("path"),
+                             "Open a single-cell Cooler file (.scool).");
+
+  scell_file.def("__repr__", &singlecell_file::repr);
+
+  scell_file.def("path", &hictk::cooler::SingleCellFile::path, "Get the file path.");
+  scell_file.def("bin_size", &hictk::cooler::SingleCellFile::bin_size, "Get the bin size in bp.");
+  scell_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::SingleCellFile>,
+                 py::arg("include_all") = false,
+                 "Get chromosomes sizes as a dictionary mapping names to sizes.");
+  scell_file.def("bins", &get_bins_from_file<hictk::cooler::SingleCellFile>,
+                 "Get bins as a pandas DataFrame.");
+  scell_file.def("attributes", &singlecell_file::get_attrs, "Get file attributes as a dictionary.");
+  scell_file.def("cells", &singlecell_file::get_cells, "Get the list of available cells.");
+  scell_file.def("__getitem__", &singlecell_file::getitem,
+                 "Open the Cooler file corresponding to the cell ID given as input.");
 }
 
 namespace py = pybind11;
@@ -132,7 +185,7 @@ PYBIND11_MODULE(hictkpy, m) {
   [[maybe_unused]] auto np = py::module::import("numpy");
   [[maybe_unused]] auto pd = py::module::import("pandas");
   [[maybe_unused]] auto ss = py::module::import("scipy.sparse");
-  m.attr("__version__") = hictk::config::version::str();
+  m.attr("__hictk_version__") = hictk::config::version::str();
 
   m.doc() = "Blazing fast toolkit to work with .hic and .cool files.";
 
@@ -144,8 +197,11 @@ PYBIND11_MODULE(hictkpy, m) {
   declare_thin_pixel_class<double>(m, "FP");
   declare_pixel_class<std::int32_t>(m, "Int");
   declare_pixel_class<double>(m, "FP");
+
   declare_pixel_selector_class(m);
   declare_file_class(m);
+  declare_multires_file_class(m);
+  declare_singlecell_file_class(m);
 }
 
 }  // namespace hictkpy

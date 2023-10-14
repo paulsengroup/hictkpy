@@ -13,14 +13,14 @@ testdir = os.path.dirname(os.path.abspath(__file__))
 pytestmark = pytest.mark.parametrize(
     "file,resolution",
     [
-        (os.path.join(testdir, "data", "cooler_test_file.cool"), 100_000),
+        (os.path.join(testdir, "data", "cooler_test_file.mcool"), 100_000),
         (os.path.join(testdir, "data", "hic_test_file.hic"), 100_000),
     ],
 )
 
 
 class TestClass:
-    def test_attributes_cooler(self, file, resolution):
+    def test_attributes(self, file, resolution):
         f = hictkpy.File(file, resolution)
         assert f.bin_size() == 100_000
         assert f.nbins() == 1380
@@ -33,3 +33,13 @@ class TestClass:
             assert f.attributes()["format"] == "HDF5::Cooler"
         else:
             assert f.attributes()["format"] == "HIC"
+
+    def test_normalizations(self, file, resolution):
+      f = hictkpy.File(file, resolution)
+
+      if f.is_cooler():
+          assert f.avail_normalizations() == ["KR", "SCALE", "VC", "VC_SQRT", "weight"]
+      else:
+          assert f.avail_normalizations() == ["ICE"]
+
+      assert not f.has_normalization("foo")
