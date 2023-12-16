@@ -36,6 +36,7 @@ xfail_strict = true
 filterwarnings = [
   "error",
   "ignore:(ast.Str|Attribute s|ast.NameConstant|ast.Num) is deprecated:DeprecationWarning:_pytest",
+  "ignore:datetime\\.datetime\\.utcfromtimestamp\\(\\)*:DeprecationWarning",  # https://github.com/pytest-dev/pytest/issues/11528
 ]
 
 [tool.cibuildwheel]
