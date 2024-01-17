@@ -124,7 +124,7 @@ jobs:
 
       - name: Restore Conan cache
         id: cache-conan
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           key: ${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}
@@ -135,7 +135,7 @@ jobs:
         run: pip wheel . -vv --no-deps
 
       - name: Save Conan cache
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         if: steps.cache-conan.outputs.cache-hit != 'true'
         with:
           key: ${{ steps.cache-key.outputs.conan-key }}
@@ -189,7 +189,7 @@ jobs:
 
       - name: Restore Conan cache
         id: cache-conan
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           key: ${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}
@@ -198,7 +198,7 @@ jobs:
         run: pip wheel . -vv --no-deps
 
       - name: Save Conan cache
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         if: steps.cache-conan.outputs.cache-hit != 'true'
         with:
           key: ${{ steps.cache-key.outputs.conan-key }}
