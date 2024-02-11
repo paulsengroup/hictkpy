@@ -50,17 +50,6 @@ before-build = [
   "rm -rf '{project}/build'",
 ]
 
-[tool.cibuildwheel.macos]
-# Setuptools bug causes collision between pypy and cpython artifacts
-before-build = [
-  "rm -rf '{project}/build'",
-  'pip3 install "conan>=2"',
-  "sudo conan profile detect --force",
-  "cd '{project}/devel/cibw/macos' && sudo ./cibw_setup_deps.sh"
-]
-environment = { HICTKPY_SETUP_SKIP_CONAN = '1', CMAKE_ARGS = '-DCMAKE_PREFIX_PATH=/usr/local/share', MACOSX_DEPLOYMENT_TARGET = '10.15' }
-
-
 [tool.ruff]
 extend-select = [
   "B", # flake8-bugbear
