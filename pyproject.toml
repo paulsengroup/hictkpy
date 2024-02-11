@@ -49,6 +49,7 @@ test-skip = ["*universal2", "pp*"]
 before-build = [
   "rm -rf '{project}/build'",
 ]
+environment = { PIP_VERBOSE=2 }
 
 [tool.ruff]
 extend-select = [
