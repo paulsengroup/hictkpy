@@ -40,7 +40,7 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*musllinux*"]
+skip = ["*musllinux*", "cp38-macosx_arm64"]
 test-command = "pytest {project}/test"
 test-extras = ["test"]
 test-skip = ["*universal2", "pp*"]
@@ -49,7 +49,7 @@ test-skip = ["*universal2", "pp*"]
 before-build = [
   "rm -rf '{project}/build'",
 ]
-environment = { PIP_VERBOSE=2 }
+environment = { PIP_VERBOSE=1 }
 
 [tool.ruff]
 extend-select = [
@@ -63,11 +63,11 @@ extend-select = [
 extend-ignore = [
   "E501", # Line too long
 ]
-target-version = "py37"
+target-version = "py38"
 
 [tool.black]
 line-length = 120
-target-version = ["py37"]
+target-version = ["py38"]
 
 [tool.isort]
 profile = "black"
