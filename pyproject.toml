@@ -40,7 +40,7 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*musllinux*", "cp38-macosx_arm64"]
+skip = ["*musllinux*", "cp38-macosx_arm64", "cp38-win*"]
 test-command = "pytest {project}/test"
 test-extras = ["test"]
 test-skip = ["*universal2", "pp*"]

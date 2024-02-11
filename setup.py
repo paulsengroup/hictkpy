@@ -39,7 +39,17 @@ class CMakeBuild(build_ext):
         extdir = ext_fullpath.parent.resolve() / ext.name
         extdir.mkdir(exist_ok=True, parents=True)
         with open(extdir / "__init__.py", "w") as f:
-            symbols = ", ".join(("File", "PixelSelector", "is_cooler", "is_hic", "__hictk_version__"))
+            symbols = ", ".join(
+                (
+                    "File",
+                    "PixelSelector",
+                    "ThinPixel",
+                    "Pixel",
+                    "is_cooler",
+                    "is_hic",
+                    "__hictk_version__",
+                )
+            )
             f.write(
                 textwrap.dedent(
                     f"""
