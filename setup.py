@@ -71,8 +71,8 @@ class CMakeBuild(build_ext):
             "-DHICTK_BUILD_EXAMPLES=OFF",
             "-DHICTK_BUILD_BENCHMARKS=OFF",
             "-DHICTK_BUILD_TOOLS=OFF",
-            "-DBUILD_SHARED_LIBS=ON",
             "-DHICTK_ENABLE_GIT_VERSION_TRACKING=OFF",
+            "-DBUILD_SHARED_LIBS=OFF",
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}{os.sep}",
             f"-DCMAKE_BUILD_TYPE={cfg}",  # not used on MSVC, but no harm
         ]
@@ -154,7 +154,7 @@ class CMakeBuild(build_ext):
                     "compiler.cppstd=17",
                     f"--output-folder={build_temp.absolute()}",
                     "-o",
-                    "*/*:shared=True",
+                    "*/*:shared=False",
                     "--build=missing",
                 ],
                 check=True,
