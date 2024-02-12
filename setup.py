@@ -43,10 +43,6 @@ class CMakeBuild(build_ext):
                 (
                     "File",
                     "PixelSelector",
-                    "ThinPixelInt",
-                    "ThinPixelFP",
-                    "PixelInt",
-                    "PixelFP",
                     "is_cooler",
                     "is_hic",
                     "__hictk_version__",
