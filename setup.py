@@ -11,7 +11,7 @@ import sys
 import textwrap
 from pathlib import Path
 
-from setuptools import Extension, setup
+from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
@@ -178,6 +178,7 @@ class CMakeBuild(build_ext):
 # The information here can also be placed in setup.cfg - better separation of
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
+    packages=find_packages(),
     ext_modules=[CMakeExtension("hictkpy")],
     cmdclass={"build_ext": CMakeBuild},
 )
