@@ -4,30 +4,55 @@
 
 [build-system]
 requires = [
-  "setuptools>=42",
-  "setuptools_scm[toml]>=6.2",
-  "wheel",
-  "ninja",
-  "cmake>=3.25",
-  "conan>=2"
+  "conan>=2.0.5",
+  "scikit-build-core>=0.8",
 ]
-build-backend = "setuptools.build_meta"
+
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "hictkpy"
+dynamic = ["version"]
+description = "Blazing fast toolkit to work with .hic and .cool files"
+readme = "README.md"
+authors = [
+  {name = "Roberto Rossini", email = "roberros@uio.no"}
+]
+requires-python = ">=3.8"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "License :: OSI Approved :: MIT License"
+]
+
+dependencies = [
+  "numpy",
+  "pandas!=2.2.0",
+  "scipy",
+]
+
+optional-dependencies.test = [
+  "pytest>=6.0"
+]
+
+[tool.scikit-build]
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+sdist.include = ["src/_version.py"]
+wheel.expand-macos-universal-tags = true
+cmake.build-type = "Release"
+
+[tool.scikit-build.cmake.define]
+CMAKE_OSX_DEPLOYMENT_TARGET = "10.15"
+CMAKE_PROJECT_TOP_LEVEL_INCLUDES = "cmake/conan_provider.cmake"
+HICTK_ENABLE_TESTING = "OFF"
+HICTK_BUILD_EXAMPLES = "OFF"
+HICTK_BUILD_BENCHMARKS = "OFF"
+HICTK_BUILD_TOOLS = "OFF"
+HICTK_ENABLE_GIT_VERSION_TRACKING = "OFF"
+BUILD_SHARED_LIBS = "OFF"
 
 [tool.setuptools_scm]
 write_to = "src/_version.py"
-
-[tool.mypy]
-files = "setup.py"
-python_version = "3.8"
-strict = true
-show_error_codes = true
-enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
-warn_unreachable = true
-
-[[tool.mypy.overrides]]
-module = ["ninja"]
-ignore_missing_imports = true
-
 
 [tool.pytest.ini_options]
 minversion = "7.0"
@@ -40,7 +65,7 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*musllinux*", "cp38-macosx_arm64", "cp38-win*"]
+skip = ["*musllinux*", "cp38-macosx_arm64"]
 test-command = "python -m pytest {project}/test"
 test-extras = ["test"]
 test-skip = ["*universal2", "pp*"]
