@@ -30,6 +30,12 @@ FetchContent_Declare(
   URL_HASH  "SHA256=c003924e92a9957a0cf43b85ae9ede29392be5227f427ca2fab9e420ea8217c9"
   SYSTEM)
 
+FetchContent_Declare(
+        nanobind
+        URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v1.8.0.tar.xz"
+        URL_HASH  "SHA256=e70b23b82582aa6394bc8d8604c3736d2f1d8eeae15c309cd7cc37093aa4c406"
+        SYSTEM)
+
 set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
 set(HICTK_BUILD_BENCHMARKS OFF)
@@ -37,7 +43,7 @@ set(HICTK_BUILD_PYTHON_BINDINGS OFF)
 set(HICTK_WITH_EIGEN OFF)
 set(HICTK_BUILD_TOOLS OFF)
 set(HICTK_INSTALL OFF)
-FetchContent_MakeAvailable(hictk)
+FetchContent_MakeAvailable(hictk nanobind)
 
 add_library(hictkpy_project_options INTERFACE)
 target_compile_features(hictkpy_project_options INTERFACE "cxx_std_${CMAKE_CXX_STANDARD}")

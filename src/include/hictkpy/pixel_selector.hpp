@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string_view.h>
+
 #include <cstdint>
 #include <memory>
 #include <tuple>
@@ -46,11 +49,11 @@ struct PixelSelector {
   [[nodiscard]] auto get_coord1() const -> PixelCoordTuple;
   [[nodiscard]] auto get_coord2() const -> PixelCoordTuple;
 
-  [[nodiscard]] pybind11::iterator make_iterable() const;
-  [[nodiscard]] pybind11::object to_df() const;
-  [[nodiscard]] pybind11::object to_coo() const;
-  [[nodiscard]] pybind11::object to_numpy() const;
-  [[nodiscard]] pybind11::object sum() const;
+  [[nodiscard]] nanobind::iterator make_iterable() const;
+  [[nodiscard]] nanobind::object to_df() const;
+  [[nodiscard]] nanobind::object to_coo() const;
+  [[nodiscard]] nanobind::object to_numpy() const;
+  [[nodiscard]] nanobind::object sum() const;
   [[nodiscard]] std::int64_t nnz() const;
 
  private:
