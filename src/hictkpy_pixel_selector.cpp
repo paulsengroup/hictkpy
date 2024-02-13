@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 #include <fmt/format.h>
-#include <pybind11/pybind11.h>
+#include <nanobind/make_iterator.h>
+#include <nanobind/nanobind.h>
 
 #include <variant>
 
@@ -13,7 +14,7 @@
 #include "hictkpy/common.hpp"
 #include "hictkpy/pixel_selector.hpp"
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace hictkpy {
 
@@ -113,7 +114,7 @@ auto PixelSelector::get_coord2() const -> PixelCoordTuple {
                                          c.bin2.chrom().name(), c.bin2.start(), c.bin2.end())};
 }
 
-py::iterator PixelSelector::make_iterable() const {
+nb::iterator PixelSelector::make_iterable() const {
   if (join) {
     return std::visit(
         [&](const auto& s) {
@@ -122,13 +123,15 @@ py::iterator PixelSelector::make_iterable() const {
             auto jsel = hictk::transformers::JoinGenomicCoords(
                 s->template begin<T>(), s->template end<T>(),
                 std::make_shared<const hictk::BinTable>(bins()));
-            return py::make_iterator(jsel.begin(), jsel.end());
+            return nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator", jsel.begin(),
+                                     jsel.end());
           }
           using T = double;
           auto jsel = hictk::transformers::JoinGenomicCoords(
               s->template begin<T>(), s->template end<T>(),
               std::make_shared<const hictk::BinTable>(bins()));
-          return py::make_iterator(jsel.begin(), jsel.end());
+          return nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator", jsel.begin(),
+                                   jsel.end());
         },
         selector);
   }
@@ -136,15 +139,17 @@ py::iterator PixelSelector::make_iterable() const {
       [&](const auto& s) {
         if (int_pixels()) {
           using T = std::int32_t;
-          return py::make_iterator(s->template begin<T>(), s->template end<T>());
+          return nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator",
+                                   s->template begin<T>(), s->template end<T>());
         }
         using T = double;
-        return py::make_iterator(s->template begin<T>(), s->template end<T>());
+        return nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator", s->template begin<T>(),
+                                 s->template end<T>());
       },
       selector);
 }
 
-py::object PixelSelector::to_df() const {
+nb::object PixelSelector::to_df() const {
   return std::visit(
       [&](const auto& s) {
         if (int_pixels()) {
@@ -160,7 +165,7 @@ py::object PixelSelector::to_df() const {
       selector);
 }
 
-py::object PixelSelector::to_coo() const {
+nb::object PixelSelector::to_coo() const {
   const auto bin_size = bins().bin_size();
 
   const auto span1 = coord1().bin2.end() - coord1().bin1.start();
@@ -182,7 +187,7 @@ py::object PixelSelector::to_coo() const {
       selector);
 }
 
-py::object PixelSelector::to_numpy() const {
+nb::object PixelSelector::to_numpy() const {
   const auto bin_size = bins().bin_size();
 
   const auto span1 = coord1().bin2.end() - coord1().bin1.start();
@@ -209,19 +214,19 @@ py::object PixelSelector::to_numpy() const {
       selector);
 }
 
-py::object PixelSelector::sum() const {
+nb::object PixelSelector::sum() const {
   return std::visit(
-      [&](const auto& s) -> py::object {
+      [&](const auto& s) -> nb::object {
         if (int_pixels()) {
           using T = std::int32_t;
-          return py::cast(
+          return nb::cast(
               std::accumulate(s->template begin<T>(), s->template end<T>(), std::int64_t(0),
                               [](std::int64_t accumulator, const hictk::ThinPixel<T>& tp) {
                                 return accumulator + tp.count;
                               }));
         } else {
           using T = double;
-          return py::cast(std::accumulate(
+          return nb::cast(std::accumulate(
               s->template begin<T>(), s->template end<T>(), double(0),
               [](T accumulator, const hictk::ThinPixel<T>& tp) { return accumulator + tp.count; }));
         }

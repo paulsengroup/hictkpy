@@ -4,7 +4,9 @@
 
 #pragma once
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string_view.h>
+#include <nanobind/stl/string.h>
 
 #include <cstdint>
 #include <string>
@@ -14,11 +16,11 @@
 #include "hictk/file.hpp"
 
 namespace hictkpy::multires_file {
-[[nodiscard]] hictk::cooler::MultiResFile ctor(std::string_view path);
+void ctor(hictk::cooler::MultiResFile* fp, std::string_view path);
 
 [[nodiscard]] std::string repr(const hictk::cooler::MultiResFile& mclr);
 
-[[nodiscard]] pybind11::dict get_attrs(const hictk::cooler::MultiResFile& mclr);
+[[nodiscard]] nanobind::dict get_attrs(const hictk::cooler::MultiResFile& mclr);
 
 [[nodiscard]] hictk::File getitem(const hictk::cooler::MultiResFile& mclr,
                                   std::uint32_t resolution);
