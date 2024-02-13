@@ -35,11 +35,11 @@ class TestClass:
             assert f.attributes()["format"] == "HIC"
 
     def test_normalizations(self, file, resolution):
-      f = hictkpy.File(file, resolution)
+        f = hictkpy.File(file, resolution)
 
-      if f.is_cooler():
-          assert f.avail_normalizations() == ["KR", "SCALE", "VC", "VC_SQRT", "weight"]
-      else:
-          assert f.avail_normalizations() == ["ICE"]
+        if f.is_cooler():
+            assert f.avail_normalizations() == ["KR", "SCALE", "VC", "VC_SQRT", "weight"]
+        else:
+            assert f.avail_normalizations() == ["ICE"]
 
-      assert not f.has_normalization("foo")
+        assert not f.has_normalization("foo")

@@ -4,30 +4,56 @@
 
 [build-system]
 requires = [
-  "setuptools>=42",
-  "setuptools_scm[toml]>=6.2",
-  "wheel",
-  "ninja",
-  "cmake>=3.25",
-  "conan>=2"
+  "conan>=2.0.5",
+  "scikit-build-core>=0.8",
 ]
-build-backend = "setuptools.build_meta"
+
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "hictkpy"
+dynamic = ["version"]
+description = "Blazing fast toolkit to work with .hic and .cool files"
+readme = "README.md"
+authors = [
+  {name = "Roberto Rossini", email = "roberros@uio.no"}
+]
+requires-python = ">=3.8"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "License :: OSI Approved :: MIT License"
+]
+
+dependencies = [
+  "numpy",
+  "pandas!=2.2.0",
+  "scipy",
+]
+
+optional-dependencies.test = [
+  "pytest>=6.0"
+]
+
+[tool.scikit-build]
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+sdist.include = ["src/_version.py"]
+wheel.expand-macos-universal-tags = true
+cmake.build-type = "Release"
+
+[tool.scikit-build.cmake.define]
+CMAKE_OSX_DEPLOYMENT_TARGET = "10.15"
+CMAKE_PROJECT_TOP_LEVEL_INCLUDES = "cmake/conan_provider.cmake"
+HICTK_ENABLE_TESTING = "OFF"
+HICTK_BUILD_EXAMPLES = "OFF"
+HICTK_BUILD_BENCHMARKS = "OFF"
+HICTK_BUILD_TOOLS = "OFF"
+HICTK_ENABLE_GIT_VERSION_TRACKING = "OFF"
+BUILD_SHARED_LIBS = "OFF"
+CONAN_INSTALL_ARGS = "--settings=compiler.cppstd=17;--build=missing;--update;--options=*/*:shared=False"
 
 [tool.setuptools_scm]
 write_to = "src/_version.py"
-
-[tool.mypy]
-files = "setup.py"
-python_version = "3.7"
-strict = true
-show_error_codes = true
-enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
-warn_unreachable = true
-
-[[tool.mypy.overrides]]
-module = ["ninja"]
-ignore_missing_imports = true
-
 
 [tool.pytest.ini_options]
 minversion = "7.0"
@@ -40,26 +66,16 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*musllinux*"]
-test-command = "pytest {project}/test"
+skip = ["*musllinux*", "cp38-macosx_arm64"]
+test-command = "python -m pytest {project}/test"
 test-extras = ["test"]
-test-skip = ["*universal2:arm64", "pp*"]
+test-skip = ["*universal2", "pp*"]
 
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-build = [
   "rm -rf '{project}/build'",
 ]
-
-[tool.cibuildwheel.macos]
-# Setuptools bug causes collision between pypy and cpython artifacts
-before-build = [
-  "rm -rf '{project}/build'",
-  'pip3 install "conan>=2"',
-  "sudo conan profile detect --force",
-  "cd '{project}/devel/cibw/macos' && sudo ./cibw_setup_deps.sh"
-]
-environment = { HICTKPY_SETUP_SKIP_CONAN = '1', CMAKE_ARGS = '-DCMAKE_PREFIX_PATH=/usr/local/share', MACOSX_DEPLOYMENT_TARGET = '10.15' }
-
+environment = { PIP_VERBOSE=1 }
 
 [tool.ruff]
 extend-select = [
@@ -73,11 +89,11 @@ extend-select = [
 extend-ignore = [
   "E501", # Line too long
 ]
-target-version = "py37"
+target-version = "py38"
 
 [tool.black]
 line-length = 120
-target-version = ["py37"]
+target-version = ["py38"]
 
 [tool.isort]
 profile = "black"
