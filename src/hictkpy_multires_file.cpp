@@ -27,7 +27,8 @@ py::dict get_attrs(const hictk::cooler::MultiResFile& mclr) {
 
   py_attrs["format"] = mclr.attributes().format;
   py_attrs["format_version"] = mclr.attributes().format_version;
-  py_attrs["bin_type"] = mclr.attributes().bin_type;
+  py_attrs["bin_type"] =
+      mclr.attributes().bin_type.has_value() ? *mclr.attributes().bin_type : "fixed";
 
   return py_attrs;
 }
