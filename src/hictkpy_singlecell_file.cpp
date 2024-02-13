@@ -29,10 +29,10 @@ nb::dict get_attrs(const hictk::cooler::SingleCellFile& sclr) {
 
   const auto& attrs = sclr.attributes();
 
-  py_attrs["bin_size"] = attrs.bin_type;
-  py_attrs["bin_type"] = attrs.bin_type;
+  py_attrs["bin-size"] = attrs.bin_type;
+  py_attrs["bin-type"] = attrs.bin_type;
   py_attrs["format"] = attrs.format;
-  py_attrs["format_version"] = attrs.format_version;
+  py_attrs["format-version"] = attrs.format_version;
 
   for (const auto& key : {"storage-mode", "creation-date", "generated-by", "assembly", "metadata",
                           "format-url", "nbins", "nchroms", "ncells"}) {

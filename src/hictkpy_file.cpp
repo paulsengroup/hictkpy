@@ -70,10 +70,10 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   nb::dict py_attrs;
   const auto &attrs = clr.attributes();
 
-  py_attrs["bin_size"] = attrs.bin_size;
-  py_attrs["bin_type"] = attrs.bin_type;
+  py_attrs["bin-size"] = attrs.bin_size;
+  py_attrs["bin-type"] = attrs.bin_type.has_value() ? *attrs.bin_type : "fixed";
   py_attrs["format"] = attrs.format;
-  py_attrs["format_version"] = attrs.format_version;
+  py_attrs["format-version"] = attrs.format_version;
 
   for (const auto &key : {"storage-mode", "creation-date", "generated-by", "assembly", "metadata",
                           "format-url", "nbins", "nchroms", "nnz", "sum", "cis"}) {
