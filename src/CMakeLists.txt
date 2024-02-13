@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 find_package(
-  Python 3.8
+  Python 3.9
   COMPONENTS Interpreter Development.Module
   REQUIRED)
 
