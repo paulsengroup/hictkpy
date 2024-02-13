@@ -191,6 +191,10 @@ PYBIND11_MODULE(hictkpy, m) {
 
   m.def("is_cooler", &file::is_cooler, py::arg("path"),
         "Test whether path points to a cooler file.");
+  m.def("is_mcool_file", &file::is_mcool_file, py::arg("path"),
+        "Test whether path points to a .mcool file.");
+  m.def("is_scool_file", &file::is_scool_file, py::arg("path"),
+        "Test whether path points to a .scool file.");
   m.def("is_hic", &file::is_hic, py::arg("path"), "Test whether path points to a .hic file.");
 
   declare_thin_pixel_class<std::int32_t>(m, "Int");
