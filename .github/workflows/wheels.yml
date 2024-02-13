@@ -90,7 +90,7 @@ jobs:
         with:
           platforms: all
 
-      - name: Build wheels
+      - name: Build wheels (PR)
         uses: pypa/cibuildwheel@v2.16
         if: github.event_name == 'pull_request'
         env:
