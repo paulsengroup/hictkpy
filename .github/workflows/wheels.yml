@@ -92,6 +92,14 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16
+        if: github.event_name == 'pull_request'
+        env:
+          CIBW_ARCHS_LINUX: "x86_64"
+          CIBW_ARCHS_WINDOWS: "AMD64"
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.16
+        if: github.event_name != 'pull_request'
         env:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_ARCHS_WINDOWS: "AMD64"
