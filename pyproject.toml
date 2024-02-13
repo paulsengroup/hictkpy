@@ -50,6 +50,7 @@ HICTK_BUILD_BENCHMARKS = "OFF"
 HICTK_BUILD_TOOLS = "OFF"
 HICTK_ENABLE_GIT_VERSION_TRACKING = "OFF"
 BUILD_SHARED_LIBS = "OFF"
+CONAN_INSTALL_ARGS = "--settings=compiler.cppstd=17;--build=missing;--update;--options=*/*:shared=False"
 
 [tool.setuptools_scm]
 write_to = "src/_version.py"
