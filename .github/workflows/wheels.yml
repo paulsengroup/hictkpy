@@ -70,9 +70,14 @@ jobs:
           path: dist/*.tar.gz
 
 
-  build-wheels-linux:
-    name: Wheels on Linux
-    runs-on: ubuntu-latest
+  build-wheels:
+    name: Build Wheels
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-12, macos-14, windows-2019]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
@@ -80,14 +85,24 @@ jobs:
           fetch-depth: 0
 
       - name: Set up QEMU
+        if: matrix.os == 'ubuntu-22.04'
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
+      - name: Build wheels (PR)
+        uses: pypa/cibuildwheel@v2.16
+        if: github.event_name == 'pull_request'
+        env:
+          CIBW_ARCHS_LINUX: "x86_64"
+          CIBW_ARCHS_WINDOWS: "AMD64"
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16
+        if: github.event_name != 'pull_request'
         env:
-          CIBW_ARCHS_LINUX: x86_64
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_ARCHS_WINDOWS: "AMD64"
 
       - name: Verify clean directory
         run: git diff --exit-code
@@ -95,134 +110,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux
-          path: wheelhouse/*.whl
-
-  build-wheels-macos:
-    name: Wheels on macOS
-    runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12' ]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Generate cache key
-        id: cache-key
-        run: |
-          hash="${{ hashFiles('conanfile.txt') }}"
-
-          echo "conan-key=conan-macos-$hash" >> $GITHUB_OUTPUT
-
-      - name: Restore Conan cache
-        id: cache-conan
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ steps.cache-key.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}
-
-      - name: Build wheels
-        env:
-          MACOSX_DEPLOYMENT_TARGET: '10.15'
-        run: pip wheel . -vv --no-deps
-
-      - name: Save Conan cache
-        uses: actions/cache/save@v4
-        if: steps.cache-conan.outputs.cache-hit != 'true'
-        with:
-          key: ${{ steps.cache-key.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}
-
-      - name: Fix wheels
-        run: |
-          pip install delocate
-
-          mkdir lib/
-          find "$CONAN_HOME/p/" -name '*.dylib' -exec cp '{}' lib/ \;
-
-          DYLD_LIBRARY_PATH="$PWD/lib/:/usr/local/lib:/usr/lib" \
-          delocate-wheel --check-archs -v hictkpy*.whl
-
-      - name: Test wheels
-        run: |
-          wheel=(hictkpy*.whl)
-          pip install "${wheel[@]}[test]"
-          pytest test -v
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos-py${{ matrix.python-version }}
-          path: ./*.whl
-
-  build-wheels-windows:
-    name: Wheels on Windows
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [ '3.8', '3.9', '3.10', '3.11' ]  #, '3.12' ]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Generate cache key
-        id: cache-key
-        run: |
-          hash="${{ hashFiles('conanfile.txt') }}"
-
-          echo "conan-key=conan-windows-$hash" >> $GITHUB_OUTPUT
-
-      - name: Restore Conan cache
-        id: cache-conan
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ steps.cache-key.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}
-
-      - name: Build wheels
-        run: pip wheel . -vv --no-deps
-
-      - name: Save Conan cache
-        uses: actions/cache/save@v4
-        if: steps.cache-conan.outputs.cache-hit != 'true'
-        with:
-          key: ${{ steps.cache-key.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}
-
-      - name: Fix wheels
-        run: |
-          pip install delvewheel
-
-          mkdir dlls/
-          find "$CONAN_HOME/p/" -type f -name '*.dll' -exec cp '{}' dlls/ \;
-
-          delvewheel repair --add-path ./dlls/ hictkpy*.whl
-
-      - name: Test wheels
-        run: |
-          wheel=(wheelhouse/hictkpy*.whl)
-          pip install "${wheel[@]}[test]"
-          pytest test -v
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-windows-py${{ matrix.python-version }}
+          name: "wheels-${{ matrix.os }}"
           path: wheelhouse/*.whl
 
   package-artifacts:
@@ -230,9 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-sdist
-      - build-wheels-linux
-      - build-wheels-macos
-      - build-wheels-windows
+      - build-wheels
 
     steps:
       - name: Download artifacts

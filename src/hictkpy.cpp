@@ -181,7 +181,7 @@ static void declare_singlecell_file_class(pybind11::module_ &m) {
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-PYBIND11_MODULE(hictkpy, m) {
+PYBIND11_MODULE(_hictkpy, m) {
   [[maybe_unused]] auto np = py::module::import("numpy");
   [[maybe_unused]] auto pd = py::module::import("pandas");
   [[maybe_unused]] auto ss = py::module::import("scipy.sparse");

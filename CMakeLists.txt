@@ -30,7 +30,6 @@ FetchContent_Declare(
   URL_HASH  "SHA256=c003924e92a9957a0cf43b85ae9ede29392be5227f427ca2fab9e420ea8217c9"
   SYSTEM)
 
-set(BUILD_SHARED_LIBS ON)
 set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
 set(HICTK_BUILD_BENCHMARKS OFF)
@@ -50,13 +49,13 @@ endif()
 
 add_library(hictkpy_project_warnings INTERFACE)
 target_compile_options(
-        hictkpy_project_warnings
-        INTERFACE # C++ warnings
-        $<$<COMPILE_LANGUAGE:CXX>:${HICTKPY_PROJECT_WARNINGS_CXX}>
-        # C warnings
-        $<$<COMPILE_LANGUAGE:C>:${HICTKPY_PROJECT_WARNINGS_C}>
-        # Cuda warnings
-        $<$<COMPILE_LANGUAGE:CUDA>:${HICTKPY_PROJECT_WARNINGS_CUDA}>)
+  hictkpy_project_warnings
+  INTERFACE # C++ warnings
+            $<$<COMPILE_LANGUAGE:CXX>:${HICTKPY_PROJECT_WARNINGS_CXX}>
+            # C warnings
+            $<$<COMPILE_LANGUAGE:C>:${HICTKPY_PROJECT_WARNINGS_C}>
+            # Cuda warnings
+            $<$<COMPILE_LANGUAGE:CUDA>:${HICTKPY_PROJECT_WARNINGS_CUDA}>)
 
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
