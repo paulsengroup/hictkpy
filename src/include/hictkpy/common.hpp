@@ -4,12 +4,15 @@
 
 #pragma once
 
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/ndarray.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/string_view.h>
+#include <nanobind/stl/vector.h>
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "hictk/balancing/methods.hpp"
@@ -21,33 +24,112 @@
 
 namespace hictkpy {
 
-namespace py = pybind11;
-using namespace pybind11::literals;
+namespace nb = nanobind;
+using namespace nb::literals;
+
+template <typename T>
+constexpr std::string_view map_type_to_dtype() {
+  if constexpr (std::is_unsigned_v<T>) {
+    switch (sizeof(T)) {
+      case 1:
+        return "uint8";
+      case 2:
+        return "uint16";
+      case 4:
+        return "uint32";
+      case 8:
+        return "uint64";
+    }
+  }
+  if constexpr (std::is_integral_v<T>) {
+    switch (sizeof(T)) {
+      case 1:
+        return "int8";
+      case 2:
+        return "int16";
+      case 4:
+        return "int32";
+      case 8:
+        return "int64";
+    }
+  }
+  switch (sizeof(T)) {
+    case 2:
+      return "float16";
+    case 4:
+      return "float32";
+    case 8:
+      return "float64";
+  }
+
+  throw std::runtime_error("Unable to infer numpy dtype.");
+}
 
 template <typename T>
 struct Dynamic1DA {
  private:
-  py::array_t<T> _buff{};
+  using BufferT = nb::ndarray<nb::numpy, nb::shape<nb::any>, T>;
+  using VectorT = decltype(std::declval<BufferT>().view());
+  nb::object _np_array{};
+  BufferT _buff{};
+  VectorT _vector{};
+  nb::object _dtype{};
+
   std::int64_t _size{};
+  std::int64_t _capacity{};
 
  public:
   inline explicit Dynamic1DA(std::size_t size_ = 1000)
-      : _buff({static_cast<std::int64_t>(size_)}) {}
-  inline void append(T x) {
-    if (_buff.size() == _size) {
+      : _capacity(static_cast<std::int64_t>(size_)) {
+    const auto np = nb::module_::import_("numpy");
+    _dtype = np.attr("dtype")(map_type_to_dtype<T>());
+    _np_array = np.attr("empty")(size_, "dtype"_a = _dtype);
+    _buff = nb::cast<BufferT>(_np_array);
+    _vector = _buff.view();
+  }
+
+  inline void push_back(T x) {
+    if (_capacity == _size) {
       grow();
     }
-    auto buffer = _buff.mutable_unchecked();
-    buffer(_size++) = x;
+    _vector(_size++) = x;
   }
-  inline void grow() { _buff.resize({_buff.size() * 2}); }
-  inline void shrink_to_fit() { _buff.resize({_size}); }
-  [[nodiscard]] py::array_t<T> &&operator()() noexcept { return std::move(_buff); }
+
+  inline void emplace_back(T &&x) {
+    if (_capacity == _size) {
+      grow();
+    }
+    _vector(_size++) = std::move(x);
+  }
+  inline void resize(std::int64_t new_size) {
+    if (_capacity == new_size) {
+      return;
+    }
+    auto np = nb::module_::import_("numpy");
+
+    auto new_array = np.attr("empty")(new_size, "dtype"_a = _dtype);
+    auto new_buff = nb::cast<BufferT>(new_array);
+    auto new_vector = new_buff.view();
+
+    _capacity = new_size;
+    _size = std::min(_capacity, _size);
+    std::copy(_vector.data(), _vector.data() + static_cast<std::size_t>(_size), new_vector.data());
+
+    std::swap(new_array, _np_array);
+    std::swap(new_buff, _buff);
+    std::swap(new_vector, _vector);
+  }
+  inline void grow() { resize(_buff.size() * 2); }
+  inline void shrink_to_fit() { resize(_size); }
+  [[nodiscard]] auto operator()() -> BufferT {
+    shrink_to_fit();
+    return _buff;
+  }
 };
 
 template <typename File>
-inline py::dict get_chromosomes_from_file(const File &f, bool include_all = false) {
-  py::dict py_chroms{};  // NOLINT
+inline nb::dict get_chromosomes_from_file(const File &f, bool include_all = false) {
+  nb::dict py_chroms{};  // NOLINT
   for (const auto &chrom : f.chromosomes()) {
     if (!include_all && chrom.is_all()) {
       continue;
@@ -60,25 +142,27 @@ inline py::dict get_chromosomes_from_file(const File &f, bool include_all = fals
 }
 
 template <typename File>
-inline py::object get_bins_from_file(const File &f) {
-  auto pd = py::module::import("pandas");
+inline nb::object get_bins_from_file(const File &f) {
+  auto pd = nb::module_::import_("pandas");
 
-  std::vector<py::str> chrom_names{};
-  Dynamic1DA<std::uint32_t> starts{};
-  Dynamic1DA<std::uint32_t> ends{};
+  Dynamic1DA<std::int32_t> chrom_ids{};
+  Dynamic1DA<std::int32_t> starts{};
+  Dynamic1DA<std::int32_t> ends{};
   for (const auto &bin : f.bins()) {
-    chrom_names.emplace_back(std::string{bin.chrom().name()});
-    starts.append(bin.start());
-    ends.append(bin.end());
+    chrom_ids.push_back(static_cast<std::int32_t>(bin.chrom().id()));
+    starts.push_back(static_cast<std::int32_t>(bin.start()));
+    ends.push_back(static_cast<std::int32_t>(bin.end()));
   }
 
-  chrom_names.shrink_to_fit();
-  starts.shrink_to_fit();
-  ends.shrink_to_fit();
+  std::vector<std::string> chrom_names{};
+  std::transform(f.chromosomes().begin(), f.chromosomes().end(), std::back_inserter(chrom_names),
+                 [&](const hictk::Chromosome &chrom) { return std::string{chrom.name()}; });
 
-  py::dict py_bins_dict{};  // NOLINT
+  nb::dict py_bins_dict{};  // NOLINT
 
-  py_bins_dict["chrom"] = pd.attr("Series")(py::array(py::cast(chrom_names)), "copy"_a = false);
+  py_bins_dict["chrom"] =
+      pd.attr("Categorical")
+          .attr("from_codes")(chrom_ids(), "categories"_a = chrom_names, "validate"_a = false);
   py_bins_dict["start"] = pd.attr("Series")(starts(), "copy"_a = false);
   py_bins_dict["end"] = pd.attr("Series")(ends(), "copy"_a = false);
 
@@ -87,68 +171,60 @@ inline py::object get_bins_from_file(const File &f) {
 }
 
 template <typename PixelIt>
-inline py::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel,
+inline nb::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel,
                                          std::size_t num_rows, std::size_t num_cols,
                                          std::size_t row_offset = 0, std::size_t col_offset = 0) {
   using N = decltype(first_pixel->count);
-  auto ss = py::module::import("scipy.sparse");
+  auto ss = nb::module_::import_("scipy.sparse");
 
   Dynamic1DA<std::int64_t> bin1_ids{};
   Dynamic1DA<std::int64_t> bin2_ids{};
   Dynamic1DA<N> counts{};
 
   std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
-    bin1_ids.append(static_cast<std::int64_t>(tp.bin1_id - row_offset));
-    bin2_ids.append(static_cast<std::int64_t>(tp.bin2_id - col_offset));
-    counts.append(tp.count);
+    bin1_ids.push_back(static_cast<std::int64_t>(tp.bin1_id - row_offset));
+    bin2_ids.push_back(static_cast<std::int64_t>(tp.bin2_id - col_offset));
+    counts.push_back(tp.count);
   });
-
-  bin1_ids.shrink_to_fit();
-  bin2_ids.shrink_to_fit();
-  counts.shrink_to_fit();
 
   // See
   // https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#scipy.sparse.coo_matrix
   // Building a sparse COO from an array triplet is much faster than converting
   // an Eigen matrix
 
-  py::list shape{};
+  nb::list shape{};
   shape.append(num_rows);
   shape.append(num_cols);
 
-  py::list coords{};
+  nb::list coords{};
   coords.append(bin1_ids());
   coords.append(bin2_ids());
 
-  py::list data{};
+  nb::list data{};
   data.append(counts());
-  data.append(py::tuple(coords));
+  data.append(nb::tuple(coords));
 
-  auto m = ss.attr("coo_matrix")(py::tuple(data), "shape"_a = shape);
+  auto m = ss.attr("coo_matrix")(nb::tuple(data), "shape"_a = shape);
   return m;
 }
 
 template <typename PixelIt>
-inline py::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pixel) {
+inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pixel) {
   using N = decltype(first_pixel->count);
 
-  auto pd = py::module::import("pandas");
+  auto pd = nb::module_::import_("pandas");
 
   Dynamic1DA<std::int64_t> bin1_ids{};
   Dynamic1DA<std::int64_t> bin2_ids{};
   Dynamic1DA<N> counts{};
 
   std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
-    bin1_ids.append(static_cast<std::int64_t>(tp.bin1_id));
-    bin2_ids.append(static_cast<std::int64_t>(tp.bin2_id));
-    counts.append(tp.count);
+    bin1_ids.push_back(static_cast<std::int64_t>(tp.bin1_id));
+    bin2_ids.push_back(static_cast<std::int64_t>(tp.bin2_id));
+    counts.push_back(tp.count);
   });
 
-  bin1_ids.shrink_to_fit();
-  bin2_ids.shrink_to_fit();
-  counts.shrink_to_fit();
-
-  py::dict py_pixels_dict{};  // NOLINT
+  nb::dict py_pixels_dict{};  // NOLINT
 
   py_pixels_dict["bin1_id"] = pd.attr("Series")(bin1_ids(), "copy"_a = false);
   py_pixels_dict["bin2_id"] = pd.attr("Series")(bin2_ids(), "copy"_a = false);
@@ -158,15 +234,21 @@ inline py::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pi
 }
 
 template <typename PixelIt>
-inline py::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pixel,
+inline nb::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pixel,
                                            std::size_t num_rows, std::size_t num_cols,
                                            bool mirror_below_diagonal = true,
                                            std::size_t row_offset = 0, std::size_t col_offset = 0) {
   using N = decltype(first_pixel->count);
 
-  py::array_t<N> matrix({num_rows, num_cols});
-  auto m = matrix.mutable_unchecked();
-  std::fill(m.mutable_data(), m.mutable_data() + m.size(), 0);
+  const auto np = nb::module_::import_("numpy");
+  const auto dtype = np.attr("dtype")(map_type_to_dtype<N>());
+  auto buffer = np.attr("zeros")(std::vector<std::size_t>{num_rows, num_cols}, "dtype"_a = dtype);
+
+  using Shape = nb::shape<nb::any, nb::any>;
+  using MatrixT = nb::ndarray<nb::numpy, N, Shape>;
+
+  auto matrix = nb::cast<MatrixT>(buffer);
+  auto m = matrix.view();
 
   DISABLE_WARNING_PUSH
   DISABLE_WARNING_SIGN_COMPARE
@@ -187,20 +269,22 @@ inline py::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
     }
   });
   DISABLE_WARNING_POP
-  return matrix;
+  return nb::cast(matrix);
 }
 
 template <typename PixelIt>
-inline py::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt first_pixel,
+inline nb::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt first_pixel,
                                          PixelIt last_pixel) {
   using N = decltype(first_pixel->count);
 
-  auto pd = py::module::import("pandas");
+  auto pd = nb::module_::import_("pandas");
 
-  std::vector<py::str> chrom_names1{};
+  nb::ndarray<nb::numpy, int> test;
+
+  Dynamic1DA<uint32_t> chrom1_ids{};
   Dynamic1DA<std::int32_t> starts1{};
   Dynamic1DA<std::int32_t> ends1{};
-  std::vector<py::str> chrom_names2{};
+  Dynamic1DA<uint32_t> chrom2_ids{};
   Dynamic1DA<std::int32_t> starts2{};
   Dynamic1DA<std::int32_t> ends2{};
   Dynamic1DA<N> counts{};
@@ -208,29 +292,33 @@ inline py::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt fi
   std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
     const hictk::Pixel<N> p{bins, tp};
 
-    chrom_names1.emplace_back(p.coords.bin1.chrom().name());
-    starts1.append(static_cast<std::int32_t>(p.coords.bin1.start()));
-    ends1.append(static_cast<std::int32_t>(p.coords.bin1.end()));
+    chrom1_ids.push_back(static_cast<std::int32_t>(p.coords.bin1.chrom().id()));
+    starts1.push_back(static_cast<std::int32_t>(p.coords.bin1.start()));
+    ends1.push_back(static_cast<std::int32_t>(p.coords.bin1.end()));
 
-    chrom_names2.emplace_back(p.coords.bin2.chrom().name());
-    starts2.append(static_cast<std::int32_t>(p.coords.bin2.start()));
-    ends2.append(static_cast<std::int32_t>(p.coords.bin2.end()));
+    chrom2_ids.push_back(static_cast<std::int32_t>(p.coords.bin2.chrom().id()));
+    starts2.push_back(static_cast<std::int32_t>(p.coords.bin2.start()));
+    ends2.push_back(static_cast<std::int32_t>(p.coords.bin2.end()));
 
-    counts.append(p.count);
+    counts.push_back(p.count);
   });
 
-  starts1.shrink_to_fit();
-  ends1.shrink_to_fit();
-  starts2.shrink_to_fit();
-  ends2.shrink_to_fit();
-  counts.shrink_to_fit();
+  std::vector<std::string> chrom_names{};
+  std::transform(bins.chromosomes().begin(), bins.chromosomes().end(),
+                 std::back_inserter(chrom_names),
+                 [&](const hictk::Chromosome &chrom) { return std::string{chrom.name()}; });
 
-  py::dict py_pixels_dict{};  // NOLINT
+  nb::dict py_pixels_dict{};  // NOLINT
 
-  py_pixels_dict["chrom1"] = pd.attr("Series")(py::array(py::cast(chrom_names1)), "copy"_a = false);
+  py_pixels_dict["chrom1"] =
+      pd.attr("Categorical")
+          .attr("from_codes")(chrom1_ids(), "categories"_a = chrom_names, "validate"_a = false);
   py_pixels_dict["start1"] = pd.attr("Series")(starts1(), "copy"_a = false);
   py_pixels_dict["end1"] = pd.attr("Series")(ends1(), "copy"_a = false);
-  py_pixels_dict["chrom2"] = pd.attr("Series")(py::array(py::cast(chrom_names2)), "copy"_a = false);
+
+  py_pixels_dict["chrom2"] =
+      pd.attr("Categorical")
+          .attr("from_codes")(chrom2_ids(), "categories"_a = chrom_names, "validate"_a = false);
   py_pixels_dict["start2"] = pd.attr("Series")(starts2(), "copy"_a = false);
   py_pixels_dict["end2"] = pd.attr("Series")(ends2(), "copy"_a = false);
 
@@ -240,7 +328,7 @@ inline py::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt fi
 }
 
 template <typename PixelIt>
-static py::object pixel_iterators_to_df(const hictk::BinTable &bins, PixelIt first_pixel,
+static nb::object pixel_iterators_to_df(const hictk::BinTable &bins, PixelIt first_pixel,
                                         PixelIt last_pixel, bool join) {
   if (join) {
     return pixel_iterators_to_bg2(bins, first_pixel, last_pixel);
@@ -249,7 +337,7 @@ static py::object pixel_iterators_to_df(const hictk::BinTable &bins, PixelIt fir
 }
 
 template <typename File>
-inline py::object file_fetch_all(File &f, std::string_view normalization,
+inline nb::object file_fetch_all(File &f, std::string_view normalization,
                                  std::string_view count_type, bool join) {
   if (count_type != "int" && count_type != "float") {
     throw std::runtime_error("invalid count type. Allowed types: int, float.");
@@ -269,7 +357,7 @@ inline py::object file_fetch_all(File &f, std::string_view normalization,
 }
 
 template <typename File>
-inline py::object file_fetch(const File &f, std::string_view range1, std::string_view range2,
+inline nb::object file_fetch(const File &f, std::string_view range1, std::string_view range2,
                              std::string_view normalization, std::string_view count_type, bool join,
                              std::string_view query_type) {
   if (range1.empty()) {
@@ -295,7 +383,7 @@ inline py::object file_fetch(const File &f, std::string_view range1, std::string
 }
 
 template <typename File>
-inline py::object file_fetch_all_sparse(File &f, std::string_view normalization,
+inline nb::object file_fetch_all_sparse(File &f, std::string_view normalization,
                                         std::string_view count_type) {
   if (count_type != "int" && count_type != "float") {
     throw std::runtime_error("invalid count type. Allowed types: int, float.");
@@ -316,7 +404,7 @@ inline py::object file_fetch_all_sparse(File &f, std::string_view normalization,
 }
 
 template <typename File>
-inline py::object file_fetch_sparse(const File &f, std::string_view range1, std::string_view range2,
+inline nb::object file_fetch_sparse(const File &f, std::string_view range1, std::string_view range2,
                                     std::string_view normalization, std::string_view count_type,
                                     std::string_view query_type) {
   if (range1.empty()) {
@@ -356,7 +444,7 @@ inline py::object file_fetch_sparse(const File &f, std::string_view range1, std:
 }
 
 template <typename File>
-inline py::object file_fetch_all_dense(File &f, std::string_view normalization,
+inline nb::object file_fetch_all_dense(File &f, std::string_view normalization,
                                        std::string_view count_type) {
   if (count_type != "int" && count_type != "float") {
     throw std::runtime_error("invalid count type. Allowed types: int, float.");
@@ -376,7 +464,7 @@ inline py::object file_fetch_all_dense(File &f, std::string_view normalization,
 }
 
 template <typename File>
-inline py::object file_fetch_dense(const File &f, std::string_view range1, std::string_view range2,
+inline nb::object file_fetch_dense(const File &f, std::string_view range1, std::string_view range2,
                                    std::string_view normalization, std::string_view count_type,
                                    std::string_view query_type) {
   if (range1.empty()) {
@@ -418,7 +506,7 @@ inline py::object file_fetch_dense(const File &f, std::string_view range1, std::
 }
 
 template <typename File>
-inline py::object file_fetch_sum_all(const File &f, std::string_view normalization,
+inline nb::object file_fetch_sum_all(const File &f, std::string_view normalization,
                                      std::string_view count_type) {
   if (normalization != "NONE") {
     count_type = "float";
@@ -426,20 +514,20 @@ inline py::object file_fetch_sum_all(const File &f, std::string_view normalizati
 
   auto sel = f.fetch(hictk::balancing::Method{normalization});
   if (count_type == "int") {
-    return py::cast(std::accumulate(
+    return nb::cast(std::accumulate(
         sel.template begin<std::int32_t>(), sel.template end<std::int32_t>(), std::int64_t(0),
         [](const auto accumulator, const hictk::ThinPixel<std::int32_t> &p) {
           return accumulator + p.count;
         }));
   }
-  return py::cast(std::accumulate(sel.template begin<double>(), sel.template end<double>(), 0.0,
+  return nb::cast(std::accumulate(sel.template begin<double>(), sel.template end<double>(), 0.0,
                                   [](const auto accumulator, const hictk::ThinPixel<double> &p) {
                                     return accumulator + p.count;
                                   }));
 }
 
 template <typename File>
-inline py::object file_fetch_sum(const File &f, std::string_view range1, std::string_view range2,
+inline nb::object file_fetch_sum(const File &f, std::string_view range1, std::string_view range2,
                                  std::string_view normalization, std::string_view count_type,
                                  std::string_view query_type) {
   if (range1.empty()) {
@@ -457,13 +545,13 @@ inline py::object file_fetch_sum(const File &f, std::string_view range1, std::st
                  : f.fetch(range1, range2, hictk::balancing::Method(normalization), qt);
 
   if (count_type == "int") {
-    return py::cast(std::accumulate(
+    return nb::cast(std::accumulate(
         sel.template begin<std::int32_t>(), sel.template end<std::int32_t>(), std::int64_t(0),
         [](const auto accumulator, const hictk::ThinPixel<std::int32_t> &p) {
           return accumulator + p.count;
         }));
   }
-  return py::cast(std::accumulate(sel.template begin<double>(), sel.template end<double>(), 0.0,
+  return nb::cast(std::accumulate(sel.template begin<double>(), sel.template end<double>(), 0.0,
                                   [](const auto accumulator, const hictk::ThinPixel<double> &p) {
                                     return accumulator + p.count;
                                   }));

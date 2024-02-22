@@ -3,16 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 find_package(
-  Python 3.6
+  Python 3.9
   COMPONENTS Interpreter Development.Module
   REQUIRED)
 
-# For some reason linking to std::filesystem breaks cibw builds for Apple Silicon find_package(Filesystem REQUIRED)
-
-find_package(pybind11 CONFIG REQUIRED)
-
-pybind11_add_module(
-  hictkpy
+nanobind_add_module(
+  _hictkpy
+  NB_STATIC LTO
   MODULE
   hictkpy.cpp
   hictkpy_file.cpp
@@ -20,11 +17,13 @@ pybind11_add_module(
   hictkpy_pixel_selector.cpp
   hictkpy_singlecell_file.cpp)
 
-target_include_directories(hictkpy PRIVATE include)
+target_include_directories(_hictkpy PRIVATE include)
 target_link_libraries(
-  hictkpy
+  _hictkpy
   PRIVATE hictkpy_project_options
           hictkpy_project_warnings
           hictk::cooler
           hictk::file
           hictk::hic)
+
+install(TARGETS _hictkpy LIBRARY DESTINATION hictkpy)

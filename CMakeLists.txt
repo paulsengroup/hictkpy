@@ -30,7 +30,12 @@ FetchContent_Declare(
   URL_HASH  "SHA256=84e0cc5dd938661a4bae43a7fd7b6407dc3b83edac62904c2a2393fdfaf0fb01"
   SYSTEM)
 
-set(BUILD_SHARED_LIBS ON)
+FetchContent_Declare(
+        nanobind
+        URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v1.8.0.tar.xz"
+        URL_HASH  "SHA256=e70b23b82582aa6394bc8d8604c3736d2f1d8eeae15c309cd7cc37093aa4c406"
+        SYSTEM)
+
 set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
 set(HICTK_BUILD_BENCHMARKS OFF)
@@ -38,7 +43,7 @@ set(HICTK_BUILD_PYTHON_BINDINGS OFF)
 set(HICTK_WITH_EIGEN OFF)
 set(HICTK_BUILD_TOOLS OFF)
 set(HICTK_INSTALL OFF)
-FetchContent_MakeAvailable(hictk)
+FetchContent_MakeAvailable(hictk nanobind)
 
 add_library(hictkpy_project_options INTERFACE)
 target_compile_features(hictkpy_project_options INTERFACE "cxx_std_${CMAKE_CXX_STANDARD}")
@@ -50,13 +55,13 @@ endif()
 
 add_library(hictkpy_project_warnings INTERFACE)
 target_compile_options(
-        hictkpy_project_warnings
-        INTERFACE # C++ warnings
-        $<$<COMPILE_LANGUAGE:CXX>:${HICTKPY_PROJECT_WARNINGS_CXX}>
-        # C warnings
-        $<$<COMPILE_LANGUAGE:C>:${HICTKPY_PROJECT_WARNINGS_C}>
-        # Cuda warnings
-        $<$<COMPILE_LANGUAGE:CUDA>:${HICTKPY_PROJECT_WARNINGS_CUDA}>)
+  hictkpy_project_warnings
+  INTERFACE # C++ warnings
+            $<$<COMPILE_LANGUAGE:CXX>:${HICTKPY_PROJECT_WARNINGS_CXX}>
+            # C warnings
+            $<$<COMPILE_LANGUAGE:C>:${HICTKPY_PROJECT_WARNINGS_C}>
+            # Cuda warnings
+            $<$<COMPILE_LANGUAGE:CUDA>:${HICTKPY_PROJECT_WARNINGS_CUDA}>)
 
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
