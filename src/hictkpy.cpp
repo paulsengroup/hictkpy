@@ -23,7 +23,7 @@ namespace hictkpy {
 template <typename N>
 static void declare_thin_pixel_class(nb::module_ &m, const std::string &suffix) {
   const auto type_name = std::string{"ThinPixel"} + suffix;
-  nb::class_<hictk::ThinPixel<N>>(m, type_name.c_str())
+  nb::class_<hictk::ThinPixel<N>>(m, type_name.c_str(), "Pixel in COO format.")
       .def_prop_ro("bin1_id", [](const hictk::ThinPixel<N> &tp) { return tp.bin1_id; })
       .def_prop_ro("bin2_id", [](const hictk::ThinPixel<N> &tp) { return tp.bin2_id; })
       .def_prop_ro("count", [](const hictk::ThinPixel<N> &tp) { return tp.count; })
@@ -40,7 +40,7 @@ static void declare_thin_pixel_class(nb::module_ &m, const std::string &suffix) 
 template <typename N>
 static void declare_pixel_class(nb::module_ &m, const std::string &suffix) {
   const auto type_name = std::string{"Pixel"} + suffix;
-  nb::class_<hictk::Pixel<N>>(m, type_name.c_str())
+  nb::class_<hictk::Pixel<N>>(m, type_name.c_str(), "Pixel in BG2 format.")
       .def_prop_ro("bin1_id", [](const hictk::Pixel<N> &p) { return p.coords.bin1.id(); })
       .def_prop_ro("bin2_id", [](const hictk::Pixel<N> &p) { return p.coords.bin2.id(); })
       .def_prop_ro("rel_bin1_id", [](const hictk::Pixel<N> &p) { return p.coords.bin1.rel_id(); })
@@ -67,16 +67,16 @@ static void declare_pixel_class(nb::module_ &m, const std::string &suffix) {
 }
 
 static void declare_pixel_selector_class(nb::module_ &m) {
-  auto sel =
-      nb::class_<PixelSelector>(m, "PixelSelector")
-          .def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view,
-                        bool>(),
-               nb::arg("selector"), nb::arg("type"), nb::arg("join"))
-          .def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool>(),
-               nb::arg("selector"), nb::arg("type"), nb::arg("join"))
-          .def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view,
-                        bool>(),
-               nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  auto sel = nb::class_<PixelSelector>(
+      m, "PixelSelector",
+      "Class representing pixels overlapping with the given genomic intervals.");
+
+  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
 
   sel.def("__repr__", &PixelSelector::repr);
 
@@ -96,12 +96,14 @@ static void declare_pixel_selector_class(nb::module_ &m) {
 }
 
 static void declare_file_class(nb::module_ &m) {
-  auto file = nb::class_<hictk::File>(m, "File").def(
-      "__init__", &file::ctor, nb::arg("path"), nb::arg("resolution"),
-      nb::arg("matrix_type") = "observed", nb::arg("matrix_unit") = "BP",
-      "Construct a file object to a .hic, .cool or .mcool file given the file path and "
-      "resolution.\n"
-      "Resolution is ignored when opening single-resolution Cooler files.");
+  auto file = nb::class_<hictk::File>(m, "File",
+                                      "Class representing a file handle to a .cool or .hic file.");
+
+  file.def("__init__", &file::ctor, nb::arg("path"), nb::arg("resolution"),
+           nb::arg("matrix_type") = "observed", nb::arg("matrix_unit") = "BP",
+           "Construct a file object to a .hic, .cool or .mcool file given the file path and "
+           "resolution.\n"
+           "Resolution is ignored when opening single-resolution Cooler files.");
 
   file.def("__repr__", &file::repr);
 
@@ -135,9 +137,10 @@ static void declare_file_class(nb::module_ &m) {
 static void declare_multires_file_class(nb::module_ &m) {
   auto cooler = m.def_submodule("cooler");
 
-  auto mres_file = nb::class_<hictk::cooler::MultiResFile>(cooler, "MultiResFile")
-                       .def("__init__", &multires_file::ctor, nb::arg("path"),
-                            "Open a multi-resolution Cooler file (.mcool).");
+  auto mres_file = nb::class_<hictk::cooler::MultiResFile>(
+      cooler, "MultiResFile", "Class representing a file handle to a .mcool file");
+  mres_file.def("__init__", &multires_file::ctor, nb::arg("path"),
+                "Open a multi-resolution Cooler file (.mcool).");
 
   mres_file.def("__repr__", &multires_file::repr);
 
@@ -155,9 +158,11 @@ static void declare_multires_file_class(nb::module_ &m) {
 static void declare_singlecell_file_class(nb::module_ &m) {
   auto cooler = m.def_submodule("cooler");
 
-  auto scell_file = nb::class_<hictk::cooler::SingleCellFile>(cooler, "SingleCellFile")
-                        .def("__init__", &singlecell_file::ctor, nb::arg("path"),
-                             "Open a single-cell Cooler file (.scool).");
+  auto scell_file = nb::class_<hictk::cooler::SingleCellFile>(
+      cooler, "SingleCellFile", "Class representing a file handle to a .scool file.");
+
+  scell_file.def("__init__", &singlecell_file::ctor, nb::arg("path"),
+                 "Open a single-cell Cooler file (.scool).");
 
   scell_file.def("__repr__", &singlecell_file::repr);
 
