@@ -62,4 +62,4 @@ discourse:
    :caption: API Reference
    :maxdepth: 1
 
-   hictkpy
+   api/index
