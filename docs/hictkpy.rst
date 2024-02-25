@@ -27,3 +27,14 @@ Python API
 .. autoclass:: SingleCellFile
    :members:
    :special-members: __init__
+
+.. autoclass:: FileWriter
+   :members:
+   :special-members: __init__
+
+.. py:module:: hictkpy.hic
+.. py:currentmodule:: hictkpy.hic
+
+.. autoclass:: FileWriter
+   :members:
+   :special-members: __init__
