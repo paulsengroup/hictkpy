@@ -13,8 +13,8 @@ authors:
 title: hictkpy
 abstract: 'Python bindings for hictk.'
 doi: '10.5281/zenodo.8220299'
-url: 'https://github.com/paulsengroup/hictkR'
-repository-code: 'https://github.com/paulsengroup/hictkR'
+url: 'https://github.com/paulsengroup/hictkpy'
+repository-code: 'https://github.com/paulsengroup/hictkpy'
 type: software
 license: MIT
 preferred-citation:
