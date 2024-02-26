@@ -30,7 +30,7 @@ class TestClass:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test.cool")
-            w = hictkpy.cooler.FileWriter(path, f.chromosomes(), f.bin_size())
+            w = hictkpy.cooler.FileWriter(path, f.chromosomes(), f.resolution())
 
             chunk_size = 1000
             for start in range(0, len(df), chunk_size):
@@ -52,7 +52,7 @@ class TestClass:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test.cool")
-            w = hictkpy.cooler.FileWriter(path, f.chromosomes(), f.bin_size())
+            w = hictkpy.cooler.FileWriter(path, f.chromosomes(), f.resolution())
 
             chunk_size = 1000
             for start in range(0, len(df), chunk_size):
