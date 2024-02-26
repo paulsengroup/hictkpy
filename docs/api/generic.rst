@@ -13,6 +13,10 @@ Generic API
 
 .. autofunction:: is_hic
 
+.. autoclass:: MultiResFile
+   :members:
+   :special-members: __init__
+
 .. autoclass:: File
    :members:
    :special-members: __init__

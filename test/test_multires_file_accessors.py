@@ -20,11 +20,10 @@ pytestmark = pytest.mark.parametrize(
 
 class TestClass:
     def test_attributes(self, file):
-        f = hictkpy.cooler.MultiResFile(file)
+        f = hictkpy.MultiResFile(file)
 
         assert f.path() == file
         assert f.resolutions() == [100_000, 1_000_000]
         assert len(f.chromosomes()) == 8
 
-        assert f.attributes()["format"] == "HDF5::MCOOL"
         assert f[100_000].resolution() == 100_000
