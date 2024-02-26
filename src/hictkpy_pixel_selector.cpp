@@ -166,7 +166,7 @@ nb::object PixelSelector::to_df() const {
 }
 
 nb::object PixelSelector::to_coo() const {
-  const auto bin_size = bins().bin_size();
+  const auto bin_size = bins().resolution();
 
   const auto span1 = coord1().bin2.end() - coord1().bin1.start();
   const auto span2 = coord2().bin2.end() - coord2().bin1.start();
@@ -188,7 +188,7 @@ nb::object PixelSelector::to_coo() const {
 }
 
 nb::object PixelSelector::to_numpy() const {
-  const auto bin_size = bins().bin_size();
+  const auto bin_size = bins().resolution();
 
   const auto span1 = coord1().bin2.end() - coord1().bin1.start();
   const auto span2 = coord2().bin2.end() - coord2().bin1.start();
