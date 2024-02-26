@@ -30,5 +30,4 @@ From source
 
   pip install 'git+https://github.com/paulsengroup/hictkpy.git@main'
 
-
-On Windows you will have to manually install some of hictk dependencies, namely hdf5 (with zlib support) and libdeflate.
+Note that this will install hictk's build dependencies under `~/.conan2`, if you don't need Conan for other purposes feel free to delete this `~/.conan2` after installing hictkpy from git.
