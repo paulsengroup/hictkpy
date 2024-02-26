@@ -11,6 +11,7 @@
 #include <hictk/cooler/singlecell_cooler.hpp>
 #include <hictk/hic/file_writer.hpp>
 #include <hictk/reference.hpp>
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -55,7 +56,7 @@ void hic_file_writer_ctor_single_res(hictkpy::HiCFileWriter* fp, std::string_vie
 class CoolFileWriter {
   std::string _path{};
   hictk::internal::TmpDir _tmpdir{};
-  hictk::cooler::SingleCellFile _w;
+  std::optional<hictk::cooler::SingleCellFile> _w{};
   std::uint32_t _compression_lvl{};
   bool _finalized{false};
 

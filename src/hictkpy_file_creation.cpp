@@ -181,16 +181,16 @@ CoolFileWriter::CoolFileWriter(std::string_view path_, hictk::Reference chromoso
   }
 }
 
-std::string_view CoolFileWriter::path() const noexcept { return _w.path(); }
-std::uint32_t CoolFileWriter::resolution() const noexcept { return _w.resolution(); }
-const hictk::Reference &CoolFileWriter::chromosomes() const { return _w.chromosomes(); }
+std::string_view CoolFileWriter::path() const noexcept { return _w->path(); }
+std::uint32_t CoolFileWriter::resolution() const noexcept { return _w->resolution(); }
+const hictk::Reference &CoolFileWriter::chromosomes() const { return _w->chromosomes(); }
 
 void CoolFileWriter::add_pixels(nanobind::object df) {
   const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
 
-  const auto cell_id = fmt::to_string(_w.cells().size());
-  auto attrs = hictk::cooler::Attributes::init(_w.resolution());
-  attrs.assembly = _w.attributes().assembly;
+  const auto cell_id = fmt::to_string(_w->cells().size());
+  auto attrs = hictk::cooler::Attributes::init(_w->resolution());
+  attrs.assembly = _w->attributes().assembly;
 
   const auto dtype = df.attr("__getitem__")("count").attr("dtype");
   const auto dtype_str = nb::cast<std::string>(dtype.attr("__str__")());
@@ -200,10 +200,10 @@ void CoolFileWriter::add_pixels(nanobind::object df) {
       [&](const auto &n) {
         using N = hictk::remove_cvref_t<decltype(n)>;
         const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, true)
-                                       : bg2_df_to_thin_pixels<N>(_w.bins(), df, true);
+                                       : bg2_df_to_thin_pixels<N>(_w->bins(), df, true);
 
-        auto clr = _w.create_cell<N>(cell_id, std::move(attrs),
-                                     hictk::cooler::DEFAULT_HDF5_CACHE_SIZE * 4, 1);
+        auto clr = _w->create_cell<N>(cell_id, std::move(attrs),
+                                      hictk::cooler::DEFAULT_HDF5_CACHE_SIZE * 4, 1);
         clr.append_pixels(pixels.begin(), pixels.end());
 
         clr.flush();
@@ -214,7 +214,7 @@ void CoolFileWriter::add_pixels(nanobind::object df) {
 void CoolFileWriter::serialize(const std::string &log_lvl_str) {
   if (_finalized) {
     throw std::runtime_error(
-        fmt::format(FMT_STRING("finalize was already called on file \"{}\""), _w.path()));
+        fmt::format(FMT_STRING("finalize was already called on file \"{}\""), _w->path()));
   }
   spdlog::level::level_enum log_lvl = spdlog::level::from_str(log_lvl_str);
   const auto previous_lvl = spdlog::default_logger()->level();
@@ -222,13 +222,15 @@ void CoolFileWriter::serialize(const std::string &log_lvl_str) {
   std::visit(
       [&](const auto &num) {
         using N = hictk::remove_cvref_t<decltype(num)>;
-        _w.aggregate<N>(_path, false, _compression_lvl);
+        _w->aggregate<N>(_path, false, _compression_lvl);
       },
-      _w.open("0").pixel_variant());
+      _w->open("0").pixel_variant());
 
   _finalized = true;
   spdlog::default_logger()->set_level(previous_lvl);
-  std::filesystem::remove(_w.path());
+  const std::string sclr_path{_w->path()};
+  _w.reset();
+  std::filesystem::remove(sclr_path);
 }
 
 hictk::cooler::SingleCellFile CoolFileWriter::create_file(std::string_view path,
