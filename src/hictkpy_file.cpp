@@ -22,8 +22,8 @@ namespace hictkpy::file {
 void ctor(hictk::File *fp, std::string_view path, std::int32_t resolution,
           std::string_view matrix_type, std::string_view matrix_unit) {
   new (fp) hictk::File{std::string{path}, static_cast<std::uint32_t>(resolution),
-                              hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
-                              hictk::hic::ParseUnitStr(std::string{matrix_unit})};
+                       hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
+                       hictk::hic::ParseUnitStr(std::string{matrix_unit})};
 }
 
 std::string repr(const hictk::File &f) { return fmt::format(FMT_STRING("File({})"), f.uri()); }
