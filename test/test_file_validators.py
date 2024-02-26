@@ -25,4 +25,4 @@ class TestClass:
         assert not hictkpy.is_mcool_file(cool_file)
 
         assert hictkpy.is_scool_file(scool_file)
-        assert not hictkpy.is_scool_file(scool_file)
+        assert not hictkpy.is_scool_file(cool_file)
