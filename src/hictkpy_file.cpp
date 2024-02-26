@@ -120,7 +120,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
 [[nodiscard]] inline nb::dict get_hic_attrs(const hictk::hic::File &hf) {
   nb::dict py_attrs;
 
-  py_attrs["bin_size"] = hf.bin_size();
+  py_attrs["bin_size"] = hf.resolution();
   py_attrs["format"] = "HIC";
   py_attrs["format_version"] = hf.version();
   py_attrs["assembly"] = hf.assembly();
