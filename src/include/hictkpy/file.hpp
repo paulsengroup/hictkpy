@@ -23,6 +23,8 @@ void ctor(hictk::File *fp, std::string_view path, std::int32_t resolution,
 [[nodiscard]] std::string repr(const hictk::File &f);
 
 [[nodiscard]] bool is_cooler(std::string_view uri);
+[[nodiscard]] bool is_mcool_file(std::string_view uri);
+[[nodiscard]] bool is_scool_file(std::string_view uri);
 [[nodiscard]] bool is_hic(std::string_view uri);
 
 [[nodiscard]] hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1,
