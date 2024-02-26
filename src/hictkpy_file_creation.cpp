@@ -72,7 +72,8 @@ std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTable &bi
     auto bin1 = bin_table.at(reference.at(nb::cast<nb::str>(chrom1[i]).c_str()), start1(i));
     auto bin2 = bin_table.at(reference.at(nb::cast<nb::str>(chrom2[i]).c_str()), start2(i));
 
-    if (end1(i) - start1(i) > bin_table.bin_size() || end2(i) - start2(i) > bin_table.bin_size()) {
+    if (end1(i) - start1(i) > bin_table.resolution() ||
+        end2(i) - start2(i) > bin_table.resolution()) {
       throw std::runtime_error(
           fmt::format(FMT_STRING("Found an invalid pixel {} {} {} {} {} {} {}: pixel spans a "
                                  "distance greater than the bin size"),
@@ -181,14 +182,14 @@ CoolFileWriter::CoolFileWriter(std::string_view path_, hictk::Reference chromoso
 }
 
 std::string_view CoolFileWriter::path() const noexcept { return _w.path(); }
-std::uint32_t CoolFileWriter::resolution() const noexcept { return _w.bin_size(); }
+std::uint32_t CoolFileWriter::resolution() const noexcept { return _w.resolution(); }
 const hictk::Reference &CoolFileWriter::chromosomes() const { return _w.chromosomes(); }
 
 void CoolFileWriter::add_pixels(nanobind::object df) {
   const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
 
   const auto cell_id = fmt::to_string(_w.cells().size());
-  auto attrs = hictk::cooler::Attributes::init(_w.bin_size());
+  auto attrs = hictk::cooler::Attributes::init(_w.resolution());
   attrs.assembly = _w.attributes().assembly;
 
   const auto dtype = df.attr("__getitem__")("count").attr("dtype");
