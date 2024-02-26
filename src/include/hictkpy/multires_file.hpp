@@ -4,24 +4,14 @@
 
 #pragma once
 
-#include <nanobind/nanobind.h>
-#include <nanobind/stl/string.h>
-#include <nanobind/stl/string_view.h>
-
-#include <cstdint>
 #include <string>
 #include <string_view>
 
-#include "hictk/cooler/multires_cooler.hpp"
 #include "hictk/file.hpp"
+#include "hictk/multires_file.hpp"
 
 namespace hictkpy::multires_file {
-void ctor(hictk::cooler::MultiResFile* fp, std::string_view path);
+void ctor(hictk::MultiResFile* fp, std::string_view path);
 
-[[nodiscard]] std::string repr(const hictk::cooler::MultiResFile& mclr);
-
-[[nodiscard]] nanobind::dict get_attrs(const hictk::cooler::MultiResFile& mclr);
-
-[[nodiscard]] hictk::File getitem(const hictk::cooler::MultiResFile& mclr,
-                                  std::uint32_t resolution);
+[[nodiscard]] std::string repr(const hictk::MultiResFile& mrf);
 }  // namespace hictkpy::multires_file

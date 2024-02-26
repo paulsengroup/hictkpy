@@ -11,6 +11,7 @@
 #include "hictk/file.hpp"
 #include "hictk/hic.hpp"
 #include "hictk/hic/utils.hpp"
+#include "hictk/multires_file.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/file.hpp"
 #include "hictkpy/multires_file.hpp"
@@ -135,23 +136,20 @@ static void declare_file_class(nb::module_ &m) {
 }
 
 static void declare_multires_file_class(nb::module_ &m) {
-  auto cooler = m.def_submodule("cooler");
-
-  auto mres_file = nb::class_<hictk::cooler::MultiResFile>(
-      cooler, "MultiResFile", "Class representing a file handle to a .mcool file");
+  auto mres_file = nb::class_<hictk::MultiResFile>(
+      m, "MultiResFile", "Class representing a file handle to a .hic or .mcool file");
   mres_file.def("__init__", &multires_file::ctor, nb::arg("path"),
                 "Open a multi-resolution Cooler file (.mcool).");
 
   mres_file.def("__repr__", &multires_file::repr);
 
-  mres_file.def("path", &hictk::cooler::MultiResFile::path, "Get the file path.");
-  mres_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::MultiResFile>,
+  mres_file.def("path", &hictk::MultiResFile::path, "Get the file path.");
+  mres_file.def("chromosomes", &get_chromosomes_from_file<hictk::MultiResFile>,
                 nb::arg("include_all") = false,
                 "Get chromosomes sizes as a dictionary mapping names to sizes.");
-  mres_file.def("attributes", &multires_file::get_attrs, "Get file attributes as a dictionary.");
-  mres_file.def("resolutions", &hictk::cooler::MultiResFile::resolutions,
+  mres_file.def("resolutions", &hictk::MultiResFile::resolutions,
                 "Get the list of available resolutions.");
-  mres_file.def("__getitem__", &multires_file::getitem,
+  mres_file.def("__getitem__", &hictk::MultiResFile::open,
                 "Open the Cooler file corresponding to the resolution given as input.");
 }
 
