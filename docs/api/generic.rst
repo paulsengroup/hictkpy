@@ -10,6 +10,8 @@ Generic API
 
 
 .. autofunction:: is_cooler
+.. autofunction:: is_mcool_file
+.. autofunction:: is_scool_file
 
 .. autofunction:: is_hic
 
