@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string_view.h>
 
 #include <cstdint>
 #include <string>
@@ -14,11 +15,11 @@
 #include "hictk/file.hpp"
 
 namespace hictkpy::singlecell_file {
-[[nodiscard]] hictk::cooler::SingleCellFile ctor(std::string_view path);
+void ctor(hictk::cooler::SingleCellFile* fp, std::string_view path);
 
 [[nodiscard]] std::string repr(const hictk::cooler::SingleCellFile& sclr);
 
-[[nodiscard]] pybind11::dict get_attrs(const hictk::cooler::SingleCellFile& sclr);
+[[nodiscard]] nanobind::dict get_attrs(const hictk::cooler::SingleCellFile& sclr);
 
 [[nodiscard]] hictk::File getitem(const hictk::cooler::SingleCellFile& sclr,
                                   std::string_view cell_id);

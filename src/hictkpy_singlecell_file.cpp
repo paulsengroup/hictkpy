@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <fmt/format.h>
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
 
 #include <algorithm>
 #include <string>
@@ -12,31 +12,31 @@
 
 #include "hictkpy/singlecell_file.hpp"
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace hictkpy::singlecell_file {
 
-hictk::cooler::SingleCellFile ctor(std::string_view path) {
-  return hictk::cooler::SingleCellFile(std::string{path});
+void ctor(hictk::cooler::SingleCellFile* fp, std::string_view path) {
+  new (fp) hictk::cooler::SingleCellFile(std::string{path});
 }
 
 std::string repr(const hictk::cooler::SingleCellFile& sclr) {
   return fmt::format(FMT_STRING("SingleCellFile({})"), sclr.path());
 }
 
-py::dict get_attrs(const hictk::cooler::SingleCellFile& sclr) {
-  py::dict py_attrs;
+nb::dict get_attrs(const hictk::cooler::SingleCellFile& sclr) {
+  nb::dict py_attrs;
 
   const auto& attrs = sclr.attributes();
 
-  py_attrs["bin_size"] = attrs.bin_type;
-  py_attrs["bin_type"] = attrs.bin_type;
+  py_attrs["bin-size"] = attrs.bin_size;
+  py_attrs["bin-type"] = attrs.bin_type;
   py_attrs["format"] = attrs.format;
-  py_attrs["format_version"] = attrs.format_version;
+  py_attrs["format-version"] = attrs.format_version;
 
   for (const auto& key : {"storage-mode", "creation-date", "generated-by", "assembly", "metadata",
                           "format-url", "nbins", "nchroms", "ncells"}) {
-    py_attrs[key] = pybind11::none();
+    py_attrs[key] = nb::none();
   }
 
   if (attrs.storage_mode.has_value()) {

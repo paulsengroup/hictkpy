@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <nanobind/stl/string.h>
+#include <nanobind/stl/string_view.h>
+#include <nanobind/stl/vector.h>
+
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -13,8 +17,8 @@
 #include "hictkpy/pixel_selector.hpp"
 
 namespace hictkpy::file {
-[[nodiscard]] hictk::File ctor(std::string_view path, std::int32_t resolution,
-                               std::string_view matrix_type, std::string_view matrix_unit);
+void ctor(hictk::File *fp, std::string_view path, std::int32_t resolution,
+          std::string_view matrix_type, std::string_view matrix_unit);
 
 [[nodiscard]] std::string repr(const hictk::File &f);
 
@@ -28,7 +32,7 @@ namespace hictkpy::file {
                                            std::string_view count_type, bool join,
                                            std::string_view query_type);
 
-[[nodiscard]] pybind11::dict attributes(const hictk::File &f);
+[[nodiscard]] nanobind::dict attributes(const hictk::File &f);
 
 [[nodiscard]] std::vector<std::string> avail_normalizations(const hictk::File &f);
 

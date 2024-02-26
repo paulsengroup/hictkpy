@@ -1,6 +1,9 @@
+..
+   Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
+   SPDX-License-Identifier: MIT
 
-Python API
-==========
+Generic API
+===========
 
 .. py:module:: hictkpy
 .. py:currentmodule:: hictkpy
@@ -12,20 +15,13 @@ Python API
 
 .. autofunction:: is_hic
 
+.. autoclass:: MultiResFile
+   :members:
+   :special-members: __init__
+
 .. autoclass:: File
    :members:
    :special-members: __init__
 
 .. autoclass:: PixelSelector
    :members:
-
-.. py:module:: hictkpy.cooler
-.. py:currentmodule:: hictkpy.cooler
-
-.. autoclass:: MultiResFile
-   :members:
-   :special-members: __init__
-
-.. autoclass:: SingleCellFile
-   :members:
-   :special-members: __init__

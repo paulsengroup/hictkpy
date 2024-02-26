@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <fmt/format.h>
+#include <nanobind/nanobind.h>
 
 #include <cassert>
 #include <cstdint>
@@ -15,14 +16,14 @@
 #include "hictkpy/file.hpp"
 #include "hictkpy/pixel_selector.hpp"
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
 namespace hictkpy::file {
-hictk::File ctor(std::string_view path, std::int32_t resolution, std::string_view matrix_type,
-                 std::string_view matrix_unit) {
-  return hictk::File{std::string{path}, static_cast<std::uint32_t>(resolution),
-                     hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
-                     hictk::hic::ParseUnitStr(std::string{matrix_unit})};
+void ctor(hictk::File *fp, std::string_view path, std::int32_t resolution,
+          std::string_view matrix_type, std::string_view matrix_unit) {
+  new (fp) hictk::File{std::string{path}, static_cast<std::uint32_t>(resolution),
+                       hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
+                       hictk::hic::ParseUnitStr(std::string{matrix_unit})};
 }
 
 std::string repr(const hictk::File &f) { return fmt::format(FMT_STRING("File({})"), f.uri()); }
@@ -73,18 +74,18 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
       f.get());
 }
 
-[[nodiscard]] inline py::dict get_cooler_attrs(const hictk::cooler::File &clr) {
-  py::dict py_attrs;
+[[nodiscard]] inline nb::dict get_cooler_attrs(const hictk::cooler::File &clr) {
+  nb::dict py_attrs;
   const auto &attrs = clr.attributes();
 
-  py_attrs["bin_size"] = attrs.bin_size;
-  py_attrs["bin_type"] = attrs.bin_type;
+  py_attrs["bin-size"] = attrs.bin_size;
+  py_attrs["bin-type"] = attrs.bin_type.has_value() ? *attrs.bin_type : "fixed";
   py_attrs["format"] = attrs.format;
-  py_attrs["format_version"] = attrs.format_version;
+  py_attrs["format-version"] = attrs.format_version;
 
   for (const auto &key : {"storage-mode", "creation-date", "generated-by", "assembly", "metadata",
                           "format-url", "nbins", "nchroms", "nnz", "sum", "cis"}) {
-    py_attrs[key] = pybind11::none();
+    py_attrs[key] = nb::none();
   }
 
   if (attrs.storage_mode.has_value()) {
@@ -124,10 +125,10 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   return py_attrs;
 }
 
-[[nodiscard]] inline py::dict get_hic_attrs(const hictk::hic::File &hf) {
-  py::dict py_attrs;
+[[nodiscard]] inline nb::dict get_hic_attrs(const hictk::hic::File &hf) {
+  nb::dict py_attrs;
 
-  py_attrs["bin_size"] = hf.bin_size();
+  py_attrs["bin_size"] = hf.resolution();
   py_attrs["format"] = "HIC";
   py_attrs["format_version"] = hf.version();
   py_attrs["assembly"] = hf.assembly();
@@ -138,7 +139,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   return py_attrs;
 }
 
-pybind11::dict attributes(const hictk::File &f) {
+nb::dict attributes(const hictk::File &f) {
   if (f.is_cooler()) {
     return get_cooler_attrs(f.get<hictk::cooler::File>());
   }
@@ -153,5 +154,4 @@ std::vector<std::string> avail_normalizations(const hictk::File &f) {
 
   return norms;
 }
-
 }  // namespace hictkpy::file

@@ -3,15 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 find_package(
-  Python 3.8
+  Python 3.9
   COMPONENTS Interpreter Development.Module
   REQUIRED)
 
-set(PYBIND11_NEWPYTHON ON)
-find_package(pybind11 CONFIG REQUIRED)
-
-pybind11_add_module(
+nanobind_add_module(
   _hictkpy
+  NB_STATIC LTO
   MODULE
   hictkpy.cpp
   hictkpy_file.cpp

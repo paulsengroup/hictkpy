@@ -39,13 +39,17 @@ discourse:
 
 .. code-block:: bibtex
 
-    @misc{hictk,
-       author = {Roberto Rossini},
-       year = {2023},
-       note = {https://github.com/paulsengroup/hictk},
-       title = {hictk: blazing fast toolkit to work with .hic and .cool files}
-    }
-
+  @article {hictk,
+	  author = {Roberto Rossini and Jonas Paulsen},
+	  title = {hictk: blazing fast toolkit to work with .hic and .cool files},
+	  elocation-id = {2023.11.26.568707},
+	  year = {2023},
+	  doi = {10.1101/2023.11.26.568707},
+	  publisher = {Cold Spring Harbor Laboratory},
+	  URL = {https://www.biorxiv.org/content/early/2023/11/27/2023.11.26.568707},
+	  eprint = {https://www.biorxiv.org/content/early/2023/11/27/2023.11.26.568707.full.pdf},
+	  journal = {bioRxiv}
+  }
 
 .. only:: not latex
 
@@ -62,4 +66,4 @@ discourse:
    :caption: API Reference
    :maxdepth: 1
 
-   hictkpy
+   api/index

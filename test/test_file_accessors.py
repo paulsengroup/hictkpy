@@ -22,7 +22,7 @@ pytestmark = pytest.mark.parametrize(
 class TestClass:
     def test_attributes(self, file, resolution):
         f = hictkpy.File(file, resolution)
-        assert f.bin_size() == 100_000
+        assert f.resolution() == 100_000
         assert f.nbins() == 1380
 
         assert "chr2L" in f.chromosomes()
