@@ -8,10 +8,6 @@ Cooler API
 .. py:module:: hictkpy.cooler
 .. py:currentmodule:: hictkpy.cooler
 
-.. autoclass:: MultiResFile
-   :members:
-   :special-members: __init__
-
 .. autoclass:: SingleCellFile
    :members:
    :special-members: __init__
