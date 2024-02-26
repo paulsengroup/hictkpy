@@ -28,7 +28,7 @@ class TestClass:
         df = f.fetch(join=False).to_df()
         expected_sum = df["count"].sum()
 
-        path = os.path.join(tmpdir, "test.cool")
+        path = os.path.join(tmpdir, "test1.cool")
         w = hictkpy.cooler.FileWriter(path, f.chromosomes(), f.resolution())
 
         chunk_size = 1000
@@ -49,7 +49,7 @@ class TestClass:
         df = f.fetch(join=True).to_df()
         expected_sum = df["count"].sum()
 
-        path = os.path.join(tmpdir, "test.cool")
+        path = os.path.join(tmpdir, "test2.cool")
         w = hictkpy.cooler.FileWriter(path, f.chromosomes(), f.resolution())
 
         chunk_size = 1000
