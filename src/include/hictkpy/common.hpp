@@ -19,6 +19,7 @@
 #include "hictk/bin_table.hpp"
 #include "hictk/cooler/cooler.hpp"
 #include "hictk/genomic_interval.hpp"
+#include "hictk/numeric_variant.hpp"
 #include "hictk/pixel.hpp"
 #include "hictk/suppress_warnings.hpp"
 
@@ -28,7 +29,7 @@ namespace nb = nanobind;
 using namespace nb::literals;
 
 template <typename T>
-constexpr std::string_view map_type_to_dtype() {
+[[nodiscard]] constexpr std::string_view map_type_to_dtype() {
   if constexpr (std::is_unsigned_v<T>) {
     switch (sizeof(T)) {
       case 1:
@@ -63,6 +64,46 @@ constexpr std::string_view map_type_to_dtype() {
   }
 
   throw std::runtime_error("Unable to infer numpy dtype.");
+}
+
+[[nodiscard]] inline hictk::internal::NumericVariant map_dtype_to_type(std::string_view dtype) {
+  if (dtype == "uint8") {
+    return std::uint8_t{};
+  }
+  if (dtype == "uint16") {
+    return std::uint16_t{};
+  }
+  if (dtype == "uint32") {
+    return std::uint32_t{};
+  }
+  if (dtype == "uint64") {
+    return std::uint64_t{};
+  }
+
+  if (dtype == "int8") {
+    return std::int8_t{};
+  }
+  if (dtype == "int16") {
+    return std::int16_t{};
+  }
+  if (dtype == "int32") {
+    return std::int32_t{};
+  }
+  if (dtype == "int64") {
+    return std::int64_t{};
+  }
+
+  if (dtype == "float16") {
+    return float{};
+  }
+  if (dtype == "float32") {
+    return float{};
+  }
+  if (dtype == "float64") {
+    return double{};
+  }
+
+  throw std::runtime_error("Unable to map dtype " + std::string{dtype} + " to a C++ type.");
 }
 
 template <typename T>

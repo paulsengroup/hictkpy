@@ -13,6 +13,7 @@ from ._hictkpy import (
     is_scool_file,
     is_hic,
     cooler,
+    hic,
     __hictk_version__,
 )
 from importlib.metadata import version
@@ -28,5 +29,6 @@ __all__ = [
     "is_scool_file",
     "is_hic",
     "cooler",
+    "hic",
     "__hictk_version__",
 ]

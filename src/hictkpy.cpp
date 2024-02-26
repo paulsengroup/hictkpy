@@ -14,6 +14,7 @@
 #include "hictk/multires_file.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/file.hpp"
+#include "hictkpy/file_creation.hpp"
 #include "hictkpy/multires_file.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/singlecell_file.hpp"
@@ -178,6 +179,70 @@ static void declare_singlecell_file_class(nb::module_ &m) {
                  "Open the Cooler file corresponding to the cell ID given as input.");
 }
 
+static void declare_hic_file_writer_class(nb::module_ &m) {
+  auto hic = m.def_submodule("hic");
+
+  auto writer = nb::class_<hictkpy::HiCFileWriter>(
+      hic, "FileWriter", "Class representing a file handle to create .hic files.");
+
+  writer.def("__init__", &hic_file_writer_ctor_single_res, nb::arg("path"), nb::arg("chromosomes"),
+             nb::arg("resolution"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
+             nb::arg("chunk_size") = 10'000'000,
+             nb::arg("tmpdir") = std::filesystem::temp_directory_path().string(),
+             nb::arg("compression_lvl") = 9, nb::arg("skip_all_vs_all_matrix") = false,
+             "Open a .hic file for writing.");
+
+  writer.def("__init__", &hic_file_writer_ctor, nb::arg("path"), nb::arg("chromosomes"),
+             nb::arg("resolutions"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
+             nb::arg("chunk_size") = 10'000'000,
+             nb::arg("tmpdir") = std::filesystem::temp_directory_path().string(),
+             nb::arg("compression_lvl") = 9, nb::arg("skip_all_vs_all_matrix") = false,
+             "Open a .hic file for writing.");
+
+  writer.def("__repr__", &hic_file_writer_repr);
+
+  writer.def("path", &hictkpy::HiCFileWriter::path, "Get the file path.");
+  writer.def("resolutions", &hictkpy::HiCFileWriter::resolutions,
+             "Get the list of resolutions in bp.");
+  writer.def("chromosomes", &get_chromosomes_from_file<hictkpy::HiCFileWriter>,
+             nb::arg("include_all") = false,
+             "Get chromosomes sizes as a dictionary mapping names to sizes.");
+
+  writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels, nb::arg("pixels"),
+             "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
+             "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
+             "chrom2, start2, end2, count].");
+  writer.def("finalize", &hictkpy::HiCFileWriter::serialize, nb::arg("log_lvl") = "warn",
+             "Write interactions to file.");
+}
+
+static void declare_cooler_file_writer_class(nb::module_ &m) {
+  auto cooler = m.def_submodule("cooler");
+
+  auto writer = nb::class_<hictkpy::CoolFileWriter>(
+      cooler, "FileWriter", "Class representing a file handle to create .cool files.");
+
+  writer.def("__init__", &cool_file_writer_ctor, nb::arg("path"), nb::arg("chromosomes"),
+             nb::arg("resolution"), nb::arg("assembly") = "unknown",
+             nb::arg("tmpdir") = std::filesystem::temp_directory_path().string(),
+             nb::arg("compression_lvl") = 6, "Open a .cool file for writing.");
+
+  writer.def("__repr__", &cool_file_writer_repr);
+
+  writer.def("path", &hictkpy::CoolFileWriter::path, "Get the file path.");
+  writer.def("resolutions", &hictkpy::CoolFileWriter::resolution, "Get the resolution in bp.");
+  writer.def("chromosomes", &get_chromosomes_from_file<hictkpy::CoolFileWriter>,
+             nb::arg("include_all") = false,
+             "Get chromosomes sizes as a dictionary mapping names to sizes.");
+
+  writer.def("add_pixels", &hictkpy::CoolFileWriter::add_pixels, nb::arg("pixels"),
+             "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
+             "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
+             "chrom2, start2, end2, count].");
+  writer.def("finalize", &hictkpy::CoolFileWriter::serialize, nb::arg("log_lvl") = "warn",
+             "Write interactions to file.");
+}
+
 namespace nb = nanobind;
 using namespace nb::literals;
 
@@ -209,6 +274,9 @@ NB_MODULE(_hictkpy, m) {
 
   declare_multires_file_class(m);
   declare_singlecell_file_class(m);
+
+  declare_hic_file_writer_class(m);
+  declare_cooler_file_writer_class(m);
 }
 
 }  // namespace hictkpy
