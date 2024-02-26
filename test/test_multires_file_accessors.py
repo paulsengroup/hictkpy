@@ -27,4 +27,4 @@ class TestClass:
         assert len(f.chromosomes()) == 8
 
         assert f.attributes()["format"] == "HDF5::MCOOL"
-        assert f[100_000].bin_size() == 100_000
+        assert f[100_000].resolution() == 100_000
