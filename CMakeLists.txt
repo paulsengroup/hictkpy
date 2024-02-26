@@ -32,8 +32,8 @@ FetchContent_Declare(
 
 FetchContent_Declare(
         nanobind
-        URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v1.8.0.tar.xz"
-        URL_HASH  "SHA256=e70b23b82582aa6394bc8d8604c3736d2f1d8eeae15c309cd7cc37093aa4c406"
+        URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v1.9.2.tar.xz"
+        URL_HASH  "SHA256=2f511306aea0b39c1915b85db77cf4d861056dec528fb56a3e7a5f79fdae01c4"
         SYSTEM)
 
 set(HICTK_ENABLE_TESTING OFF)
