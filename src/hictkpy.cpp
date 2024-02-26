@@ -115,7 +115,7 @@ static void declare_file_class(nb::module_ &m) {
            "Get chromosomes sizes as a dictionary mapping names to sizes.");
   file.def("bins", &get_bins_from_file<hictk::File>, "Get bins as a pandas DataFrame.");
 
-  file.def("bin_size", &hictk::File::bin_size, "Get the bin size in bp.");
+  file.def("resolution", &hictk::File::resolution, "Get the bin size in bp.");
   file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
   file.def("nchroms", &hictk::File::nchroms, "Get the total number of chromosomes.");
 
@@ -162,7 +162,8 @@ static void declare_singlecell_file_class(nb::module_ &m) {
   scell_file.def("__repr__", &singlecell_file::repr);
 
   scell_file.def("path", &hictk::cooler::SingleCellFile::path, "Get the file path.");
-  scell_file.def("bin_size", &hictk::cooler::SingleCellFile::bin_size, "Get the bin size in bp.");
+  scell_file.def("resolution", &hictk::cooler::SingleCellFile::resolution,
+                 "Get the bin size in bp.");
   scell_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::SingleCellFile>,
                  nb::arg("include_all") = false,
                  "Get chromosomes sizes as a dictionary mapping names to sizes.");
