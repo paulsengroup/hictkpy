@@ -9,7 +9,8 @@ find_package(
 
 nanobind_add_module(
   _hictkpy
-  NB_STATIC LTO
+  NB_STATIC
+  LTO
   MODULE
   hictkpy.cpp
   hictkpy_file.cpp
