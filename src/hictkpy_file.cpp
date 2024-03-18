@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -19,9 +20,10 @@
 namespace nb = nanobind;
 
 namespace hictkpy::file {
-void ctor(hictk::File *fp, std::string_view path, std::int32_t resolution,
+void ctor(hictk::File *fp, std::string_view path, std::optional<std::int32_t> resolution,
           std::string_view matrix_type, std::string_view matrix_unit) {
-  new (fp) hictk::File{std::string{path}, static_cast<std::uint32_t>(resolution),
+  new (fp) hictk::File{std::string{path},
+                       !!resolution ? static_cast<std::uint32_t>(*resolution) : std::uint32_t(0),
                        hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
                        hictk::hic::ParseUnitStr(std::string{matrix_unit})};
 }

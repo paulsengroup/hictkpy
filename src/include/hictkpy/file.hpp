@@ -9,6 +9,7 @@
 #include <nanobind/stl/vector.h>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -17,7 +18,7 @@
 #include "hictkpy/pixel_selector.hpp"
 
 namespace hictkpy::file {
-void ctor(hictk::File *fp, std::string_view path, std::int32_t resolution,
+void ctor(hictk::File *fp, std::string_view path, std::optional<std::int32_t> resolution,
           std::string_view matrix_type, std::string_view matrix_unit);
 
 [[nodiscard]] std::string repr(const hictk::File &f);

@@ -4,6 +4,7 @@
 
 #include <nanobind/nanobind.h>
 #include <nanobind/operators.h>
+#include <nanobind/stl/optional.h>
 #include <nanobind/stl/string_view.h>
 #include <nanobind/stl/vector.h>
 
@@ -100,7 +101,7 @@ static void declare_file_class(nb::module_ &m) {
   auto file = nb::class_<hictk::File>(m, "File",
                                       "Class representing a file handle to a .cool or .hic file.");
 
-  file.def("__init__", &file::ctor, nb::arg("path"), nb::arg("resolution"),
+  file.def("__init__", &file::ctor, nb::arg("path"), nb::arg("resolution") = nb::none(),
            nb::arg("matrix_type") = "observed", nb::arg("matrix_unit") = "BP",
            "Construct a file object to a .hic, .cool or .mcool file given the file path and "
            "resolution.\n"
