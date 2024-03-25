@@ -54,22 +54,35 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
           auto sel = ff.fetch(hictk::balancing::Method{normalization});
           using SelT = decltype(sel);
           return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                        join);
+                                        join, false);
         },
         f.get());
   }
 
-  const auto qt =
-      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+  if (range2.empty()) {
+    range2 = range1;
+  }
+
+  auto gi1 = query_type == "UCSC"
+                 ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range1})
+                 : hictk::GenomicInterval::parse_bed(f.chromosomes(), range1);
+  auto gi2 = query_type == "UCSC"
+                 ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range2})
+                 : hictk::GenomicInterval::parse_bed(f.chromosomes(), range2);
+  bool mirror = false;
+
+  if (gi1 > gi2) {
+    mirror = true;
+    std::swap(gi1, gi2);
+  }
 
   return std::visit(
       [&](const auto &ff) {
-        auto sel = range2.empty() || range1 == range2
-                       ? ff.fetch(range1, hictk::balancing::Method(normalization), qt)
-                       : ff.fetch(range1, range2, hictk::balancing::Method(normalization), qt);
+        auto sel = ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
+                            gi2.start(), gi2.end(), hictk::balancing::Method(normalization));
         using SelT = decltype(sel);
         return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                      join);
+                                      join, mirror);
       },
       f.get());
 }

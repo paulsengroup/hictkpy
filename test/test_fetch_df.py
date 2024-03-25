@@ -68,6 +68,13 @@ class TestClass:
         df = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED").to_df()
         assert len(df) == 4995
 
+        df1 = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000").to_df()
+        df2 = f.fetch("chrX:0-10,000,000", "chr2R:10,000,000-15,000,000").to_df()
+
+        df2["bin1_id"], df2["bin2_id"] = df2["bin2_id"], df2["bin1_id"]
+        df2.sort_values(by=["bin1_id", "bin2_id"], inplace=True)
+        assert df1.equals(df2)
+
     def test_balanced(self, file, resolution):
         f = hictkpy.File(file, resolution)
 

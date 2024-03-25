@@ -73,12 +73,12 @@ static void declare_pixel_selector_class(nb::module_ &m) {
       m, "PixelSelector",
       "Class representing pixels overlapping with the given genomic intervals.");
 
-  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
 
   sel.def("__repr__", &PixelSelector::repr);
 

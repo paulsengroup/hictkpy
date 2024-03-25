@@ -25,3 +25,4 @@ class TestClass:
         f = hictkpy.File(file, resolution)
         assert f.fetch().sum() == 119_208_613
         assert f.fetch("chr2L").sum() == 19_968_156
+        assert f.fetch("chr2L", "chr2R").sum() == f.fetch("chr2R", "chr2L").sum()

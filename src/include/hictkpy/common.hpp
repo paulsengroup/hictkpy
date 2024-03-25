@@ -213,7 +213,7 @@ inline nb::object get_bins_from_file(const File &f) {
 
 template <typename PixelIt>
 inline nb::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel,
-                                         std::size_t num_rows, std::size_t num_cols,
+                                         std::size_t num_rows, std::size_t num_cols, bool mirror,
                                          std::size_t row_offset = 0, std::size_t col_offset = 0) {
   using N = decltype(first_pixel->count);
   auto ss = nb::module_::import_("scipy.sparse");
@@ -227,6 +227,11 @@ inline nb::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel
     bin2_ids.push_back(static_cast<std::int64_t>(tp.bin2_id - col_offset));
     counts.push_back(tp.count);
   });
+
+  if (mirror) {
+    std::swap(num_rows, num_cols);
+    std::swap(bin1_ids, bin2_ids);
+  }
 
   // See
   // https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo_matrix.html#scipy.sparse.coo_matrix
@@ -250,7 +255,7 @@ inline nb::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel
 }
 
 template <typename PixelIt>
-inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pixel) {
+inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pixel, bool mirror) {
   using N = decltype(first_pixel->count);
 
   auto pd = nb::module_::import_("pandas");
@@ -265,13 +270,24 @@ inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pi
     counts.push_back(tp.count);
   });
 
+  if (mirror) {
+    std::swap(bin1_ids, bin2_ids);
+  }
+
   nb::dict py_pixels_dict{};  // NOLINT
 
   py_pixels_dict["bin1_id"] = pd.attr("Series")(bin1_ids(), "copy"_a = false);
   py_pixels_dict["bin2_id"] = pd.attr("Series")(bin2_ids(), "copy"_a = false);
   py_pixels_dict["count"] = pd.attr("Series")(counts(), "copy"_a = false);
 
-  return pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
+  auto df = pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
+
+  if (mirror) {
+    df.attr("sort_values")(std::vector<std::string>{"bin1_id", "bin2_id"}, "inplace"_a = true);
+    df.attr("reset_index")();
+  }
+
+  return df;
 }
 
 template <typename PixelIt>
@@ -315,7 +331,7 @@ inline nb::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
 
 template <typename PixelIt>
 inline nb::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt first_pixel,
-                                         PixelIt last_pixel) {
+                                         PixelIt last_pixel, bool mirror) {
   using N = decltype(first_pixel->count);
 
   auto pd = nb::module_::import_("pandas");
@@ -344,6 +360,12 @@ inline nb::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt fi
     counts.push_back(p.count);
   });
 
+  if (mirror) {
+    std::swap(chrom1_ids, chrom2_ids);
+    std::swap(starts1, starts2);
+    std::swap(ends1, ends2);
+  }
+
   std::vector<std::string> chrom_names{};
   std::transform(bins.chromosomes().begin(), bins.chromosomes().end(),
                  std::back_inserter(chrom_names),
@@ -365,16 +387,23 @@ inline nb::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt fi
 
   py_pixels_dict["count"] = pd.attr("Series")(counts(), "copy"_a = false);
 
-  return pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
+  auto df = pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
+  if (mirror) {
+    df.attr("sort_values")(std::vector<std::string>{"chrom1", "start1", "chrom2", "start2"},
+                           "inplace"_a = true);
+    df.attr("reset_index")();
+  }
+
+  return df;
 }
 
 template <typename PixelIt>
 static nb::object pixel_iterators_to_df(const hictk::BinTable &bins, PixelIt first_pixel,
-                                        PixelIt last_pixel, bool join) {
+                                        PixelIt last_pixel, bool join, bool mirror) {
   if (join) {
-    return pixel_iterators_to_bg2(bins, first_pixel, last_pixel);
+    return pixel_iterators_to_bg2(bins, first_pixel, last_pixel, mirror);
   }
-  return pixel_iterators_to_coo_df(first_pixel, last_pixel);
+  return pixel_iterators_to_coo_df(first_pixel, last_pixel, mirror);
 }
 
 template <typename File>
@@ -578,32 +607,52 @@ inline nb::object file_fetch_sum(const File &f, std::string_view range1, std::st
     count_type = "float";
   }
 
-  const auto qt =
-      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+  auto gi1 = query_type == "UCSC"
+                 ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range1})
+                 : hictk::GenomicInterval::parse_bed(f.chromosomes(), range1);
+  auto gi2 = query_type == "UCSC"
+                 ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range2})
+                 : hictk::GenomicInterval::parse_bed(f.chromosomes(), range2);
 
-  auto sel = range2.empty() || range1 == range2
-                 ? f.fetch(range1, hictk::balancing::Method(normalization), qt)
-                 : f.fetch(range1, range2, hictk::balancing::Method(normalization), qt);
-
-  if (count_type == "int") {
-    return nb::cast(std::accumulate(
-        sel.template begin<std::int32_t>(), sel.template end<std::int32_t>(), std::int64_t(0),
-        [](const auto accumulator, const hictk::ThinPixel<std::int32_t> &p) {
-          return accumulator + p.count;
-        }));
+  if (gi1 > gi2) {
+    std::swap(gi1, gi2);
   }
-  return nb::cast(std::accumulate(sel.template begin<double>(), sel.template end<double>(), 0.0,
-                                  [](const auto accumulator, const hictk::ThinPixel<double> &p) {
-                                    return accumulator + p.count;
-                                  }));
+
+  return std::visit(
+      [&](const auto &ff) {
+        auto sel =
+            ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(), gi2.start(),
+
+                     gi2.end(), hictk::balancing::Method(normalization));
+
+        if (count_type == "int") {
+          return nb::cast(std::accumulate(
+              sel.template begin<std::int32_t>(), sel.template end<std::int32_t>(), std::int64_t(0),
+              [](const auto accumulator, const hictk::ThinPixel<std::int32_t> &p) {
+                return accumulator + p.count;
+              }));
+        }
+        return nb::cast(
+            std::accumulate(sel.template begin<double>(), sel.template end<double>(), 0.0,
+                            [](const auto accumulator, const hictk::ThinPixel<double> &p) {
+                              return accumulator + p.count;
+                            }));
+      },
+      f);
 }
+
 template <typename File>
 inline std::int64_t file_fetch_nnz_all(const File &f) {
   if constexpr (std::is_same_v<File, hictk::cooler::File>) {
     return static_cast<std::int64_t>(f.nnz());
   }
-  auto sel = f.fetch();
-  return std::distance(sel.template begin<std::int32_t>(), sel.template end<std::int32_t>());
+
+  return std::visit(
+      [&](const auto &ff) {
+        auto sel = ff.fetch();
+        return std::distance(sel.template begin<std::int32_t>(), sel.template end<std::int32_t>());
+      },
+      f);
 }
 
 template <typename File>
@@ -612,13 +661,24 @@ inline std::int64_t file_fetch_nnz(const File &f, std::string_view range1, std::
   if (range1.empty()) {
     return file_fetch_nnz_all(f);
   }
-  const auto qt =
-      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+  auto gi1 = query_type == "UCSC"
+                 ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range1})
+                 : hictk::GenomicInterval::parse_bed(f.chromosomes(), range1);
+  auto gi2 = query_type == "UCSC"
+                 ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range2})
+                 : hictk::GenomicInterval::parse_bed(f.chromosomes(), range2);
 
-  auto sel = range2.empty() || range1 == range2
-                 ? f.fetch(range1, hictk::balancing::Method("NONE"), qt)
-                 : f.fetch(range1, range2, hictk::balancing::Method("NONE"), qt);
-  return std::distance(sel.template begin<std::int32_t>(), sel.template end<std::int32_t>());
+  if (gi1 > gi2) {
+    std::swap(gi1, gi2);
+  }
+
+  return std::visit(
+      [&](const auto &ff) {
+        auto sel = f.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
+                           gi2.start(), gi2.end());
+        return std::distance(sel.template begin<std::int32_t>(), sel.template end<std::int32_t>());
+      },
+      f);
 }
 
 }  // namespace hictkpy
