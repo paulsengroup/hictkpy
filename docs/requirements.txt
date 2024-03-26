@@ -1,5 +1,5 @@
-furo==2023.09.10
-ipython==8.16.0
+furo==2024.1.29
+ipython==8.22.2
 sphinx==7.2.6
 sphinx-copybutton==0.5.2
 sphinxcontrib-moderncmakedomain==3.27.0
