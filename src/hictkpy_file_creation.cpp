@@ -181,7 +181,7 @@ CoolFileWriter::CoolFileWriter(std::string_view path_, hictk::Reference chromoso
   }
 }
 
-std::string_view CoolFileWriter::path() const noexcept { return _w->path(); }
+std::string CoolFileWriter::path() const noexcept { return _w->path(); }
 std::uint32_t CoolFileWriter::resolution() const noexcept { return _w->resolution(); }
 const hictk::Reference &CoolFileWriter::chromosomes() const { return _w->chromosomes(); }
 

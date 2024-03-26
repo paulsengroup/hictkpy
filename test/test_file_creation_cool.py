@@ -63,3 +63,25 @@ class TestClass:
 
         f = hictkpy.File(path, resolution)
         assert f.fetch().sum() == expected_sum
+
+    def test_file_creation_float_counts(self, file, resolution, tmpdir):
+        f = hictkpy.File(file, resolution)
+
+        df = f.fetch(join=True, count_type="float").to_df()
+        df["count"] += 0.12345
+        expected_sum = df["count"].sum()
+
+        path = os.path.join(tmpdir, "test2.cool")
+        w = hictkpy.cooler.FileWriter(path, f.chromosomes(), f.resolution())
+
+        chunk_size = 1000
+        for start in range(0, len(df), chunk_size):
+            end = start + chunk_size
+            w.add_pixels(df[start:end])
+
+        w.finalize()
+        del w
+        gc.collect()
+
+        f = hictkpy.File(path, resolution)
+        assert pytest.approx(f.fetch(count_type="float").sum()) == expected_sum

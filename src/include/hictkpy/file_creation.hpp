@@ -66,7 +66,7 @@ class CoolFileWriter {
                  const std::filesystem::path& tmpdir = std::filesystem::temp_directory_path(),
                  std::uint32_t compression_lvl = 6);
 
-  [[nodiscard]] std::string_view path() const noexcept;
+  [[nodiscard]] std::string path() const noexcept;
   [[nodiscard]] std::uint32_t resolution() const noexcept;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
