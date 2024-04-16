@@ -202,18 +202,19 @@ nb::object PixelSelector::to_numpy() const {
 
   const auto mirror_matrix = coord1().bin1.chrom() == coord2().bin1.chrom();
 
+  const auto row_offset = static_cast<std::int64_t>(coord1().bin1.id());
+  const auto col_offset = static_cast<std::int64_t>(coord2().bin1.id());
+
   return std::visit(
       [&, num_rows, num_cols, mirror_matrix](const auto& s) {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_numpy(s->template begin<T>(), s->template end<T>(), num_rows,
-                                          num_cols, mirror_matrix, coord1().bin1.id(),
-                                          coord2().bin1.id());
+                                          num_cols, mirror_matrix, row_offset, col_offset);
         } else {
           using T = double;
           return pixel_iterators_to_numpy(s->template begin<T>(), s->template end<T>(), num_rows,
-                                          num_cols, mirror_matrix, coord1().bin1.id(),
-                                          coord2().bin1.id());
+                                          num_cols, mirror_matrix, row_offset, col_offset);
         }
       },
       selector);

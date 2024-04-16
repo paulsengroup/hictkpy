@@ -292,14 +292,14 @@ inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pi
 
 template <typename PixelIt>
 inline nb::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pixel,
-                                           std::size_t num_rows, std::size_t num_cols,
+                                           std::int64_t num_rows, std::int64_t num_cols,
                                            bool mirror_below_diagonal = true,
                                            std::size_t row_offset = 0, std::size_t col_offset = 0) {
   using N = decltype(first_pixel->count);
 
   const auto np = nb::module_::import_("numpy");
   const auto dtype = np.attr("dtype")(map_type_to_dtype<N>());
-  auto buffer = np.attr("zeros")(std::vector<std::size_t>{num_rows, num_cols}, "dtype"_a = dtype);
+  auto buffer = np.attr("zeros")(std::vector<std::int64_t>{num_rows, num_cols}, "dtype"_a = dtype);
 
   using Shape = nb::shape<nb::any, nb::any>;
   using MatrixT = nb::ndarray<nb::numpy, N, Shape>;
@@ -307,18 +307,16 @@ inline nb::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
   auto matrix = nb::cast<MatrixT>(buffer);
   auto m = matrix.view();
 
-  DISABLE_WARNING_PUSH
-  DISABLE_WARNING_SIGN_COMPARE
   std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
     const auto i1 = static_cast<std::int64_t>(tp.bin1_id - row_offset);
     const auto i2 = static_cast<std::int64_t>(tp.bin2_id - col_offset);
     m(i1, i2) = tp.count;
 
     if (mirror_below_diagonal) {
-      //  Mirror matrix below diagonal
-      if (i2 - i1 < num_rows && i1 < num_cols && i2 < num_rows) {
+      const auto delta = i2 - i1;
+      if (delta >= 0 && delta < num_rows && i1 < num_cols && i2 < num_rows) {
         m(i2, i1) = tp.count;
-      } else if (i2 - i1 > num_cols && i1 < num_cols && i2 < num_rows) {
+      } else if ((delta < 0 || delta > num_cols) && i1 < num_cols && i2 < num_rows) {
         const auto i3 = static_cast<std::int64_t>(tp.bin2_id - row_offset);
         const auto i4 = static_cast<std::int64_t>(tp.bin1_id - col_offset);
 
@@ -328,7 +326,6 @@ inline nb::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
       }
     }
   });
-  DISABLE_WARNING_POP
   return nb::cast(matrix);
 }
 
