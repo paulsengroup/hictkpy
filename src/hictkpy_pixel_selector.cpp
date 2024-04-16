@@ -206,7 +206,7 @@ nb::object PixelSelector::to_numpy() const {
   const auto col_offset = static_cast<std::int64_t>(coord2().bin1.id());
 
   return std::visit(
-      [&, num_rows, num_cols, mirror_matrix](const auto& s) {
+      [&, num_rows, num_cols, mirror_matrix, row_offset, col_offset](const auto& s) {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_numpy(s->template begin<T>(), s->template end<T>(), num_rows,
