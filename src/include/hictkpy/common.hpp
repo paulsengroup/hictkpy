@@ -321,7 +321,10 @@ inline nb::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
       } else if (i2 - i1 > num_cols && i1 < num_cols && i2 < num_rows) {
         const auto i3 = static_cast<std::int64_t>(tp.bin2_id - row_offset);
         const auto i4 = static_cast<std::int64_t>(tp.bin1_id - col_offset);
-        m(i3, i4) = tp.count;
+
+        if (i3 >= 0 && i3 < num_rows && i4 >= 0 && i4 < num_cols) {
+          m(i3, i4) = tp.count;
+        }
       }
     }
   });
