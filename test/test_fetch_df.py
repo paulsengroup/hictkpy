@@ -48,6 +48,14 @@ class TestClass:
         df = f.fetch("chr2R\t10000000\t15000000", query_type="BED").to_df()
         assert len(df) == 1275
 
+        df = f.fetch("chr2L:0-10,000,000", "chr2L:10,000,000-20,000,000").to_df()
+        assert df["count"].sum() == 761_223
+        assert len(df) == 9_999
+
+        df = f.fetch("chr2L:0-10,000,000", "chr2L:0-15,000,000").to_df()
+        assert df["count"].sum() == 9_270_385
+        assert len(df) == 10_050
+
     def test_trans(self, file, resolution):
         f = hictkpy.File(file, resolution)
 
