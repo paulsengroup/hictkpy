@@ -63,12 +63,12 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
     range2 = range1;
   }
 
-  auto gi1 = query_type == "UCSC"
-                 ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range1})
-                 : hictk::GenomicInterval::parse_bed(f.chromosomes(), range1);
-  auto gi2 = query_type == "UCSC"
-                 ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range2})
-                 : hictk::GenomicInterval::parse_bed(f.chromosomes(), range2);
+  const auto gi1 = query_type == "UCSC"
+                       ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range1})
+                       : hictk::GenomicInterval::parse_bed(f.chromosomes(), range1);
+  const auto gi2 = query_type == "UCSC"
+                       ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range2})
+                       : hictk::GenomicInterval::parse_bed(f.chromosomes(), range2);
 
   bool mirror = false;
   if (gi1 > gi2 || (gi1.chrom() == gi2.chrom() && gi1.start() > gi2.start())) {
@@ -78,7 +78,9 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
 
   return std::visit(
       [&](const auto &ff) {
-        auto sel = ff.fetch(range1, range2, hictk::balancing::Method(normalization));
+        auto sel = ff.fetch(range1, range2, hictk::balancing::Method(normalization),
+                            query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC
+                                                 : hictk::GenomicInterval::Type::BED);
 
         using SelT = decltype(sel);
         return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
