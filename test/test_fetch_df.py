@@ -31,6 +31,9 @@ class TestClass:
     def test_cis(self, file, resolution):
         f = hictkpy.File(file, resolution)
 
+        df = f.fetch("chr2L").to_df()
+        assert df["count"].sum() == 19_968_156
+
         df = f.fetch("chr2R:10,000,000-15,000,000").to_df()
         assert df["count"].sum() == 4_519_080
         assert len(df.columns) == 3
@@ -58,6 +61,9 @@ class TestClass:
 
     def test_trans(self, file, resolution):
         f = hictkpy.File(file, resolution)
+
+        df = f.fetch("chr2L", "chr2R").to_df()
+        assert df["count"].sum() == 1_483_112
 
         df = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000").to_df()
         assert df["count"].sum() == 83_604
