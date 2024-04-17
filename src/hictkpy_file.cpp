@@ -63,7 +63,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
     range2 = range1;
   }
   const auto query_type_ =
-      "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
   const auto gi1 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range1}, query_type_);
   const auto gi2 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range2}, query_type_);
 
