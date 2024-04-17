@@ -69,17 +69,17 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   auto gi2 = query_type == "UCSC"
                  ? hictk::GenomicInterval::parse_ucsc(f.chromosomes(), std::string{range2})
                  : hictk::GenomicInterval::parse_bed(f.chromosomes(), range2);
-  bool mirror = false;
 
+  bool mirror = false;
   if (gi1 > gi2 || (gi1.chrom() == gi2.chrom() && gi1.start() > gi2.start())) {
     mirror = true;
-    std::swap(gi1, gi2);
+    std::swap(range1, range2);
   }
 
   return std::visit(
       [&](const auto &ff) {
-        auto sel = ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
-                            gi2.start(), gi2.end(), hictk::balancing::Method(normalization));
+        auto sel = ff.fetch(range1, range2, hictk::balancing::Method(normalization));
+
         using SelT = decltype(sel);
         return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
                                       join, mirror);
