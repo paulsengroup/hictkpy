@@ -43,6 +43,14 @@ bool is_scool_file(std::string_view path) {
 hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
                              std::string_view normalization, std::string_view count_type, bool join,
                              std::string_view query_type) {
+  if (count_type != "float" && count_type != "int") {
+    throw std::runtime_error("count_type should be either \"float\" or \"int\"");
+  }
+
+  if (query_type != "UCSC" && query_type != "BED") {
+    throw std::runtime_error("query_type should be either UCSC or BED");
+  }
+
   if (normalization != "NONE") {
     count_type = "float";
   }
@@ -62,20 +70,23 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   if (range2.empty()) {
     range2 = range1;
   }
+
   const auto query_type_ =
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
-  const auto gi1 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range1}, query_type_);
-  const auto gi2 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range2}, query_type_);
+  auto gi1 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range1}, query_type_);
+  auto gi2 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range2}, query_type_);
 
   bool mirror = false;
   if (gi1 > gi2 || (gi1.chrom() == gi2.chrom() && gi1.start() > gi2.start())) {
     mirror = true;
-    std::swap(range1, range2);
+    std::swap(gi1, gi2);
   }
 
   return std::visit(
       [&](const auto &ff) {
-        auto sel = ff.fetch(range1, range2, hictk::balancing::Method(normalization), query_type_);
+        // Workaround bug fixed in https://github.com/paulsengroup/hictk/pull/158
+        auto sel = ff.fetch(fmt::format(FMT_STRING("{}"), gi1), fmt::format(FMT_STRING("{}"), gi2),
+                            hictk::balancing::Method(normalization));
 
         using SelT = decltype(sel);
         return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
