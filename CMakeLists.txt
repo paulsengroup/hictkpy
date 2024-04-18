@@ -28,12 +28,15 @@ FetchContent_Declare(
   hictk
   URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-0.0.12.tar.xz"
   URL_HASH  "SHA256=9545d948f6feee5f6db0db3648d118483cc54c1f71273b937541b97f67268073"
+  EXCLUDE_FROM_ALL
   SYSTEM)
+
 
 FetchContent_Declare(
   nanobind
   URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v1.9.2.tar.xz"
   URL_HASH  "SHA256=2f511306aea0b39c1915b85db77cf4d861056dec528fb56a3e7a5f79fdae01c4"
+  EXCLUDE_FROM_ALL
   SYSTEM)
 
 set(HICTK_ENABLE_TESTING OFF)
