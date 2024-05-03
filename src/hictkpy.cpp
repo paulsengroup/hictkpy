@@ -134,6 +134,8 @@ static void declare_file_class(nb::module_ &m) {
            "Get the list of available normalizations.");
   file.def("has_normalization", &hictk::File::has_normalization, nb::arg("normalization"),
            "Check whether a given normalization is available.");
+  file.def("weights", &file::weights, nb::arg("name"), nb::arg("divisive") = true,
+           "Fetch the balancing weights for the given normalization method.");
 }
 
 static void declare_multires_file_class(nb::module_ &m) {
