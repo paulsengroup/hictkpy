@@ -175,4 +175,12 @@ std::vector<std::string> avail_normalizations(const hictk::File &f) {
 
   return norms;
 }
+
+[[nodiscard]] std::vector<double> weights(const hictk::File &f, std::string_view normalization,
+                                          bool divisive) {
+  const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
+                             : hictk::balancing::Weights::Type::MULTIPLICATIVE;
+  return f.normalization(normalization)(type);
+}
+
 }  // namespace hictkpy::file

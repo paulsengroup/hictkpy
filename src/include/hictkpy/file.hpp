@@ -35,5 +35,7 @@ void ctor(hictk::File *fp, std::string_view path, std::int32_t resolution,
 [[nodiscard]] nanobind::dict attributes(const hictk::File &f);
 
 [[nodiscard]] std::vector<std::string> avail_normalizations(const hictk::File &f);
+[[nodiscard]] std::vector<double> weights(const hictk::File &f, std::string_view normalization,
+                                          bool divisive = true);
 
 }  // namespace hictkpy::file
