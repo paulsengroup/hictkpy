@@ -182,37 +182,6 @@ inline nb::dict get_chromosomes_from_object(const Obj &f, bool include_all = fal
   return py_chroms;
 }
 
-template <typename File>
-inline nb::object get_bins_from_file(const File &f) {
-  auto pd = nb::module_::import_("pandas");
-
-  const auto n = f.bins().size();
-
-  Dynamic1DA<std::int32_t> chrom_ids(n);
-  Dynamic1DA<std::int32_t> starts(n);
-  Dynamic1DA<std::int32_t> ends(n);
-  for (const auto &bin : f.bins()) {
-    chrom_ids.push_back(static_cast<std::int32_t>(bin.chrom().id()));
-    starts.push_back(static_cast<std::int32_t>(bin.start()));
-    ends.push_back(static_cast<std::int32_t>(bin.end()));
-  }
-
-  std::vector<std::string> chrom_names{};
-  std::transform(f.chromosomes().begin(), f.chromosomes().end(), std::back_inserter(chrom_names),
-                 [&](const hictk::Chromosome &chrom) { return std::string{chrom.name()}; });
-
-  nb::dict py_bins_dict{};  // NOLINT
-
-  py_bins_dict["chrom"] =
-      pd.attr("Categorical")
-          .attr("from_codes")(chrom_ids(), "categories"_a = chrom_names, "validate"_a = false);
-  py_bins_dict["start"] = pd.attr("Series")(starts(), "copy"_a = false);
-  py_bins_dict["end"] = pd.attr("Series")(ends(), "copy"_a = false);
-
-  auto df = pd.attr("DataFrame")(py_bins_dict, "copy"_a = false);
-  return df;
-}
-
 template <typename PixelIt>
 inline nb::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel,
                                          std::size_t num_rows, std::size_t num_cols, bool mirror,

@@ -38,24 +38,22 @@ std::string repr(const hictk::BinTable& bins) {
                      bins.resolution());
 }
 
-nanobind::tuple bin_id_to_coords(const hictk::BinTable& bins, std::uint64_t bin_id) {
-  const auto bin = bins.at(bin_id);
-  return nb::make_tuple(std::string{bin.chrom().name()}, bin.start(), bin.end());
+hictk::Bin bin_id_to_coords(const hictk::BinTable& bins, std::uint64_t bin_id) {
+  return bins.at(bin_id);
 }
 
-nanobind::object try_bin_id_to_coords(const hictk::BinTable& bins, std::uint64_t bin_id) {
+nb::object try_bin_id_to_coords(const hictk::BinTable& bins, std::uint64_t bin_id) {
   try {
-    const auto bin = bins.at(bin_id);
-    return nb::make_tuple(std::string{bin.chrom().name()}, bin.start(), bin.end());
+    return nb::cast(bins.at(bin_id));
   } catch (const std::out_of_range&) {
     return nb::none();
   }
 }
 
-nb::object try_coords_to_bin_id(const hictk::BinTable& bins, std::string_view chrom,
+nb::object try_coords_to_bin(const hictk::BinTable& bins, std::string_view chrom,
                                 std::uint32_t pos) {
   try {
-    return nb::cast(bins.at(chrom, pos).id());
+    return nb::cast(bins.at(chrom, pos));
   } catch (const std::out_of_range&) {
     return nb::none();
   }

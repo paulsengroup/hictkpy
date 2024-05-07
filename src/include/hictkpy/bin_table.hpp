@@ -7,9 +7,9 @@
 #include <nanobind/nanobind.h>
 
 #include <cstdint>
+#include <hictk/bin.hpp>
+#include <hictk/bin_table.hpp>
 #include <string_view>
-
-#include "hictk/bin_table.hpp"
 
 namespace hictkpy::bin_table {
 
@@ -17,12 +17,12 @@ void ctor(hictk::BinTable* bins, nanobind::dict chromosomes, std::uint32_t resol
 
 [[nodiscard]] std::string repr(const hictk::BinTable& bins);
 
-[[nodiscard]] nanobind::tuple bin_id_to_coords(const hictk::BinTable& bins, std::uint64_t bin_id);
+[[nodiscard]] hictk::Bin bin_id_to_coords(const hictk::BinTable& bins, std::uint64_t bin_id);
 
 [[nodiscard]] nanobind::object try_bin_id_to_coords(const hictk::BinTable& bins,
                                                     std::uint64_t bin_id);
-[[nodiscard]] nanobind::object try_coords_to_bin_id(const hictk::BinTable& bins,
-                                                    std::string_view chrom, std::uint32_t pos);
+[[nodiscard]] nanobind::object try_coords_to_bin(const hictk::BinTable& bins,
+                                                 std::string_view chrom, std::uint32_t pos);
 
 [[nodiscard]] nanobind::object merge_coords(const hictk::BinTable& bins, nanobind::object df);
 
