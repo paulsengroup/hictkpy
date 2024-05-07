@@ -44,6 +44,14 @@ class TestClass:
         m = f.fetch("chr2R\t10000000\t15000000", query_type="BED").to_coo()
         assert m.shape == (50, 50)
 
+        m = f.fetch("chr2L:0-10,000,000", "chr2L:10,000,000-20,000,000").to_coo()
+        assert m.shape == (100, 100)
+        assert m.sum() == 761_223
+
+        m = f.fetch("chr2L:0-10,000,000", "chr2L:0-15,000,000").to_coo()
+        assert m.shape == (100, 150)
+        assert m.sum() == 9_270_385
+
     def test_trans(self, file, resolution):
         f = hictkpy.File(file, resolution)
 
@@ -59,6 +67,10 @@ class TestClass:
 
         m = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED").to_coo()
         assert m.shape == (50, 100)
+
+        m1 = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000").to_coo()
+        m2 = f.fetch("chrX:0-10,000,000", "chr2R:10,000,000-15,000,000").to_coo()
+        assert np.array_equal(m1.T.toarray(), m2.toarray())
 
     def test_balanced(self, file, resolution):
         f = hictkpy.File(file, resolution)

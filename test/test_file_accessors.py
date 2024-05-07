@@ -44,3 +44,7 @@ class TestClass:
             assert f.avail_normalizations() == ["ICE"]
 
         assert not f.has_normalization("foo")
+
+        name = "weight" if f.is_cooler() else "ICE"
+        weights = f.weights(name)
+        assert len(weights) == len(f.bins())

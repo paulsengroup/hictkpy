@@ -19,8 +19,8 @@ namespace nb = nanobind;
 namespace hictkpy {
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_,
-                             std::string_view type, bool join_)
-    : selector(std::move(sel_)), join(join_) {
+                             std::string_view type, bool join_, bool mirror_)
+    : selector(std::move(sel_)), join(join_), mirror(mirror_) {
   if (type != "int" && type != "float") {
     throw std::runtime_error("type should be int or float");
   }
@@ -33,8 +33,8 @@ PixelSelector::PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector>
 }
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_,
-                             std::string_view type, bool join_)
-    : selector(std::move(sel_)), join(join_) {
+                             std::string_view type, bool join_, bool mirror_)
+    : selector(std::move(sel_)), join(join_), mirror(mirror_) {
   if (type != "int" && type != "float") {
     throw std::runtime_error("type should be int or float");
   }
@@ -47,8 +47,8 @@ PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> se
 }
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_,
-                             std::string_view type, bool join_)
-    : selector(std::move(sel_)), join(join_) {
+                             std::string_view type, bool join_, bool mirror_)
+    : selector(std::move(sel_)), join(join_), mirror(mirror_) {
   if (type != "int" && type != "float") {
     throw std::runtime_error("type should be int or float");
   }
@@ -103,18 +103,23 @@ const hictk::BinTable& PixelSelector::bins() const noexcept {
 }
 
 auto PixelSelector::get_coord1() const -> PixelCoordTuple {
-  const auto c = coord1();
+  const auto c = mirror ? coord2() : coord1();
   return PixelCoordTuple{std::make_tuple(c.bin1.chrom().name(), c.bin1.start(), c.bin1.end(),
                                          c.bin2.chrom().name(), c.bin2.start(), c.bin2.end())};
 }
 
 auto PixelSelector::get_coord2() const -> PixelCoordTuple {
-  const auto c = coord2();
+  const auto c = mirror ? coord1() : coord2();
   return PixelCoordTuple{std::make_tuple(c.bin1.chrom().name(), c.bin1.start(), c.bin1.end(),
                                          c.bin2.chrom().name(), c.bin2.start(), c.bin2.end())};
 }
 
 nb::iterator PixelSelector::make_iterable() const {
+  if (mirror) {
+    throw std::runtime_error(
+        "iterating through the pixels for a query overlapping the lower triangle is not supported");
+  }
+
   if (join) {
     return std::visit(
         [&](const auto& s) {
@@ -155,11 +160,11 @@ nb::object PixelSelector::to_df() const {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_df(s->bins(), s->template begin<T>(), s->template end<T>(),
-                                       join);
+                                       join, mirror);
         } else {
           using T = double;
           return pixel_iterators_to_df(s->bins(), s->template begin<T>(), s->template end<T>(),
-                                       join);
+                                       join, mirror);
         }
       },
       selector);
@@ -177,11 +182,11 @@ nb::object PixelSelector::to_coo() const {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_coo(s->template begin<T>(), s->template end<T>(), num_rows,
-                                        num_cols, coord1().bin1.id(), coord2().bin1.id());
+                                        num_cols, mirror, coord1().bin1.id(), coord2().bin1.id());
         } else {
           using T = double;
           return pixel_iterators_to_coo(s->template begin<T>(), s->template end<T>(), num_rows,
-                                        num_cols, coord1().bin1.id(), coord2().bin1.id());
+                                        num_cols, mirror, coord1().bin1.id(), coord2().bin1.id());
         }
       },
       selector);
@@ -197,18 +202,19 @@ nb::object PixelSelector::to_numpy() const {
 
   const auto mirror_matrix = coord1().bin1.chrom() == coord2().bin1.chrom();
 
+  const auto row_offset = static_cast<std::int64_t>(coord1().bin1.id());
+  const auto col_offset = static_cast<std::int64_t>(coord2().bin1.id());
+
   return std::visit(
-      [&, num_rows, num_cols, mirror_matrix](const auto& s) {
+      [&, num_rows, num_cols, mirror_matrix, row_offset, col_offset](const auto& s) {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_numpy(s->template begin<T>(), s->template end<T>(), num_rows,
-                                          num_cols, mirror_matrix, coord1().bin1.id(),
-                                          coord2().bin1.id());
+                                          num_cols, mirror_matrix, row_offset, col_offset);
         } else {
           using T = double;
           return pixel_iterators_to_numpy(s->template begin<T>(), s->template end<T>(), num_rows,
-                                          num_cols, mirror_matrix, coord1().bin1.id(),
-                                          coord2().bin1.id());
+                                          num_cols, mirror_matrix, row_offset, col_offset);
         }
       },
       selector);

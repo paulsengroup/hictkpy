@@ -31,15 +31,16 @@ struct PixelSelector {
   SelectorVar selector{};
   PixelVar pixel_count{std::int32_t(0)};
   bool join{};
+  bool mirror{false};
 
   PixelSelector() = default;
 
   PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_, std::string_view type,
-                bool join_);
+                bool join_, bool mirror_);
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_, std::string_view type,
-                bool join_);
+                bool join_, bool mirror_);
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_, std::string_view type,
-                bool join_);
+                bool join_, bool mirror_);
 
   [[nodiscard]] std::string repr() const;
 

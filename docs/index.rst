@@ -61,6 +61,7 @@ discourse:
 
    installation
    quickstart
+   creating_cool_hic_files
 
 .. toctree::
    :caption: API Reference

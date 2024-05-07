@@ -34,9 +34,25 @@ bool is_cooler(std::string_view uri) { return bool(hictk::cooler::utils::is_cool
 
 bool is_hic(std::string_view uri) { return hictk::hic::utils::is_hic_file(std::string{uri}); }
 
+bool is_mcool_file(std::string_view path) {
+  return bool(hictk::cooler::utils::is_multires_file(path));
+}
+
+bool is_scool_file(std::string_view path) {
+  return bool(hictk::cooler::utils::is_scool_file(path));
+}
+
 hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
                              std::string_view normalization, std::string_view count_type, bool join,
                              std::string_view query_type) {
+  if (count_type != "float" && count_type != "int") {
+    throw std::runtime_error("count_type should be either \"float\" or \"int\"");
+  }
+
+  if (query_type != "UCSC" && query_type != "BED") {
+    throw std::runtime_error("query_type should be either UCSC or BED");
+  }
+
   if (normalization != "NONE") {
     count_type = "float";
   }
@@ -48,22 +64,35 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
           auto sel = ff.fetch(hictk::balancing::Method{normalization});
           using SelT = decltype(sel);
           return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                        join);
+                                        join, false);
         },
         f.get());
   }
 
-  const auto qt =
+  if (range2.empty()) {
+    range2 = range1;
+  }
+
+  const auto query_type_ =
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+  auto gi1 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range1}, query_type_);
+  auto gi2 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range2}, query_type_);
+
+  bool mirror = false;
+  if (gi1 > gi2 || (gi1.chrom() == gi2.chrom() && gi1.start() > gi2.start())) {
+    mirror = true;
+    std::swap(gi1, gi2);
+  }
 
   return std::visit(
       [&](const auto &ff) {
-        auto sel = range2.empty() || range1 == range2
-                       ? ff.fetch(range1, hictk::balancing::Method(normalization), qt)
-                       : ff.fetch(range1, range2, hictk::balancing::Method(normalization), qt);
+        // Workaround bug fixed in https://github.com/paulsengroup/hictk/pull/158
+        auto sel = ff.fetch(fmt::format(FMT_STRING("{}"), gi1), fmt::format(FMT_STRING("{}"), gi2),
+                            hictk::balancing::Method(normalization));
+
         using SelT = decltype(sel);
         return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                      join);
+                                      join, mirror);
       },
       f.get());
 }
@@ -148,4 +177,12 @@ std::vector<std::string> avail_normalizations(const hictk::File &f) {
 
   return norms;
 }
+
+[[nodiscard]] std::vector<double> weights(const hictk::File &f, std::string_view normalization,
+                                          bool divisive) {
+  const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
+                             : hictk::balancing::Weights::Type::MULTIPLICATIVE;
+  return f.normalization(normalization)(type);
+}
+
 }  // namespace hictkpy::file

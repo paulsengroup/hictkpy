@@ -26,15 +26,18 @@ project(
 include(FetchContent)
 FetchContent_Declare(
   hictk
-  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v0.0.9.tar.xz"
-  URL_HASH  "SHA256=b4e141cbc24d867ffcce1549c2e4068ab12ce90a4181d97514868979cc943d87"
+  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-0.0.12.tar.xz"
+  URL_HASH  "SHA256=9545d948f6feee5f6db0db3648d118483cc54c1f71273b937541b97f67268073"
+  EXCLUDE_FROM_ALL
   SYSTEM)
 
+
 FetchContent_Declare(
-        nanobind
-        URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v1.9.2.tar.xz"
-        URL_HASH  "SHA256=2f511306aea0b39c1915b85db77cf4d861056dec528fb56a3e7a5f79fdae01c4"
-        SYSTEM)
+  nanobind
+  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v1.9.2.tar.xz"
+  URL_HASH  "SHA256=2f511306aea0b39c1915b85db77cf4d861056dec528fb56a3e7a5f79fdae01c4"
+  EXCLUDE_FROM_ALL
+  SYSTEM)
 
 set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
