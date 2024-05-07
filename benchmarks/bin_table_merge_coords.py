@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+
+# Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+import argparse
+import timeit
+from typing import Dict, Tuple
+
+import numpy as np
+import numpy.typing as npt
+
+import hictkpy
+import pandas as pd
+
+
+def make_cli() -> argparse.ArgumentParser:
+    cli = argparse.ArgumentParser()
+
+    cli.add_argument(
+        "--bin-size",
+        type=int,
+        default=1000,
+    )
+
+    cli.add_argument(
+        "--batch-size",
+        type=int,
+        default=20_000_000,
+    )
+
+    cli.add_argument(
+        "--seed",
+        type=int,
+        default=123456789,
+    )
+
+    cli.add_argument(
+        "--min-time",
+        type=float,
+        default=5,
+    )
+
+    return cli
+
+
+def setup(chroms: Dict[str, int], bin_size: int, batch_size: int) -> Tuple[hictkpy.BinTable, pd.DataFrame]:
+    assert batch_size > 0
+    bins = hictkpy.BinTable(chroms, bin_size)
+    bin1_ids = np.random.randint(0, len(bins), batch_size)
+    bin2_ids = np.random.randint(0, len(bins), batch_size)
+
+    return bins, pd.DataFrame({"bin1_id": bin1_ids, "bin2_id": bin2_ids})
+
+
+def benchmark_hictkpy(bins: hictkpy.BinTable, ids: pd.DataFrame, iters: int):
+    return timeit.timeit(lambda: bins.merge(ids), number=iters)
+
+
+def benchmark_pandas(bins: pd.DataFrame, ids: pd.DataFrame, iters: int):
+    def fx():
+        df1 = (
+            bins.iloc[ids["bin1_id"]]
+            .rename(columns={"chrom": "chrom1", "start": "start1", "end": "end1"})
+            .reset_index(drop=True)
+        )
+        df2 = (
+            bins.iloc[ids["bin2_id"]]
+            .rename(columns={"chrom": "chrom2", "start": "start2", "end": "end2"})
+            .reset_index(drop=True)
+        )
+
+        return pd.concat([ids, df1, df2], axis="columns")
+
+    return timeit.timeit(lambda: fx(), number=iters)
+
+
+def benchmark(bins: hictkpy.BinTable, ids: pd.DataFrame, mode: str, min_time: float) -> Tuple[int, float]:
+    fx = benchmark_hictkpy if mode == "hictkpy" else benchmark_pandas
+
+    n = 1
+    t = fx(bins, ids, n)
+
+    if t < min_time:
+        n = int(0.5 * (min_time / t))
+
+    while t < min_time:
+        n *= 2
+        t = fx(bins, ids, n)
+
+    return n, t / n
+
+
+def make_time_human_readable(time: float) -> Tuple[float, str]:
+    suffix = "s"
+    if time < 1.0e-6:
+        time *= 1.0e9  # sec -> ns
+        suffix = "ns"
+    elif time < 1.0e-3:  # sec -> us
+        time *= 1.0e6
+        suffix = "us"
+    elif time < 1:  # sec -> ns
+        time *= 1.0e3
+        suffix = "ms"
+
+    return time, suffix
+
+
+def main():
+    args = vars(make_cli().parse_args())
+
+    np.random.seed(args["seed"])
+
+    bins, bin_ids = setup(hg38, args["bin_size"], args["batch_size"])
+
+    iters_htk, time_htk = benchmark(bins, bin_ids, min_time=args["min_time"], mode="hictkpy")
+    iters_pd, time_pd = benchmark(bins.to_df(), bin_ids, min_time=args["min_time"], mode="pandas")
+
+    time_htk, suffix_htk = make_time_human_readable(time_htk)
+    time_pd, suffix_pd = make_time_human_readable(time_pd)
+
+    print(f"hictkpy: {time_htk:.2f} {suffix_htk} {iters_htk} runs")
+    print(f"pandas: {time_pd:.2f} {suffix_pd} {iters_pd} runs")
+
+
+if __name__ == "__main__":
+    hg38 = {
+        "chr1": 248956422,
+        "chr2": 242193529,
+        "chr3": 198295559,
+        "chr4": 190214555,
+        "chr5": 181538259,
+        "chr6": 170805979,
+        "chr7": 159345973,
+        "chr8": 145138636,
+        "chr9": 138394717,
+        "chr10": 133797422,
+        "chr11": 135086622,
+        "chr12": 133275309,
+        "chr13": 114364328,
+        "chr14": 107043718,
+        "chr15": 101991189,
+        "chr16": 90338345,
+        "chr17": 83257441,
+        "chr18": 80373285,
+        "chr19": 58617616,
+        "chr20": 64444167,
+        "chr21": 46709983,
+        "chr22": 50818468,
+        "chrX": 156040895,
+        "chrY": 57227415,
+    }
+
+    main()
