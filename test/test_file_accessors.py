@@ -13,6 +13,7 @@ testdir = os.path.dirname(os.path.abspath(__file__))
 pytestmark = pytest.mark.parametrize(
     "file,resolution",
     [
+        (os.path.join(testdir, "data", "cooler_test_file.mcool::/resolutions/100000"), None),
         (os.path.join(testdir, "data", "cooler_test_file.mcool"), 100_000),
         (os.path.join(testdir, "data", "hic_test_file.hic"), 100_000),
     ],
