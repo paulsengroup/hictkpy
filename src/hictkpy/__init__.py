@@ -5,6 +5,7 @@
 
 from ._hictkpy import (
     __doc__,
+    BinTable,
     File,
     MultiResFile,
     PixelSelector,
@@ -21,6 +22,7 @@ from importlib.metadata import version
 __version__ = version("hictkpy")
 __all__ = [
     "__doc__",
+    "BinTable",
     "File",
     "MultiResFile",
     "PixelSelector",

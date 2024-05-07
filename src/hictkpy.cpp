@@ -7,6 +7,8 @@
 #include <nanobind/stl/string_view.h>
 #include <nanobind/stl/vector.h>
 
+#include <hictkpy/bin_table.hpp>
+
 #include "hictk/cooler.hpp"
 #include "hictk/file.hpp"
 #include "hictk/hic.hpp"
@@ -21,6 +23,23 @@
 
 namespace nb = nanobind;
 namespace hictkpy {
+
+static void declare_bin_class(nb::module_ &m) {
+  nb::class_<hictk::Bin>(m, "Bin", "Genomic Bin.")
+      .def_prop_ro("id", [](const hictk::Bin &b) { return b.id(); })
+      .def_prop_ro("rel_id", [](const hictk::Bin &b) { return b.rel_id(); })
+      .def_prop_ro("chrom", [](const hictk::Bin &b) { return b.chrom().name(); })
+      .def_prop_ro("start", [](const hictk::Bin &b) { return b.start(); })
+      .def_prop_ro("end", [](const hictk::Bin &b) { return b.end(); })
+      .def("__repr__",
+           [](const hictk::Bin &b) {
+             return fmt::format(FMT_COMPILE("id={}; rel_id={}; chrom={}; start={}; end={}"), b.id(),
+                                b.rel_id(), b.chrom().name(), b.start(), b.end());
+           })
+      .def("__str__", [](const hictk::Bin &b) {
+        return fmt::format(FMT_COMPILE("{}\t{}\t{}"), b.chrom().name(), b.start(), b.end());
+      });
+}
 
 template <typename N>
 static void declare_thin_pixel_class(nb::module_ &m, const std::string &suffix) {
@@ -68,17 +87,58 @@ static void declare_pixel_class(nb::module_ &m, const std::string &suffix) {
       });
 }
 
+static void declare_bin_table_class(nb::module_ &m) {
+  auto bt =
+      nb::class_<hictk::BinTable>(m, "BinTable", "Class representing a table of genomic bins.");
+
+  bt.def("__init__", &bin_table::ctor, nb::arg("chroms"), nb::arg("resolution"),
+         "Construct a table of bins given a dictionary mapping chromosomes to their sizes and a "
+         "resolution");
+
+  bt.def("__repr__", &bin_table::repr);
+
+  bt.def("chromosomes", &get_chromosomes_from_object<hictk::BinTable>,
+         nb::arg("include_all") = false,
+         "Get chromosomes sizes as a dictionary mapping names to sizes.");
+
+  bt.def("bin_size", &hictk::BinTable::resolution,
+         "Get the bin size for the bin table. "
+         "Return 0 in case the bin table has a variable bin size.");
+
+  bt.def("__len__", &hictk::BinTable::size, "Get the number of bins in the bin table.");
+
+  bt.def("__getitem__", &bin_table::bin_id_to_coords, nb::arg("bin_id"),
+         "Get the genomic coordinates given a bin ID.");
+
+  bt.def("__iter__", &bin_table::make_iterable, nb::keep_alive<0, 1>());
+
+  bt.def("get", &bin_table::try_bin_id_to_coords, nb::arg("bin_id"),
+         "Get the genomic coordinates given a bin ID.");
+  bt.def("get", &bin_table::try_coords_to_bin_id, nb::arg("chrom"), nb::arg("pos"),
+         "Get the ID of the bin overlapping the given genomic coordinate.");
+
+  bt.def("merge", &bin_table::merge_coords, nb::arg("df"),
+         "Merge genomic coordinates corresponding to the given bin identifiers. "
+         "Bin identifiers should be provided as a pandas DataFrame with columns \"bin1_id\" and "
+         "\"bin2_id\"");
+
+  bt.def("to_df", &bin_table::to_df, "Convert the bin table to a pandas DataFrame");
+}
+
 static void declare_pixel_selector_class(nb::module_ &m) {
   auto sel = nb::class_<PixelSelector>(
       m, "PixelSelector",
       "Class representing pixels overlapping with the given genomic intervals.");
 
-  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
 
   sel.def("__repr__", &PixelSelector::repr);
 
@@ -115,7 +175,7 @@ static void declare_file_class(nb::module_ &m) {
   file.def("is_hic", &hictk::File::is_hic, "Test whether file is in .hic format.");
   file.def("is_cooler", &hictk::File::is_cooler, "Test whether file is in .cool format.");
 
-  file.def("chromosomes", &get_chromosomes_from_file<hictk::File>, nb::arg("include_all") = false,
+  file.def("chromosomes", &get_chromosomes_from_object<hictk::File>, nb::arg("include_all") = false,
            "Get chromosomes sizes as a dictionary mapping names to sizes.");
   file.def("bins", &get_bins_from_file<hictk::File>, "Get bins as a pandas DataFrame.");
 
@@ -147,7 +207,7 @@ static void declare_multires_file_class(nb::module_ &m) {
   mres_file.def("__repr__", &multires_file::repr);
 
   mres_file.def("path", &hictk::MultiResFile::path, "Get the file path.");
-  mres_file.def("chromosomes", &get_chromosomes_from_file<hictk::MultiResFile>,
+  mres_file.def("chromosomes", &get_chromosomes_from_object<hictk::MultiResFile>,
                 nb::arg("include_all") = false,
                 "Get chromosomes sizes as a dictionary mapping names to sizes.");
   mres_file.def("resolutions", &hictk::MultiResFile::resolutions,
@@ -170,7 +230,7 @@ static void declare_singlecell_file_class(nb::module_ &m) {
   scell_file.def("path", &hictk::cooler::SingleCellFile::path, "Get the file path.");
   scell_file.def("resolution", &hictk::cooler::SingleCellFile::resolution,
                  "Get the bin size in bp.");
-  scell_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::SingleCellFile>,
+  scell_file.def("chromosomes", &get_chromosomes_from_object<hictk::cooler::SingleCellFile>,
                  nb::arg("include_all") = false,
                  "Get chromosomes sizes as a dictionary mapping names to sizes.");
   scell_file.def("bins", &get_bins_from_file<hictk::cooler::SingleCellFile>,
@@ -206,7 +266,7 @@ static void declare_hic_file_writer_class(nb::module_ &m) {
   writer.def("path", &hictkpy::HiCFileWriter::path, "Get the file path.");
   writer.def("resolutions", &hictkpy::HiCFileWriter::resolutions,
              "Get the list of resolutions in bp.");
-  writer.def("chromosomes", &get_chromosomes_from_file<hictkpy::HiCFileWriter>,
+  writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::HiCFileWriter>,
              nb::arg("include_all") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
@@ -233,7 +293,7 @@ static void declare_cooler_file_writer_class(nb::module_ &m) {
 
   writer.def("path", &hictkpy::CoolFileWriter::path, "Get the file path.");
   writer.def("resolutions", &hictkpy::CoolFileWriter::resolution, "Get the resolution in bp.");
-  writer.def("chromosomes", &get_chromosomes_from_file<hictkpy::CoolFileWriter>,
+  writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::CoolFileWriter>,
              nb::arg("include_all") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
@@ -265,11 +325,13 @@ NB_MODULE(_hictkpy, m) {
         "Test whether path points to a .scool file.");
   m.def("is_hic", &file::is_hic, nb::arg("path"), "Test whether path points to a .hic file.");
 
+  declare_bin_class(m);
   declare_thin_pixel_class<std::int32_t>(m, "Int");
   declare_thin_pixel_class<double>(m, "FP");
   declare_pixel_class<std::int32_t>(m, "Int");
   declare_pixel_class<double>(m, "FP");
 
+  declare_bin_table_class(m);
   declare_pixel_selector_class(m);
 
   declare_file_class(m);

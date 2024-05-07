@@ -168,8 +168,8 @@ struct Dynamic1DA {
   }
 };
 
-template <typename File>
-inline nb::dict get_chromosomes_from_file(const File &f, bool include_all = false) {
+template <typename Obj>
+inline nb::dict get_chromosomes_from_object(const Obj &f, bool include_all = false) {
   nb::dict py_chroms{};  // NOLINT
   for (const auto &chrom : f.chromosomes()) {
     if (!include_all && chrom.is_all()) {
@@ -186,9 +186,11 @@ template <typename File>
 inline nb::object get_bins_from_file(const File &f) {
   auto pd = nb::module_::import_("pandas");
 
-  Dynamic1DA<std::int32_t> chrom_ids{};
-  Dynamic1DA<std::int32_t> starts{};
-  Dynamic1DA<std::int32_t> ends{};
+  const auto n = f.bins().size();
+
+  Dynamic1DA<std::int32_t> chrom_ids(n);
+  Dynamic1DA<std::int32_t> starts(n);
+  Dynamic1DA<std::int32_t> ends(n);
   for (const auto &bin : f.bins()) {
     chrom_ids.push_back(static_cast<std::int32_t>(bin.chrom().id()));
     starts.push_back(static_cast<std::int32_t>(bin.start()));
