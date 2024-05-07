@@ -10,7 +10,6 @@ from typing import Dict, Tuple
 
 import numpy as np
 import numpy.typing as npt
-import bioframe as bf
 
 import hictkpy
 import pandas as pd
@@ -80,8 +79,9 @@ def benchmark_pandas_vec(bins: pd.DataFrame, chroms: npt.NDArray, starts: npt.ND
                 (bins["start"] <= row["start"]) &
                 (bins["end"] > row["start"])
             ].index[0],
-            number=iters,
-        )
+            axis="columns"
+        ),
+        number=iters
     )
     # fmt: on
 
