@@ -13,9 +13,9 @@
 
 #include "hictk/balancing/methods.hpp"
 #include "hictk/file.hpp"
+#include "hictkpy/bin_table.hpp"
 #include "hictkpy/file.hpp"
 #include "hictkpy/pixel_selector.hpp"
-#include "hictkpy/bin_table.hpp"
 
 namespace nb = nanobind;
 
@@ -40,6 +40,10 @@ bool is_mcool_file(std::string_view path) {
 
 bool is_scool_file(std::string_view path) {
   return bool(hictk::cooler::utils::is_scool_file(path));
+}
+
+hictkpy::BinTable bins(const hictk::File& f) {
+  return BinTable{f.bins()};
 }
 
 hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std::string_view range2,

@@ -24,6 +24,10 @@ std::string repr(const hictk::cooler::SingleCellFile& sclr) {
   return fmt::format(FMT_STRING("SingleCellFile({})"), sclr.path());
 }
 
+hictkpy::BinTable bins(const hictk::cooler::SingleCellFile& f) {
+  return BinTable{f.bins()};
+}
+
 nb::dict get_attrs(const hictk::cooler::SingleCellFile& sclr) {
   nb::dict py_attrs;
 

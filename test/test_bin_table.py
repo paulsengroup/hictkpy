@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: MIT
 
 
+import numpy as np
 import pandas as pd
+import pytest
 
 import hictkpy
 
@@ -21,17 +23,22 @@ class TestClass:
         chroms = {"chr1": 1000, "chr2": 500}
         bins = hictkpy.BinTable(chroms, 100)
 
-        assert bins[1].chrom == "chr1"
-        assert bins[1].start == 100
-        assert bins[1].end == 200
-
         assert bins.get(1).chrom == "chr1"
         assert bins.get(1).start == 100
         assert bins.get(1).end == 200
-        assert bins.get(9999) is None
+        with pytest.raises(Exception):
+            bins.get(9999)
 
-        assert bins.get("chr1", 153).id == 1
-        assert bins.get("abc", 100) is None
+        assert bins.get_id("chr1", 153) == 1
+        with pytest.raises(Exception):
+            bins.get_id("abc", 100)
+
+    def test_vectorized_getters(self):
+        chroms = {"chr1": 1000, "chr2": 500}
+        bins = hictkpy.BinTable(chroms, 100)
+
+        assert len(bins.get(np.array([1, 1]))) == 2
+        assert len(bins.get_ids(np.array(["chr1", "chr1"]), np.array([1, 1]))) == 2
 
     def test_merge(self):
         chroms = {"chr1": 1000, "chr2": 500}

@@ -13,9 +13,12 @@
 
 #include "hictk/cooler/singlecell_cooler.hpp"
 #include "hictk/file.hpp"
+#include "hictkpy/bin_table.hpp"
 
 namespace hictkpy::singlecell_file {
 void ctor(hictk::cooler::SingleCellFile* fp, std::string_view path);
+
+[[nodiscard]] hictkpy::BinTable bins(const hictk::cooler::SingleCellFile& f);
 
 [[nodiscard]] std::string repr(const hictk::cooler::SingleCellFile& sclr);
 

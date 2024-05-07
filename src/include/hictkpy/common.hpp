@@ -247,9 +247,9 @@ inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pi
 
   nb::dict py_pixels_dict{};  // NOLINT
 
-  py_pixels_dict["bin1_id"] = pd.attr("Series")(bin1_ids(), "copy"_a = false);
-  py_pixels_dict["bin2_id"] = pd.attr("Series")(bin2_ids(), "copy"_a = false);
-  py_pixels_dict["count"] = pd.attr("Series")(counts(), "copy"_a = false);
+  py_pixels_dict["bin1_id"] = bin1_ids();
+  py_pixels_dict["bin2_id"] = bin2_ids();
+  py_pixels_dict["count"] = counts();
 
   auto df = pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
 
@@ -347,16 +347,16 @@ inline nb::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt fi
   py_pixels_dict["chrom1"] =
       pd.attr("Categorical")
           .attr("from_codes")(chrom1_ids(), "categories"_a = chrom_names, "validate"_a = false);
-  py_pixels_dict["start1"] = pd.attr("Series")(starts1(), "copy"_a = false);
-  py_pixels_dict["end1"] = pd.attr("Series")(ends1(), "copy"_a = false);
+  py_pixels_dict["start1"] = starts1();
+  py_pixels_dict["end1"] = ends1();
 
   py_pixels_dict["chrom2"] =
       pd.attr("Categorical")
           .attr("from_codes")(chrom2_ids(), "categories"_a = chrom_names, "validate"_a = false);
-  py_pixels_dict["start2"] = pd.attr("Series")(starts2(), "copy"_a = false);
-  py_pixels_dict["end2"] = pd.attr("Series")(ends2(), "copy"_a = false);
+  py_pixels_dict["start2"] = starts2();
+  py_pixels_dict["end2"] = ends2();
 
-  py_pixels_dict["count"] = pd.attr("Series")(counts(), "copy"_a = false);
+  py_pixels_dict["count"] = counts();
 
   auto df = pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
   if (mirror) {
