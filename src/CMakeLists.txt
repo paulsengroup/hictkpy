@@ -13,6 +13,7 @@ nanobind_add_module(
   LTO
   MODULE
   hictkpy.cpp
+  hictkpy_bin_table.cpp
   hictkpy_file.cpp
   hictkpy_file_creation.cpp
   hictkpy_multires_file.cpp

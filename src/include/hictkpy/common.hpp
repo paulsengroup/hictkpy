@@ -168,8 +168,8 @@ struct Dynamic1DA {
   }
 };
 
-template <typename File>
-inline nb::dict get_chromosomes_from_file(const File &f, bool include_all = false) {
+template <typename Obj>
+inline nb::dict get_chromosomes_from_object(const Obj &f, bool include_all = false) {
   nb::dict py_chroms{};  // NOLINT
   for (const auto &chrom : f.chromosomes()) {
     if (!include_all && chrom.is_all()) {
@@ -180,35 +180,6 @@ inline nb::dict get_chromosomes_from_file(const File &f, bool include_all = fals
   }
 
   return py_chroms;
-}
-
-template <typename File>
-inline nb::object get_bins_from_file(const File &f) {
-  auto pd = nb::module_::import_("pandas");
-
-  Dynamic1DA<std::int32_t> chrom_ids{};
-  Dynamic1DA<std::int32_t> starts{};
-  Dynamic1DA<std::int32_t> ends{};
-  for (const auto &bin : f.bins()) {
-    chrom_ids.push_back(static_cast<std::int32_t>(bin.chrom().id()));
-    starts.push_back(static_cast<std::int32_t>(bin.start()));
-    ends.push_back(static_cast<std::int32_t>(bin.end()));
-  }
-
-  std::vector<std::string> chrom_names{};
-  std::transform(f.chromosomes().begin(), f.chromosomes().end(), std::back_inserter(chrom_names),
-                 [&](const hictk::Chromosome &chrom) { return std::string{chrom.name()}; });
-
-  nb::dict py_bins_dict{};  // NOLINT
-
-  py_bins_dict["chrom"] =
-      pd.attr("Categorical")
-          .attr("from_codes")(chrom_ids(), "categories"_a = chrom_names, "validate"_a = false);
-  py_bins_dict["start"] = pd.attr("Series")(starts(), "copy"_a = false);
-  py_bins_dict["end"] = pd.attr("Series")(ends(), "copy"_a = false);
-
-  auto df = pd.attr("DataFrame")(py_bins_dict, "copy"_a = false);
-  return df;
 }
 
 template <typename PixelIt>
@@ -276,9 +247,9 @@ inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pi
 
   nb::dict py_pixels_dict{};  // NOLINT
 
-  py_pixels_dict["bin1_id"] = pd.attr("Series")(bin1_ids(), "copy"_a = false);
-  py_pixels_dict["bin2_id"] = pd.attr("Series")(bin2_ids(), "copy"_a = false);
-  py_pixels_dict["count"] = pd.attr("Series")(counts(), "copy"_a = false);
+  py_pixels_dict["bin1_id"] = bin1_ids();
+  py_pixels_dict["bin2_id"] = bin2_ids();
+  py_pixels_dict["count"] = counts();
 
   auto df = pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
 
@@ -376,16 +347,16 @@ inline nb::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt fi
   py_pixels_dict["chrom1"] =
       pd.attr("Categorical")
           .attr("from_codes")(chrom1_ids(), "categories"_a = chrom_names, "validate"_a = false);
-  py_pixels_dict["start1"] = pd.attr("Series")(starts1(), "copy"_a = false);
-  py_pixels_dict["end1"] = pd.attr("Series")(ends1(), "copy"_a = false);
+  py_pixels_dict["start1"] = starts1();
+  py_pixels_dict["end1"] = ends1();
 
   py_pixels_dict["chrom2"] =
       pd.attr("Categorical")
           .attr("from_codes")(chrom2_ids(), "categories"_a = chrom_names, "validate"_a = false);
-  py_pixels_dict["start2"] = pd.attr("Series")(starts2(), "copy"_a = false);
-  py_pixels_dict["end2"] = pd.attr("Series")(ends2(), "copy"_a = false);
+  py_pixels_dict["start2"] = starts2();
+  py_pixels_dict["end2"] = ends2();
 
-  py_pixels_dict["count"] = pd.attr("Series")(counts(), "copy"_a = false);
+  py_pixels_dict["count"] = counts();
 
   auto df = pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
   if (mirror) {

@@ -28,6 +28,8 @@ void ctor(hictk::File *fp, std::string_view path, std::optional<std::int32_t> re
 [[nodiscard]] bool is_scool_file(std::string_view uri);
 [[nodiscard]] bool is_hic(std::string_view uri);
 
+[[nodiscard]] hictkpy::BinTable bins(const hictk::File& f);
+
 [[nodiscard]] hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1,
                                            std::string_view range2, std::string_view normalization,
                                            std::string_view count_type, bool join,

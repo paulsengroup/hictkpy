@@ -25,3 +25,6 @@ Generic API
 
 .. autoclass:: PixelSelector
    :members:
+
+.. autoclass:: BinTable
+   :members:
