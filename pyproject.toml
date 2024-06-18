@@ -55,7 +55,6 @@ HICTK_WITH_ARROW = "ON"
 HICTK_WITH_EIGEN = "OFF"
 BUILD_SHARED_LIBS = "OFF"
 CONAN_INSTALL_ARGS = "--settings=compiler.cppstd=17;--build=missing;--build=b2/*;--update;--options=*/*:shared=False"
-_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR = "ON"
 
 [tool.setuptools_scm]
 write_to = "src/_version.py"
