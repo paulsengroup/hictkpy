@@ -81,6 +81,9 @@ before-build = [
 ]
 environment = { PIP_VERBOSE=1 }
 
+# We are using static linking, thus repairing wheels is not necessary.
+repair-wheel-command = ""
+
 [tool.cibuildwheel.macos]
 environment = { MACOSX_DEPLOYMENT_TARGET=10.15 }
 
