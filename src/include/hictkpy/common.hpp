@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <arrow/python/api.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/stl/string.h>
@@ -22,6 +23,8 @@
 #include "hictk/numeric_variant.hpp"
 #include "hictk/pixel.hpp"
 #include "hictk/suppress_warnings.hpp"
+#include "hictk/transformers/join_genomic_coords.hpp"
+#include "hictk/transformers/to_dataframe.hpp"
 
 namespace hictkpy {
 
@@ -213,7 +216,7 @@ inline nb::object get_bins_from_file(const File &f) {
 
 template <typename PixelIt>
 inline nb::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel,
-                                         std::size_t num_rows, std::size_t num_cols, bool mirror,
+                                         std::size_t num_rows, std::size_t num_cols, bool transpose,
                                          std::size_t row_offset = 0, std::size_t col_offset = 0) {
   using N = decltype(first_pixel->count);
   auto ss = nb::module_::import_("scipy.sparse");
@@ -228,7 +231,7 @@ inline nb::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel
     counts.push_back(tp.count);
   });
 
-  if (mirror) {
+  if (transpose) {
     std::swap(num_rows, num_cols);
     std::swap(bin1_ids, bin2_ids);
   }
@@ -255,39 +258,11 @@ inline nb::object pixel_iterators_to_coo(PixelIt first_pixel, PixelIt last_pixel
 }
 
 template <typename PixelIt>
-inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pixel, bool mirror) {
-  using N = decltype(first_pixel->count);
-
-  auto pd = nb::module_::import_("pandas");
-
-  Dynamic1DA<std::int64_t> bin1_ids{};
-  Dynamic1DA<std::int64_t> bin2_ids{};
-  Dynamic1DA<N> counts{};
-
-  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
-    bin1_ids.push_back(static_cast<std::int64_t>(tp.bin1_id));
-    bin2_ids.push_back(static_cast<std::int64_t>(tp.bin2_id));
-    counts.push_back(tp.count);
-  });
-
-  if (mirror) {
-    std::swap(bin1_ids, bin2_ids);
-  }
-
-  nb::dict py_pixels_dict{};  // NOLINT
-
-  py_pixels_dict["bin1_id"] = pd.attr("Series")(bin1_ids(), "copy"_a = false);
-  py_pixels_dict["bin2_id"] = pd.attr("Series")(bin2_ids(), "copy"_a = false);
-  py_pixels_dict["count"] = pd.attr("Series")(counts(), "copy"_a = false);
-
-  auto df = pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
-
-  if (mirror) {
-    df.attr("sort_values")(std::vector<std::string>{"bin1_id", "bin2_id"}, "inplace"_a = true);
-    df.attr("reset_index")();
-  }
-
-  return df;
+inline nb::object pixel_iterators_to_coo_df(PixelIt first_pixel, PixelIt last_pixel,
+                                            bool transpose) {
+  auto table = hictk::transformers::ToDataFrame(
+      first_pixel, last_pixel, hictk::transformers::DataFrameFormat::COO, nullptr, transpose)();
+  return nb::steal(arrow::py::wrap_table(table));
 }
 
 template <typename PixelIt>
@@ -331,70 +306,11 @@ inline nb::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
 
 template <typename PixelIt>
 inline nb::object pixel_iterators_to_bg2(const hictk::BinTable &bins, PixelIt first_pixel,
-                                         PixelIt last_pixel, bool mirror) {
-  using N = decltype(first_pixel->count);
-
-  auto pd = nb::module_::import_("pandas");
-
-  nb::ndarray<nb::numpy, int> test;
-
-  Dynamic1DA<uint32_t> chrom1_ids{};
-  Dynamic1DA<std::int32_t> starts1{};
-  Dynamic1DA<std::int32_t> ends1{};
-  Dynamic1DA<uint32_t> chrom2_ids{};
-  Dynamic1DA<std::int32_t> starts2{};
-  Dynamic1DA<std::int32_t> ends2{};
-  Dynamic1DA<N> counts{};
-
-  std::for_each(first_pixel, last_pixel, [&](const hictk::ThinPixel<N> &tp) {
-    const hictk::Pixel<N> p{bins, tp};
-
-    chrom1_ids.push_back(static_cast<std::int32_t>(p.coords.bin1.chrom().id()));
-    starts1.push_back(static_cast<std::int32_t>(p.coords.bin1.start()));
-    ends1.push_back(static_cast<std::int32_t>(p.coords.bin1.end()));
-
-    chrom2_ids.push_back(static_cast<std::int32_t>(p.coords.bin2.chrom().id()));
-    starts2.push_back(static_cast<std::int32_t>(p.coords.bin2.start()));
-    ends2.push_back(static_cast<std::int32_t>(p.coords.bin2.end()));
-
-    counts.push_back(p.count);
-  });
-
-  if (mirror) {
-    std::swap(chrom1_ids, chrom2_ids);
-    std::swap(starts1, starts2);
-    std::swap(ends1, ends2);
-  }
-
-  std::vector<std::string> chrom_names{};
-  std::transform(bins.chromosomes().begin(), bins.chromosomes().end(),
-                 std::back_inserter(chrom_names),
-                 [&](const hictk::Chromosome &chrom) { return std::string{chrom.name()}; });
-
-  nb::dict py_pixels_dict{};  // NOLINT
-
-  py_pixels_dict["chrom1"] =
-      pd.attr("Categorical")
-          .attr("from_codes")(chrom1_ids(), "categories"_a = chrom_names, "validate"_a = false);
-  py_pixels_dict["start1"] = pd.attr("Series")(starts1(), "copy"_a = false);
-  py_pixels_dict["end1"] = pd.attr("Series")(ends1(), "copy"_a = false);
-
-  py_pixels_dict["chrom2"] =
-      pd.attr("Categorical")
-          .attr("from_codes")(chrom2_ids(), "categories"_a = chrom_names, "validate"_a = false);
-  py_pixels_dict["start2"] = pd.attr("Series")(starts2(), "copy"_a = false);
-  py_pixels_dict["end2"] = pd.attr("Series")(ends2(), "copy"_a = false);
-
-  py_pixels_dict["count"] = pd.attr("Series")(counts(), "copy"_a = false);
-
-  auto df = pd.attr("DataFrame")(py_pixels_dict, "copy"_a = false);
-  if (mirror) {
-    df.attr("sort_values")(std::vector<std::string>{"chrom1", "start1", "chrom2", "start2"},
-                           "inplace"_a = true);
-    df.attr("reset_index")();
-  }
-
-  return df;
+                                         PixelIt last_pixel, bool transpose) {
+  auto table = hictk::transformers::ToDataFrame(
+      first_pixel, last_pixel, hictk::transformers::DataFrameFormat::BG2,
+      std::make_shared<const hictk::BinTable>(bins), transpose)();
+  return nb::steal(arrow::py::wrap_table(table));
 }
 
 template <typename PixelIt>

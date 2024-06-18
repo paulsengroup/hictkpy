@@ -2,6 +2,12 @@
 #
 # SPDX-License-Identifier: MIT
 
+def _load_arrow_python_lib():
+    import pyarrow
+
+
+_load_arrow_python_lib()
+
 
 from ._hictkpy import (
     __doc__,

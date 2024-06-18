@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <arrow/python/api.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/optional.h>
@@ -74,12 +75,15 @@ static void declare_pixel_selector_class(nb::module_ &m) {
       m, "PixelSelector",
       "Class representing pixels overlapping with the given genomic intervals.");
 
-  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
 
   sel.def("__repr__", &PixelSelector::repr);
 
@@ -250,6 +254,9 @@ namespace nb = nanobind;
 using namespace nb::literals;
 
 NB_MODULE(_hictkpy, m) {
+  if (arrow::py::import_pyarrow() == -1) {
+    throw std::runtime_error("failed to initialize pyarrow runtime");
+  }
   [[maybe_unused]] auto np = nb::module_::import_("numpy");
   [[maybe_unused]] auto pd = nb::module_::import_("pandas");
   [[maybe_unused]] auto ss = nb::module_::import_("scipy.sparse");
