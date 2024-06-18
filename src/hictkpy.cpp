@@ -143,7 +143,7 @@ static void declare_multires_file_class(nb::module_ &m) {
   auto mres_file = nb::class_<hictk::MultiResFile>(
       m, "MultiResFile", "Class representing a file handle to a .hic or .mcool file");
   mres_file.def("__init__", &multires_file::ctor, nb::arg("path"),
-                "Open a multi-resolution Cooler file (.mcool).");
+                "Open a multi-resolution Cooler file (.mcool) or .hic file.");
 
   mres_file.def("__repr__", &multires_file::repr);
 
