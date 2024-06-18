@@ -19,4 +19,4 @@ from ._hictkpy import (
 
 __all__: list = ['__doc__', 'File', 'MultiResFile', 'PixelSelector', 'is_cooler', 'is_mcool_file', 'is_scool_file', 'is_hic', 'cooler', 'hic', '__hictk_version__']
 
-__hictk_version__: str = '0.0.12'
+__hictk_version__: str
