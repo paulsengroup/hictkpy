@@ -70,10 +70,10 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*musllinux*"]
+skip = ["*musllinux*", "pp*"]
 test-command = "python -m pytest {project}/test"
 test-extras = ["test"]
-test-skip = ["*universal2", "pp*"]
+test-skip = ["*universal2"]
 
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-build = [
