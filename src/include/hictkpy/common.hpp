@@ -109,7 +109,7 @@ template <typename T>
 template <typename T>
 struct Dynamic1DA {
  private:
-  using BufferT = nb::ndarray<nb::numpy, nb::shape<nb::any>, T>;
+  using BufferT = nb::ndarray<nb::numpy, nb::shape<-1>, T>;
   using VectorT = decltype(std::declval<BufferT>().view());
   nb::object _np_array{};
   BufferT _buff{};
@@ -169,8 +169,9 @@ struct Dynamic1DA {
 };
 
 template <typename File>
-inline nb::dict get_chromosomes_from_file(const File &f, bool include_all = false) {
-  nb::dict py_chroms{};  // NOLINT
+inline nb::typed<nb::dict, std::string, std::uint32_t> get_chromosomes_from_file(
+    const File &f, bool include_all = false) {
+  nb::typed<nb::dict, std::string, std::uint32_t> py_chroms{};  // NOLINT
   for (const auto &chrom : f.chromosomes()) {
     if (!include_all && chrom.is_all()) {
       continue;
@@ -301,7 +302,7 @@ inline nb::object pixel_iterators_to_numpy(PixelIt first_pixel, PixelIt last_pix
   const auto dtype = np.attr("dtype")(map_type_to_dtype<N>());
   auto buffer = np.attr("zeros")(std::vector<std::int64_t>{num_rows, num_cols}, "dtype"_a = dtype);
 
-  using Shape = nb::shape<nb::any, nb::any>;
+  using Shape = nb::shape<-1, -1>;
   using MatrixT = nb::ndarray<nb::numpy, N, Shape>;
 
   auto matrix = nb::cast<MatrixT>(buffer);

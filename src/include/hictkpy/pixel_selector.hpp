@@ -6,6 +6,7 @@
 
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string_view.h>
+#include <nanobind/stl/tuple.h>
 
 #include <cstdint>
 #include <memory>
@@ -50,7 +51,7 @@ struct PixelSelector {
   [[nodiscard]] auto get_coord1() const -> PixelCoordTuple;
   [[nodiscard]] auto get_coord2() const -> PixelCoordTuple;
 
-  [[nodiscard]] nanobind::iterator make_iterable() const;
+  [[nodiscard]] nanobind::object make_iterable() const;
   [[nodiscard]] nanobind::object to_df() const;
   [[nodiscard]] nanobind::object to_coo() const;
   [[nodiscard]] nanobind::object to_numpy() const;

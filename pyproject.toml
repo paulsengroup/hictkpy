@@ -6,6 +6,9 @@
 requires = [
   "conan>=2.0.5",
   "scikit-build-core>=0.8",
+  "numpy",
+  "pandas>=2.1.0,!=2.2.0",
+  "scipy",
 ]
 
 build-backend = "scikit_build_core.build"
