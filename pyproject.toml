@@ -70,7 +70,7 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*musllinux*"]
+skip = ["*musllinux*", "pp*"]
 test-command = "python -m pytest {project}/test"
 test-extras = ["test"]
 test-skip = ["*universal2", "pp*"]
