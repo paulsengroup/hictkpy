@@ -74,27 +74,35 @@ static void declare_pixel_selector_class(nb::module_ &m) {
       m, "PixelSelector",
       "Class representing pixels overlapping with the given genomic intervals.");
 
-  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(
+      nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool, bool>(),
+      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
 
   sel.def("__repr__", &PixelSelector::repr);
 
   sel.def("coord1", &PixelSelector::get_coord1, "Get query coordinates for the first dimension.");
   sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.");
 
-  sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>());
+  sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
+          nb::sig("def __iter__(self) -> ThinPixelInt | ThinPixelFP | PixelInt | PixelFP"),
+          "Return an iterator over the selected pixels.");
 
-  sel.def("to_df", &PixelSelector::to_df, "Retrieve interactions as a pandas DataFrame.");
-  sel.def("to_numpy", &PixelSelector::to_numpy, "Retrieve interactions as a numpy 2D matrix.");
-  sel.def("to_coo", &PixelSelector::to_coo, "Retrieve interactions as a scipy.sparse.coo_matrix.");
+  sel.def("to_df", &PixelSelector::to_df, nb::sig("def to_df(self) -> pandas.DataFrame"),
+          "Retrieve interactions as a pandas DataFrame.");
+  sel.def("to_numpy", &PixelSelector::to_numpy, nb::sig("def to_numpy(self) -> numpy.ndarray"),
+          "Retrieve interactions as a numpy 2D matrix.");
+  sel.def("to_coo", &PixelSelector::to_coo, nb::sig("def to_coo(self) -> scipy.sparse.coo_matrix"),
+          "Retrieve interactions as a SciPy COO matrix.");
 
   sel.def("nnz", &PixelSelector::nnz,
           "Get the number of non-zero entries for the current pixel selection.");
-  sel.def("sum", &PixelSelector::sum,
+  sel.def("sum", &PixelSelector::sum, nb::sig("def sum(self) -> int | float"),
           "Get the total number of interactions for the current pixel selection.");
 }
 
@@ -118,7 +126,8 @@ static void declare_file_class(nb::module_ &m) {
 
   file.def("chromosomes", &get_chromosomes_from_file<hictk::File>, nb::arg("include_all") = false,
            "Get chromosomes sizes as a dictionary mapping names to sizes.");
-  file.def("bins", &get_bins_from_file<hictk::File>, "Get bins as a pandas DataFrame.");
+  file.def("bins", &get_bins_from_file<hictk::File>, nb::sig("def bins(self) -> pandas.DataFrame"),
+           "Get bins as a pandas DataFrame.");
 
   file.def("resolution", &hictk::File::resolution, "Get the bin size in bp.");
   file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
@@ -154,7 +163,7 @@ static void declare_multires_file_class(nb::module_ &m) {
   mres_file.def("resolutions", &hictk::MultiResFile::resolutions,
                 "Get the list of available resolutions.");
   mres_file.def("__getitem__", &hictk::MultiResFile::open,
-                "Open the Cooler file corresponding to the resolution given as input.");
+                "Open the Cooler or .hic file corresponding to the resolution given as input.");
 }
 
 static void declare_singlecell_file_class(nb::module_ &m) {
@@ -175,7 +184,7 @@ static void declare_singlecell_file_class(nb::module_ &m) {
                  nb::arg("include_all") = false,
                  "Get chromosomes sizes as a dictionary mapping names to sizes.");
   scell_file.def("bins", &get_bins_from_file<hictk::cooler::SingleCellFile>,
-                 "Get bins as a pandas DataFrame.");
+                 nb::sig("def bins(self) -> pandas.DataFrame"), "Get bins as a pandas DataFrame.");
   scell_file.def("attributes", &singlecell_file::get_attrs, "Get file attributes as a dictionary.");
   scell_file.def("cells", &singlecell_file::get_cells, "Get the list of available cells.");
   scell_file.def("__getitem__", &singlecell_file::getitem,
@@ -211,7 +220,8 @@ static void declare_hic_file_writer_class(nb::module_ &m) {
              nb::arg("include_all") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
-  writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels, nb::arg("pixels"),
+  writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,
+             nb::sig("def add_pixels(self, pixels: pd.DataFrame) -> None"), nb::arg("pixels"),
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");
@@ -238,7 +248,8 @@ static void declare_cooler_file_writer_class(nb::module_ &m) {
              nb::arg("include_all") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
-  writer.def("add_pixels", &hictkpy::CoolFileWriter::add_pixels, nb::arg("pixels"),
+  writer.def("add_pixels", &hictkpy::CoolFileWriter::add_pixels,
+             nb::sig("def add_pixels(self, pixels: pandas.DataFrame)"), nb::arg("pixels"),
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");

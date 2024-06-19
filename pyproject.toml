@@ -6,6 +6,10 @@
 requires = [
   "conan>=2.0.5",
   "scikit-build-core>=0.8",
+  "numpy",
+  "pandas>=2.1.0,!=2.2.0",
+  "scipy",
+  "typing_extensions",
 ]
 
 build-backend = "scikit_build_core.build"
@@ -66,7 +70,7 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*musllinux*"]
+skip = ["*musllinux*", "pp*"]
 test-command = "python -m pytest {project}/test"
 test-extras = ["test"]
 test-skip = ["*universal2", "pp*"]
