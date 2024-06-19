@@ -9,6 +9,7 @@ requires = [
   "numpy",
   "pandas>=2.1.0,!=2.2.0",
   "scipy",
+  "typing_extensions",
 ]
 
 build-backend = "scikit_build_core.build"
