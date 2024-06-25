@@ -114,7 +114,7 @@ auto PixelSelector::get_coord2() const -> PixelCoordTuple {
                                          c.bin2.chrom().name(), c.bin2.start(), c.bin2.end())};
 }
 
-nb::iterator PixelSelector::make_iterable() const {
+nb::object PixelSelector::make_iterable() const {
   if (mirror) {
     throw std::runtime_error(
         "iterating through the pixels for a query overlapping the lower triangle is not supported");
@@ -122,34 +122,34 @@ nb::iterator PixelSelector::make_iterable() const {
 
   if (join) {
     return std::visit(
-        [&](const auto& s) {
+        [&](const auto& s) -> nb::object {
           if (int_pixels()) {
             using T = std::int32_t;
             auto jsel = hictk::transformers::JoinGenomicCoords(
                 s->template begin<T>(), s->template end<T>(),
                 std::make_shared<const hictk::BinTable>(bins()));
-            return nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator", jsel.begin(),
-                                     jsel.end());
+            return nb::cast(nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator",
+                                              jsel.begin(), jsel.end()));
           }
           using T = double;
           auto jsel = hictk::transformers::JoinGenomicCoords(
               s->template begin<T>(), s->template end<T>(),
               std::make_shared<const hictk::BinTable>(bins()));
-          return nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator", jsel.begin(),
-                                   jsel.end());
+          return nb::cast(nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator",
+                                            jsel.begin(), jsel.end()));
         },
         selector);
   }
   return std::visit(
-      [&](const auto& s) {
+      [&](const auto& s) -> nb::object {
         if (int_pixels()) {
           using T = std::int32_t;
-          return nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator",
-                                   s->template begin<T>(), s->template end<T>());
+          return nb::cast(nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator",
+                                            s->template begin<T>(), s->template end<T>()));
         }
         using T = double;
-        return nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator", s->template begin<T>(),
-                                 s->template end<T>());
+        return nb::cast(nb::make_iterator(nb::type<PixelSelector>(), "PixelIterator",
+                                          s->template begin<T>(), s->template end<T>()));
       },
       selector);
 }

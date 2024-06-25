@@ -79,7 +79,8 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   auto gi2 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range2}, query_type_);
 
   bool mirror = false;
-  if (gi1 > gi2 || (gi1.chrom() == gi2.chrom() && gi1.start() > gi2.start())) {
+  if ((gi1.chrom() != gi2.chrom() && gi1 > gi2) ||
+      (gi1.chrom() == gi2.chrom() && gi1.start() > gi2.start())) {
     mirror = true;
     std::swap(gi1, gi2);
   }

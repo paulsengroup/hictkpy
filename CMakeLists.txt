@@ -34,8 +34,8 @@ FetchContent_Declare(
 
 FetchContent_Declare(
   nanobind
-  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v1.9.2.tar.xz"
-  URL_HASH  "SHA256=2f511306aea0b39c1915b85db77cf4d861056dec528fb56a3e7a5f79fdae01c4"
+  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.0.0.tar.xz"
+  URL_HASH  "SHA256=e9accc281605cdab732987756421244ab8b55e026c0fdbae93fa90d95f4dce38"
   EXCLUDE_FROM_ALL
   SYSTEM)
 
