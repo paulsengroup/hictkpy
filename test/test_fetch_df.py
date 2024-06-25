@@ -87,6 +87,7 @@ class TestClass:
 
         df2["bin1_id"], df2["bin2_id"] = df2["bin2_id"], df2["bin1_id"]
         df2.sort_values(by=["bin1_id", "bin2_id"], inplace=True)
+        df2.reset_index(inplace=True, drop=True)
         assert df1.equals(df2)
 
     def test_balanced(self, file, resolution):

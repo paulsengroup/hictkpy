@@ -160,12 +160,14 @@ nb::object PixelSelector::to_df() const {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_df(s->bins(), s->template begin<T>(), s->template end<T>(),
-                                       join, mirror);
-        } else {
-          using T = double;
-          return pixel_iterators_to_df(s->bins(), s->template begin<T>(), s->template end<T>(),
-                                       join, mirror);
+                                       join, mirror)
+              .attr("to_pandas")();
         }
+
+        using T = double;
+        return pixel_iterators_to_df(s->bins(), s->template begin<T>(), s->template end<T>(), join,
+                                     mirror)
+            .attr("to_pandas")();
       },
       selector);
 }

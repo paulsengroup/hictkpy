@@ -9,7 +9,6 @@
 
 #include "hictkpy/multires_file.hpp"
 
-
 namespace hictkpy::multires_file {
 
 void ctor(hictk::MultiResFile* fp, std::string_view path) {

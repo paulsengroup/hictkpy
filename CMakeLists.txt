@@ -26,8 +26,8 @@ project(
 include(FetchContent)
 FetchContent_Declare(
   hictk
-  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-0.0.12.tar.xz"
-  URL_HASH  "SHA256=9545d948f6feee5f6db0db3648d118483cc54c1f71273b937541b97f67268073"
+  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v1.0.0.tar.xz"
+  URL_HASH  "SHA256=4986317845b8b62183c16ad258e4ad5b5a9f68289fe89f538a9481f363e9b899"
   EXCLUDE_FROM_ALL
   SYSTEM)
 
@@ -43,6 +43,7 @@ set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
 set(HICTK_BUILD_BENCHMARKS OFF)
 set(HICTK_WITH_EIGEN OFF)
+set(HICTK_WITH_ARROW ON)
 set(HICTK_BUILD_TOOLS OFF)
 set(HICTK_INSTALL OFF)
 FetchContent_MakeAvailable(hictk nanobind)
@@ -54,6 +55,8 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake")
 if(WIN32)
   target_compile_definitions(hictkpy_project_options INTERFACE NOMINMAX _CRT_SECURE_NO_WARNINGS)
 endif()
+
+target_compile_definitions(hictkpy_project_options INTERFACE HICTK_WITH_ARROW)
 
 add_library(hictkpy_project_warnings INTERFACE)
 target_compile_options(
