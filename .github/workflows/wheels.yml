@@ -91,14 +91,14 @@ jobs:
           platforms: all
 
       - name: Build wheels (PR)
-        uses: pypa/cibuildwheel@v2.19
+        uses: pypa/cibuildwheel@v2.20
         if: github.event_name == 'pull_request'
         env:
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_WINDOWS: "AMD64"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19
+        uses: pypa/cibuildwheel@v2.20
         if: github.event_name != 'pull_request'
         env:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
