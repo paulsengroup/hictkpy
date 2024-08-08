@@ -23,8 +23,8 @@ namespace hictkpy {
 
 template <typename N>
 std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object df, bool sorted) {
-  using BufferT1 = nb::ndarray<nb::numpy, nb::shape<nb::any>, std::uint64_t>;
-  using BufferT2 = nb::ndarray<nb::numpy, nb::shape<nb::any>, N>;
+  using BufferT1 = nb::ndarray<nb::numpy, nb::shape<-1>, std::uint64_t>;
+  using BufferT2 = nb::ndarray<nb::numpy, nb::shape<-1>, N>;
 
   auto bin1_ids_np = nb::cast<BufferT1>(df.attr("__getitem__")("bin1_id").attr("to_numpy")());
   auto bin2_ids_np = nb::cast<BufferT1>(df.attr("__getitem__")("bin2_id").attr("to_numpy")());
@@ -49,8 +49,8 @@ std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object df, bool
 template <typename N>
 std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTable &bin_table,
                                                        nanobind::object df, bool sorted) {
-  using BufferT1 = nb::ndarray<nb::numpy, nb::shape<nb::any>, std::uint32_t>;
-  using BufferT2 = nb::ndarray<nb::numpy, nb::shape<nb::any>, N>;
+  using BufferT1 = nb::ndarray<nb::numpy, nb::shape<-1>, std::uint32_t>;
+  using BufferT2 = nb::ndarray<nb::numpy, nb::shape<-1>, N>;
 
   auto chrom1 = nb::cast<nb::list>(df.attr("__getitem__")("chrom1").attr("tolist")());
   auto start1_np = nb::cast<BufferT1>(df.attr("__getitem__")("start1").attr("to_numpy")());
