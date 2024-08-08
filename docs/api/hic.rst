@@ -9,5 +9,10 @@ Hi-C API
 .. py:currentmodule:: hictkpy.hic
 
 .. autoclass:: FileWriter
-   :members:
-   :special-members: __init__
+
+   .. automethod:: __init__
+   .. automethod:: add_pixels
+   .. automethod:: chromosomes
+   .. automethod:: finalize
+   .. automethod:: path
+   .. automethod:: resolutions
