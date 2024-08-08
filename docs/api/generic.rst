@@ -16,12 +16,36 @@ Generic API
 .. autofunction:: is_hic
 
 .. autoclass:: MultiResFile
-   :members:
-   :special-members: __init__
+
+   .. automethod:: __init__
+   .. automethod:: chromosomes
+   .. automethod:: path
+   .. automethod:: resolutions
 
 .. autoclass:: File
-   :members:
-   :special-members: __init__
+
+   .. automethod:: __init__
+   .. automethod:: attributes
+   .. automethod:: avail_normalizations
+   .. automethod:: bins
+   .. automethod:: chromosomes
+   .. automethod:: fetch
+   .. automethod:: has_normalization
+   .. automethod:: is_cooler
+   .. automethod:: is_hic
+   .. automethod:: nbins
+   .. automethod:: nchroms
+   .. automethod:: path
+   .. automethod:: resolution
+   .. automethod:: uri
+   .. automethod:: weights
 
 .. autoclass:: PixelSelector
-   :members:
+
+   .. automethod:: coord1
+   .. automethod:: coord2
+   .. automethod:: nnz
+   .. automethod:: sum
+   .. automethod:: to_coo
+   .. automethod:: to_df
+   .. automethod:: to_numpy
