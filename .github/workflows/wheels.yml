@@ -96,6 +96,7 @@ jobs:
         env:
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_ENVIRONMENT_MACOS: "CC=clang" "CXX=clang++"
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.19
@@ -103,6 +104,7 @@ jobs:
         env:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_ENVIRONMENT_MACOS: "CC=clang" "CXX=clang++"
 
       - name: Verify clean directory
         run: git diff --exit-code
