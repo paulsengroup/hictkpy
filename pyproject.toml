@@ -79,10 +79,6 @@ test-skip = ["*universal2", "pp*"]
 before-build = [
   "rm -rf '{project}/build'",
 ]
-environment = { PIP_VERBOSE=1 }
-
-[tool.cibuildwheel.macos]
-environment = { MACOSX_DEPLOYMENT_TARGET=10.15 }
 
 [tool.ruff]
 extend-select = [
