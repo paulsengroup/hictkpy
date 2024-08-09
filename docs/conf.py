@@ -13,20 +13,20 @@
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-  "sphinx_copybutton",
-  "sphinxcontrib.rsvgconverter",
-  "sphinxcontrib.moderncmakedomain",
-  "sphinx.ext.autodoc",
-  "sphinx.ext.intersphinx",
-  "sphinx.ext.autosummary",
-  "sphinx.ext.napoleon",
+    "sphinx_copybutton",
+    "sphinxcontrib.rsvgconverter",
+    "sphinxcontrib.moderncmakedomain",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
 ]
 
 autosummary_generate = True
 python_use_unqualified_type_names = True
 
 intersphinx_mapping = {
-  "python": ("https://docs.python.org/3", None),
+    "python": ("https://docs.python.org/3", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
@@ -203,7 +203,7 @@ htmlhelp_basename = "hictkpy_doc"
 
 # Tweak copybutton https://sphinx-copybutton.readthedocs.io/en/latest/use.html
 copybutton_selector = "div:not(.no-copybutton) > div.highlight > pre"
-copybutton_exclude = '.linenos, .gp, .go'
+copybutton_exclude = ".linenos, .gp, .go"
 copybutton_copy_empty_lines = False
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -211,10 +211,10 @@ copybutton_copy_empty_lines = False
 latex_engine = "pdflatex"
 
 latex_elements = {
-  'papersize': 'a4paper',
-  'pointsize': '10pt',
-  "classoptions": ",openany,oneside",
-  "preamble": r"""
+    "papersize": "a4paper",
+    "pointsize": "10pt",
+    "classoptions": ",openany,oneside",
+    "preamble": r"""
 \usepackage{MnSymbol}
 \DeclareUnicodeCharacter{25CB}{\ensuremath{\circ}}
 \DeclareUnicodeCharacter{25CF}{\ensuremath{\bullet}}
@@ -227,7 +227,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  (master_doc, "hictkpy.tex", "hictkpy Documentation", author, "manual"),
+    (master_doc, "hictkpy.tex", "hictkpy Documentation", author, "manual"),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

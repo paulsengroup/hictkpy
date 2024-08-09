@@ -179,16 +179,24 @@ nb::object PixelSelector::to_coo() const {
   const auto span2 = coord2().bin2.end() - coord2().bin1.start();
   const auto num_rows = span1 == 0 ? bins().size() : (span1 + bin_size - 1) / bin_size;
   const auto num_cols = span2 == 0 ? bins().size() : (span2 + bin_size - 1) / bin_size;
+
+  constexpr auto bad_bin_id = std::numeric_limits<std::uint64_t>::max();
+
+  const auto row_offset =
+      static_cast<std::int64_t>(coord1().bin1.id() == bad_bin_id ? 0 : coord1().bin1.id());
+  const auto col_offset =
+      static_cast<std::int64_t>(coord2().bin1.id() == bad_bin_id ? 0 : coord2().bin1.id());
+
   return std::visit(
-      [&, num_rows, num_cols](const auto& s) {
+      [&, num_rows, num_cols, row_offset, col_offset](const auto& s) {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_coo(s->template begin<T>(), s->template end<T>(), num_rows,
-                                        num_cols, mirror, coord1().bin1.id(), coord2().bin1.id());
+                                        num_cols, mirror, row_offset, col_offset);
         } else {
           using T = double;
           return pixel_iterators_to_coo(s->template begin<T>(), s->template end<T>(), num_rows,
-                                        num_cols, mirror, coord1().bin1.id(), coord2().bin1.id());
+                                        num_cols, mirror, row_offset, col_offset);
         }
       },
       selector);
@@ -204,8 +212,12 @@ nb::object PixelSelector::to_numpy() const {
 
   const auto mirror_matrix = coord1().bin1.chrom() == coord2().bin1.chrom();
 
-  const auto row_offset = static_cast<std::int64_t>(coord1().bin1.id());
-  const auto col_offset = static_cast<std::int64_t>(coord2().bin1.id());
+  constexpr auto bad_bin_id = std::numeric_limits<std::uint64_t>::max();
+
+  const auto row_offset =
+      static_cast<std::int64_t>(coord1().bin1.id() == bad_bin_id ? 0 : coord1().bin1.id());
+  const auto col_offset =
+      static_cast<std::int64_t>(coord2().bin1.id() == bad_bin_id ? 0 : coord2().bin1.id());
 
   return std::visit(
       [&, num_rows, num_cols, mirror_matrix, row_offset, col_offset](const auto& s) {

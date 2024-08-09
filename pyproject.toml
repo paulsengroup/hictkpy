@@ -74,10 +74,10 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-skip = ["*musllinux*", "pp*"]
+skip = ["cp313*", "*musllinux*", "pp*"]
 test-command = "python -m pytest {project}/test"
 test-extras = ["test"]
-test-skip = ["*universal2"]
+test-skip = ["cp313*", "*universal2", "pp*"]
 
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-build = [
@@ -87,9 +87,6 @@ environment = { PIP_VERBOSE=1 }
 
 # We are using static linking, thus repairing wheels is not necessary.
 repair-wheel-command = ""
-
-[tool.cibuildwheel.macos]
-environment = { MACOSX_DEPLOYMENT_TARGET=10.15 }
 
 [tool.ruff]
 extend-select = [
@@ -107,7 +104,7 @@ target-version = "py39"
 
 [tool.black]
 line-length = 120
-target-version = ["py38"]
+target-version = ["py39"]
 
 [tool.isort]
 profile = "black"

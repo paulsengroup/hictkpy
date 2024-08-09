@@ -80,6 +80,12 @@ jobs:
         key: conan-${{ steps.cache-key.outputs.conan-key }}
         path: ${{ env.CONAN_HOME }}
 
+    - name: Override default compilers (macOS)
+      if: matrix.platform == 'macos-latest'
+      run: |
+        echo 'CC=clang' >> $GITHUB_ENV
+        echo 'CXX=clang++' >> $GITHUB_ENV
+
     - name: Build and install
       run: pip install --verbose '.[test]'
 

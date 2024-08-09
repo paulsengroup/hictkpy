@@ -6,6 +6,7 @@ import os
 
 import numpy as np
 import pytest
+from scipy.linalg import issymmetric
 
 import hictkpy
 
@@ -26,12 +27,14 @@ class TestClass:
         m = f.fetch().to_numpy()
         assert m.shape == (1380, 1380)
         assert m.sum() == 178_263_235
+        assert issymmetric(m)
 
     def test_cis(self, file, resolution):
         f = hictkpy.File(file, resolution)
         m = f.fetch("chr2R:10,000,000-15,000,000").to_numpy()
         assert m.shape == (50, 50)
         assert m.sum() == 6_029_333
+        assert issymmetric(m)
 
         m = f.fetch("chr2R:10,000,000-15,000,000", count_type="int").to_numpy()
         assert m.dtype == np.int32
