@@ -31,4 +31,3 @@ highfive*:with_opencv=False
 highfive*:with_xtensor=False
 spdlog*:header_only=True
 zstd*:build_programs=False
-
