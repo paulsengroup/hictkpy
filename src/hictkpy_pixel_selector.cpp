@@ -186,7 +186,7 @@ nb::object PixelSelector::to_coo() const {
       static_cast<std::int64_t>(coord2().bin1.id() == bad_bin_id ? 0 : coord2().bin1.id());
 
   return std::visit(
-      [&, num_rows, num_cols](const auto& s) {
+      [&](const auto& s) {
         if (int_pixels()) {
           using T = std::int32_t;
           return pixel_iterators_to_coo(s->template begin<T>(), s->template end<T>(), num_rows,
