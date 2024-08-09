@@ -3,20 +3,21 @@
 # SPDX-License-Identifier: MIT
 
 
+from importlib.metadata import version
+
 from ._hictkpy import (
-    __doc__,
     File,
     MultiResFile,
     PixelSelector,
-    is_cooler,
-    is_mcool_file,
-    is_scool_file,
-    is_hic,
+    __doc__,
+    __hictk_version__,
     cooler,
     hic,
-    __hictk_version__,
+    is_cooler,
+    is_hic,
+    is_mcool_file,
+    is_scool_file,
 )
-from importlib.metadata import version
 
 __version__ = version("hictkpy")
 __all__ = [
