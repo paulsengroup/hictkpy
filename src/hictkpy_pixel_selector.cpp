@@ -202,8 +202,12 @@ nb::object PixelSelector::to_numpy() const {
 
   const auto mirror_matrix = coord1().bin1.chrom() == coord2().bin1.chrom();
 
-  const auto row_offset = static_cast<std::int64_t>(coord1().bin1.id());
-  const auto col_offset = static_cast<std::int64_t>(coord2().bin1.id());
+  constexpr auto bad_bin_id = std::numeric_limits<std::uint64_t>::max();
+
+  const auto row_offset =
+      static_cast<std::int64_t>(coord1().bin1.id() == bad_bin_id ? 0 : coord1().bin1.id());
+  const auto col_offset =
+      static_cast<std::int64_t>(coord2().bin1.id() == bad_bin_id ? 0 : coord2().bin1.id());
 
   return std::visit(
       [&, num_rows, num_cols, mirror_matrix, row_offset, col_offset](const auto& s) {
