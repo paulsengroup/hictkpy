@@ -9,9 +9,20 @@ Cooler API
 .. py:currentmodule:: hictkpy.cooler
 
 .. autoclass:: SingleCellFile
-   :members:
-   :special-members: __init__
+
+   .. automethod:: __init__
+   .. automethod:: attributes
+   .. automethod:: bins
+   .. automethod:: cells
+   .. automethod:: chromosomes
+   .. automethod:: path
+   .. automethod:: resolution
 
 .. autoclass:: FileWriter
-   :members:
-   :special-members: __init__
+
+   .. automethod:: __init__
+   .. automethod:: add_pixels
+   .. automethod:: chromosomes
+   .. automethod:: finalize
+   .. automethod:: path
+   .. automethod:: resolutions
