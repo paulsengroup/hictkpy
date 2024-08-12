@@ -5,10 +5,11 @@
 [build-system]
 requires = [
   "conan>=2.0.5",
-  "pyarrow==16.1.0",
-  "scikit-build-core>=0.8",
+  "nanobind==2.0.0",
   "numpy",
   "pandas>=2.1.0,!=2.2.0",
+  "pyarrow==16.1.0",
+  "scikit-build-core>=0.8",
   "scipy",
   "typing_extensions",
 ]

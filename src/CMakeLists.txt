@@ -2,11 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-find_package(
-  Python 3.9
-  COMPONENTS Interpreter Development.Module
-  REQUIRED)
-
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -c "import pyarrow; print(pyarrow.get_include(), end='')"
   RESULT_VARIABLE STATUS
@@ -84,42 +79,9 @@ install(TARGETS _hictkpy LIBRARY DESTINATION hictkpy)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/hictkpy")
 file(TOUCH "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi")
 
-include("${PROJECT_SOURCE_DIR}/cmake/NBStubgen.cmake")
-
-_nanobind_add_stub(
-  hictkpy._hictkpy_stub
-  INSTALL_TIME
-  MODULE
-  hictkpy._hictkpy
-  MARKER_FILE
-  "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/py.typed"
-  OUTPUT
-  "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hictkpy.pyi"
-  LD_LIBRARY_PATH
-  "${PYARROW_LIB_DIRS}"
-  VERBOSE)
-
-_nanobind_add_stub(
-  hictkpy._hictkpy.cooler_stub
-  INSTALL_TIME
-  MODULE
-  hictkpy._hictkpy.cooler
-  OUTPUT
-  "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/cooler.pyi"
-  LD_LIBRARY_PATH
-  "${PYARROW_LIB_DIRS}"
-  VERBOSE)
-
-_nanobind_add_stub(
-  hictkpy._hictkpy.hic_stub
-  INSTALL_TIME
-  MODULE
-  hictkpy._hictkpy.hic
-  OUTPUT
-  "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hic.pyi"
-  LD_LIBRARY_PATH
-  "${PYARROW_LIB_DIRS}"
-  VERBOSE)
+configure_file("${PROJECT_SOURCE_DIR}/cmake/NanobindStubgen.cmake.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake" @ONLY)
+install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake")
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/py.typed" DESTINATION hictkpy)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi" DESTINATION hictkpy)

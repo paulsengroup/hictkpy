@@ -46,7 +46,17 @@ set(HICTK_WITH_EIGEN OFF)
 set(HICTK_WITH_ARROW ON)
 set(HICTK_BUILD_TOOLS OFF)
 set(HICTK_INSTALL OFF)
-FetchContent_MakeAvailable(hictk nanobind)
+FetchContent_MakeAvailable(hictk)
+
+find_package(
+  Python 3.9
+  COMPONENTS Interpreter Development.Module
+  REQUIRED)
+
+find_package(nanobind)
+if(NOT nanobind_FIND)
+  FetchContent_MakeAvailable(nanobind)
+endif()
 
 add_library(hictkpy_project_options INTERFACE)
 target_compile_features(hictkpy_project_options INTERFACE "cxx_std_${CMAKE_CXX_STANDARD}")
