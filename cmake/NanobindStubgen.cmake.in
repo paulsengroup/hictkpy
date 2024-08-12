@@ -2,12 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-find_package(
-  Python 3.9
-  COMPONENTS Interpreter
-  REQUIRED)
-
-set(ARGS "@PROJECT_SOURCE_DIR@/utils/devel/stubgen.py;@CMAKE_CURRENT_BINARY_DIR@/hictkpy;--force")
-
-execute_process(COMMAND "${Python_EXECUTABLE}" ${ARGS} WORKING_DIRECTORY "@CMAKE_INSTALL_PREFIX@"
-                                                                         COMMAND_ERROR_IS_FATAL ANY)
+set(ARGS ";@CMAKE_CURRENT_BINARY_DIR@/hictkpy;--force")
+execute_process(COMMAND "@PROJECT_SOURCE_DIR@/utils/devel/stubgen.py" ${ARGS}
+                WORKING_DIRECTORY "@CMAKE_INSTALL_PREFIX@" COMMAND_ERROR_IS_FATAL ANY)
