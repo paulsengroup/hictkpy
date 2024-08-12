@@ -164,6 +164,7 @@ static void declare_multires_file_class(nb::module_ &m) {
   mres_file.def("resolutions", &hictk::MultiResFile::resolutions,
                 "Get the list of available resolutions.");
   mres_file.def("__getitem__", &hictk::MultiResFile::open,
+                nb::sig("def __getitem__(self, resolution: int) -> File"),
                 "Open the Cooler or .hic file corresponding to the resolution given as input.");
 }
 
@@ -189,6 +190,7 @@ static void declare_singlecell_file_class(nb::module_ &m) {
   scell_file.def("attributes", &singlecell_file::get_attrs, "Get file attributes as a dictionary.");
   scell_file.def("cells", &singlecell_file::get_cells, "Get the list of available cells.");
   scell_file.def("__getitem__", &singlecell_file::getitem,
+                nb::sig("def __getitem__(self, cell: str) -> hictkpy.File"),
                  "Open the Cooler file corresponding to the cell ID given as input.");
 }
 
@@ -222,7 +224,7 @@ static void declare_hic_file_writer_class(nb::module_ &m) {
              "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
   writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,
-             nb::sig("def add_pixels(self, pixels: pd.DataFrame) -> None"), nb::arg("pixels"),
+             nb::sig("def add_pixels(self, pixels: pandas.DataFrame) -> None"), nb::arg("pixels"),
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");

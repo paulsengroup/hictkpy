@@ -57,9 +57,6 @@ if(NOT
   message(FATAL_ERROR "Unable to create symlink to arrow libraries")
 endif()
 
-include_directories("${PYARROW_INCLUDE_DIR}" "${NUMPY_INCLUDE_DIR}")
-link_directories(${PYARROW_LIB_DIRS})
-
 nanobind_add_module(
   _hictkpy
   NB_STATIC
@@ -72,7 +69,9 @@ nanobind_add_module(
   hictkpy_pixel_selector.cpp
   hictkpy_singlecell_file.cpp)
 
-target_include_directories(_hictkpy PRIVATE include)
+target_include_directories(_hictkpy PRIVATE include "${PYARROW_INCLUDE_DIR}" "${NUMPY_INCLUDE_DIR}")
+target_link_directories(_hictkpy PRIVATE "${PYARROW_LIB_DIRS}")
+
 target_link_libraries(
   _hictkpy
   PRIVATE hictkpy_project_options hictkpy_project_warnings
@@ -82,12 +81,12 @@ target_link_libraries(
          ${PYARROW_LIBS})
 
 install(TARGETS _hictkpy LIBRARY DESTINATION hictkpy)
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/hictkpy")
+file(TOUCH "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi")
 
-# Automatic stub generation for hictkpy does not work, instead run:
-# venv/bin/python -m nanobind.stubgen -m hictkpy -o src/hictkpy/hictkpy.pyi
-# Remember to remove the version annotation from the stub
+include("${PROJECT_SOURCE_DIR}/cmake/NBStubgen.cmake")
 
-nanobind_add_stub(
+_nanobind_add_stub(
   hictkpy._hictkpy_stub
   INSTALL_TIME
   MODULE
@@ -95,9 +94,35 @@ nanobind_add_stub(
   MARKER_FILE
   "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/py.typed"
   OUTPUT
-  "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/_hictkpy.pyi"
+  "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hictkpy.pyi"
+  LD_LIBRARY_PATH
+  "${PYARROW_LIB_DIRS}"
   VERBOSE)
 
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/hictkpy/hictkpy.pyi" DESTINATION hictkpy)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/_hictkpy.pyi" DESTINATION hictkpy)
+_nanobind_add_stub(
+  hictkpy._hictkpy.cooler_stub
+  INSTALL_TIME
+  MODULE
+  hictkpy._hictkpy.cooler
+  OUTPUT
+  "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/cooler.pyi"
+  LD_LIBRARY_PATH
+  "${PYARROW_LIB_DIRS}"
+  VERBOSE)
+
+_nanobind_add_stub(
+  hictkpy._hictkpy.hic_stub
+  INSTALL_TIME
+  MODULE
+  hictkpy._hictkpy.hic
+  OUTPUT
+  "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hic.pyi"
+  LD_LIBRARY_PATH
+  "${PYARROW_LIB_DIRS}"
+  VERBOSE)
+
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/py.typed" DESTINATION hictkpy)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi" DESTINATION hictkpy)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hictkpy.pyi" DESTINATION hictkpy)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/cooler.pyi" DESTINATION hictkpy)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hic.pyi" DESTINATION hictkpy)
