@@ -2,6 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-set(ARGS ";@CMAKE_CURRENT_BINARY_DIR@/hictkpy;--force")
-execute_process(COMMAND "@PROJECT_SOURCE_DIR@/utils/devel/stubgen.py" ${ARGS}
+set(ARGS "@PROJECT_SOURCE_DIR@/utils/devel/stubgen.py;@CMAKE_CURRENT_BINARY_DIR@/hictkpy;--force")
+execute_process(COMMAND "python" ${ARGS}
                 WORKING_DIRECTORY "@CMAKE_INSTALL_PREFIX@" COMMAND_ERROR_IS_FATAL ANY)
