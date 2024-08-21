@@ -89,8 +89,7 @@ static void declare_pixel_class(nb::module_ &m, const std::string &suffix) {
 }
 
 static void declare_bin_table_class(nb::module_ &m) {
-  auto bt =
-      nb::class_<BinTable>(m, "BinTable", "Class representing a table of genomic bins.");
+  auto bt = nb::class_<BinTable>(m, "BinTable", "Class representing a table of genomic bins.");
 
   bt.def(nb::init<nb::dict, std::uint32_t>(), nb::arg("chroms"), nb::arg("resolution"),
          "Construct a table of bins given a dictionary mapping chromosomes to their sizes and a "
@@ -98,8 +97,7 @@ static void declare_bin_table_class(nb::module_ &m) {
 
   bt.def("__repr__", &BinTable::repr);
 
-  bt.def("chromosomes", &get_chromosomes_from_object<BinTable>,
-         nb::arg("include_all") = false,
+  bt.def("chromosomes", &get_chromosomes_from_object<BinTable>, nb::arg("include_all") = false,
          "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
   bt.def("bin_size", &BinTable::resolution,
@@ -130,7 +128,8 @@ static void declare_bin_table_class(nb::module_ &m) {
          "Bin identifiers should be provided as a pandas DataFrame with columns \"bin1_id\" and "
          "\"bin2_id\"");
 
-  bt.def("to_df", &BinTable::to_df, "Convert the bin table to a pandas DataFrame");
+  bt.def("to_df", &BinTable::to_df, nb::arg("range") = "", nb::arg("query_type") = "UCSC",
+         "Convert the bin table to a pandas DataFrame");
 }
 
 static void declare_pixel_selector_class(nb::module_ &m) {

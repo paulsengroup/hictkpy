@@ -201,24 +201,44 @@ nb::iterator BinTable::make_iterable() const {
       _bins.get());
 }
 
-nb::object BinTable::to_df() const {
+static auto compute_num_bins(const hictk::BinTable& bins, const hictk::GenomicInterval& query) {
+  if (!query) {
+    return bins.size();
+  }
+  return static_cast<std::size_t>(std::visit(
+      [&](const auto& bins_) {
+        const auto [first_bin, last_bin] = bins_.find_overlap(query);
+        return std::distance(first_bin, last_bin);
+      },
+      bins.get()));
+}
+
+nb::object BinTable::to_df(std::string_view range, std::string_view query_type) const {
   auto pd = nb::module_::import_("pandas");
 
-  using Buffer64T = nb::ndarray<nb::numpy, nb::shape<nb::any>, std::int64_t>;
+  const auto qt =
+      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
+  const auto query =
+      range.empty() ? hictk::GenomicInterval{}
+                    : hictk::GenomicInterval::parse(_bins.chromosomes(), std::string{range}, qt);
 
-  const auto n = _bins.size();
+  const auto n = compute_num_bins(_bins, query);
 
+  Dynamic1DA<std::int64_t> bin_ids(n);
   Dynamic1DA<std::uint32_t> chrom_ids(n);
   Dynamic1DA<std::int32_t> starts(n);
   Dynamic1DA<std::int32_t> ends(n);
 
   std::visit(
       [&](const auto& bins) {
-        for (const auto& bin : bins) {
+        const auto [first_bin, last_bin] =
+            range.empty() ? std::make_pair(bins.begin(), bins.end()) : bins.find_overlap(query);
+        std::for_each(first_bin, last_bin, [&](const auto& bin) {
+          bin_ids.push_back(static_cast<std::int64_t>(bin.id()));
           chrom_ids.push_back(bin.chrom().id());
           starts.push_back(static_cast<std::int32_t>(bin.start()));
           ends.push_back(static_cast<std::int32_t>(bin.end()));
-        }
+        });
       },
       _bins.get());
 
@@ -230,7 +250,7 @@ nb::object BinTable::to_df() const {
   py_bins_dict["start"] = starts();
   py_bins_dict["end"] = ends();
 
-  auto df = pd.attr("DataFrame")(py_bins_dict, "copy"_a = false);
+  auto df = pd.attr("DataFrame")(py_bins_dict, "index"_a = bin_ids(), "copy"_a = false);
   return df;
 }
 

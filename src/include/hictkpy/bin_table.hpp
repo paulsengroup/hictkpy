@@ -47,7 +47,7 @@ class BinTable {
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
 
-  [[nodiscard]] nanobind::object to_df() const;
+  [[nodiscard]] nanobind::object to_df(std::string_view range, std::string_view query_type) const;
 };
 
 }  // namespace hictkpy

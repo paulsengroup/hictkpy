@@ -64,3 +64,8 @@ class TestClass:
         bins = hictkpy.BinTable(chroms, 100)
 
         assert len(bins.to_df()) == len(bins)
+        assert len(bins.to_df("chr1")) == 10
+        assert len(bins.to_df("chr2:0-200")) == 2
+        assert len(bins.to_df("chr2\t0\t200", "BED")) == 2
+        with pytest.raises(RuntimeError):
+            bins.to_df("chr0")

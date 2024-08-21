@@ -10,9 +10,9 @@ from typing import Dict, Tuple
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 
 import hictkpy
-import pandas as pd
 
 
 def make_cli() -> argparse.ArgumentParser:
