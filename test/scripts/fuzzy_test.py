@@ -279,7 +279,7 @@ def compare_coo(
 ) -> bool:
     if expected.shape != found.shape:
         logging.warning(
-            "[%d] %s, %s (%d nnz): FAIL! Numpy matrices have different shapes! Expected %s, found %s",
+            "[%d] %s, %s (%d nnz): FAIL! COO matrices have different shapes! Expected %s, found %s",
             worker_id,
             q1,
             q2,
@@ -289,13 +289,24 @@ def compare_coo(
         )
         return False
 
+    if expected.nnz != found.nnz:
+        logging.warning(
+            "[%d] %s, %s (%d nnz): FAIL! COO matrices have different nnz! Expected %d, found %d",
+            worker_id,
+            q1,
+            q2,
+            expected.nnz,
+            expected.nnz,
+            found.nnz,
+        )
+        return False
+
+
     expected = expected.tocsr()
     found = found.tocsr()
 
     expected.sort_indices()
     found.sort_indices()
-
-    print(expected.sum(), found.sum())
 
     num_differences = (expected.indices != found.indices).sum()
     if num_differences != 0:
@@ -491,7 +502,7 @@ def main() -> int:
 
     logging.log(
         lvl,
-        "Score: %.4g%% (%d successes and %d failures).",
+        "Score: %.4g/100 (%d success and %d failures).",
         100 * num_passes / num_queries,
         num_passes,
         num_failures,
