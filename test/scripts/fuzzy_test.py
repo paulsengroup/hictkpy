@@ -5,11 +5,9 @@
 # SPDX-License-Identifier: MIT
 
 import argparse
-import ctypes
 import itertools
 import logging
 import multiprocessing as mp
-import os
 import pathlib
 import random
 import sys
