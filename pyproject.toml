@@ -73,6 +73,12 @@ filterwarnings = [
   "ignore:(ast.Str|Attribute s|ast.NameConstant|ast.Num) is deprecated:DeprecationWarning:_pytest",
   "ignore:datetime\\.datetime\\.utcfromtimestamp\\(\\)*:DeprecationWarning",  # https://github.com/pytest-dev/pytest/issues/11528
 ]
+python_files = [
+  "test/test*.py"
+]
+testpaths = [
+  "test/"
+]
 
 [tool.cibuildwheel]
 skip = ["cp313*", "*musllinux*", "pp*"]
