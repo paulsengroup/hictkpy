@@ -91,7 +91,7 @@ jobs:
           platforms: all
 
       - name: Build wheels (PR)
-        uses: pypa/cibuildwheel@v2.20
+        uses: pypa/cibuildwheel@v2.21
         if: github.event_name == 'pull_request'
         env:
           CIBW_ARCHS_LINUX: "x86_64"
@@ -100,7 +100,7 @@ jobs:
           CIBW_ENVIRONMENT_MACOS: "CC=clang CXX=clang++ MACOSX_DEPLOYMENT_TARGET=10.15"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20
+        uses: pypa/cibuildwheel@v2.21
         if: github.event_name != 'pull_request'
         env:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
