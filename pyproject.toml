@@ -5,9 +5,11 @@
 [build-system]
 requires = [
   "conan>=2.0.5",
-  "scikit-build-core>=0.8",
+  "nanobind==2.0.0",
   "numpy",
   "pandas>=2.1.0,!=2.2.0",
+  "pyarrow==16.1.0",
+  "scikit-build-core>=0.8",
   "scipy",
   "typing_extensions",
 ]
@@ -32,6 +34,7 @@ classifiers = [
 dependencies = [
   "numpy",
   "pandas>=2.1.0,!=2.2.0",
+  "pyarrow==16.1.0",
   "scipy",
 ]
 
@@ -53,8 +56,10 @@ HICTK_BUILD_EXAMPLES = "OFF"
 HICTK_BUILD_BENCHMARKS = "OFF"
 HICTK_BUILD_TOOLS = "OFF"
 HICTK_ENABLE_GIT_VERSION_TRACKING = "OFF"
+HICTK_WITH_ARROW = "ON"
+HICTK_WITH_EIGEN = "OFF"
 BUILD_SHARED_LIBS = "OFF"
-CONAN_INSTALL_ARGS = "--settings=compiler.cppstd=17;--build=missing;--update;--options=*/*:shared=False"
+CONAN_INSTALL_ARGS = "--settings=compiler.cppstd=17;--build=missing;--build=b2/*;--update;--options=*/*:shared=False"
 
 [tool.setuptools_scm]
 write_to = "src/_version.py"
@@ -79,6 +84,10 @@ test-skip = ["cp313*", "*universal2", "pp*"]
 before-build = [
   "rm -rf '{project}/build'",
 ]
+environment = { PIP_VERBOSE=1 }
+
+# We are using static linking, thus repairing wheels is not necessary.
+repair-wheel-command = ""
 
 [tool.ruff]
 extend-select = [
