@@ -24,4 +24,4 @@ class TestClass:
         f = hictkpy.File(file, resolution)
         assert f.fetch().nnz() == 890_384
         assert f.fetch("chr2R").nnz() == 31_900
-        assert f.fetch("chr2R", "chr2L").nnz() == f.fetch("chr2L", "chr2R").nnz()
+        assert f.fetch("chr2L", "chr2R").nnz() == 59_124

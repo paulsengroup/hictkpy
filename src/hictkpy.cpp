@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <arrow/python/api.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/operators.h>
 #include <nanobind/stl/optional.h>
@@ -74,15 +75,12 @@ static void declare_pixel_selector_class(nb::module_ &m) {
       m, "PixelSelector",
       "Class representing pixels overlapping with the given genomic intervals.");
 
-  sel.def(
-      nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool, bool>(),
-      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
-  sel.def(
-      nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool, bool>(),
-      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
-  sel.def(
-      nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool, bool>(),
-      nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("_mirror"));
+  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
 
   sel.def("__repr__", &PixelSelector::repr);
 
@@ -90,15 +88,29 @@ static void declare_pixel_selector_class(nb::module_ &m) {
   sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.");
 
   sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
-          nb::sig("def __iter__(self) -> ThinPixelInt | ThinPixelFP | PixelInt | PixelFP"),
+          nb::sig("def __iter__(self) -> PixelIterator"),
           "Return an iterator over the selected pixels.");
 
-  sel.def("to_df", &PixelSelector::to_df, nb::sig("def to_df(self) -> pandas.DataFrame"),
+  sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",
+          nb::sig("def to_arrow(self, query_span: str = \"upper_triangle\") -> pyarrow.Table"),
           "Retrieve interactions as a pandas DataFrame.");
-  sel.def("to_numpy", &PixelSelector::to_numpy, nb::sig("def to_numpy(self) -> numpy.ndarray"),
+  sel.def("to_pandas", &PixelSelector::to_pandas, nb::arg("query_span") = "upper_triangle",
+          nb::sig("def to_pandas(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
+          "Retrieve interactions as a pandas DataFrame.");
+  sel.def("to_df", &PixelSelector::to_df, nb::arg("query_span") = "upper_triangle",
+          nb::sig("def to_df(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
+          "Alias to to_pandas().");
+  sel.def("to_numpy", &PixelSelector::to_numpy, nb::arg("query_span") = "full",
+          nb::sig("def to_numpy(self, query_span: str = \"full\") -> numpy.ndarray"),
           "Retrieve interactions as a numpy 2D matrix.");
-  sel.def("to_coo", &PixelSelector::to_coo, nb::sig("def to_coo(self) -> scipy.sparse.coo_matrix"),
-          "Retrieve interactions as a SciPy COO matrix.");
+  sel.def(
+      "to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
+      nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
+      "Retrieve interactions as a SciPy COO matrix.");
+  sel.def(
+      "to_csr", &PixelSelector::to_csr, nb::arg("query_span") = "upper_triangle",
+      nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
+      "Retrieve interactions as a SciPy CSR matrix.");
 
   sel.def("nnz", &PixelSelector::nnz,
           "Get the number of non-zero entries for the current pixel selection.");
@@ -261,6 +273,10 @@ namespace nb = nanobind;
 using namespace nb::literals;
 
 NB_MODULE(_hictkpy, m) {
+  if (arrow::py::import_pyarrow() == -1) {
+    throw std::runtime_error("failed to initialize pyarrow runtime");
+  }
+
   [[maybe_unused]] auto np = nb::module_::import_("numpy");
   [[maybe_unused]] auto pd = nb::module_::import_("pandas");
   [[maybe_unused]] auto ss = nb::module_::import_("scipy.sparse");
@@ -277,9 +293,9 @@ NB_MODULE(_hictkpy, m) {
         "Test whether path points to a .scool file.");
   m.def("is_hic", &file::is_hic, nb::arg("path"), "Test whether path points to a .hic file.");
 
-  declare_thin_pixel_class<std::int32_t>(m, "Int");
+  declare_thin_pixel_class<std::int64_t>(m, "Int");
   declare_thin_pixel_class<double>(m, "FP");
-  declare_pixel_class<std::int32_t>(m, "Int");
+  declare_pixel_class<std::int64_t>(m, "Int");
   declare_pixel_class<double>(m, "FP");
 
   declare_pixel_selector_class(m);

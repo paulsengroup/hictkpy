@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 cmake_minimum_required(VERSION 3.25)
-cmake_policy(VERSION 3.25...3.27)
+cmake_policy(VERSION 3.25...3.30)
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
@@ -26,29 +26,46 @@ project(
 include(FetchContent)
 FetchContent_Declare(
   hictk
-  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-0.0.12.tar.xz"
-  URL_HASH  "SHA256=9545d948f6feee5f6db0db3648d118483cc54c1f71273b937541b97f67268073"
+  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-devel.tar.xz"
+  URL_HASH  "SHA256=04d77590637a32a2ce9d39e33d302064d9b4abb0d01ac6adbcf96c6d4a394fe1"
   EXCLUDE_FROM_ALL
   SYSTEM)
 
 
 FetchContent_Declare(
   nanobind
-  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.0.0.tar.xz"
-  URL_HASH  "SHA256=e9accc281605cdab732987756421244ab8b55e026c0fdbae93fa90d95f4dce38"
+  URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.2.0.tar.xz"
+  URL_HASH  "SHA256=6f0064c5e94b0bc34637644ddf035cdc7831135949b843adf52bc4bdbe2c6b5d"
   EXCLUDE_FROM_ALL
   SYSTEM)
 
-set(HICTK_ENABLE_TESTING OFF)
-set(HICTK_BUILD_EXAMPLES OFF)
 set(HICTK_BUILD_BENCHMARKS OFF)
-set(HICTK_WITH_EIGEN OFF)
+set(HICTK_BUILD_EXAMPLES OFF)
 set(HICTK_BUILD_TOOLS OFF)
+set(HICTK_ENABLE_FUZZY_TESTING OFF)
+set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_INSTALL OFF)
-FetchContent_MakeAvailable(hictk nanobind)
+set(HICTK_WITH_ARROW_SHARED ON)
+set(HICTK_WITH_EIGEN ON)
+
+find_package(Arrow REQUIRED)
+
+FetchContent_MakeAvailable(hictk)
+
+find_package(
+        Python 3.9
+        COMPONENTS Interpreter Development.Module
+        REQUIRED)
+
+find_package(nanobind QUIET)
+if(NOT nanobind_FIND)
+  message(STATUS "Installing vendored version of nanobind...")
+  FetchContent_MakeAvailable(nanobind)
+endif()
 
 add_library(hictkpy_project_options INTERFACE)
 target_compile_features(hictkpy_project_options INTERFACE "cxx_std_${CMAKE_CXX_STANDARD}")
+target_compile_definitions(hictkpy_project_options INTERFACE HICTK_WITH_ARROW HICTK_WITH_EIGEN)  # TODO fixme
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake")
 if(WIN32)

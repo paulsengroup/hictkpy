@@ -76,7 +76,7 @@ class TestClass:
         assert compute_nnz(sel) == 4995
 
         with pytest.raises(Exception):
-            for p in f.fetch("chrX:0-10,000,000", "chr2R:10,000,000-15,000,000"):
+            for _ in f.fetch("chrX:0-10,000,000", "chr2R:10,000,000-15,000,000"):
                 pass
 
     def test_balanced(self, file, resolution):

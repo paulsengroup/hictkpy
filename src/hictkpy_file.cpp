@@ -64,7 +64,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
           auto sel = ff.fetch(hictk::balancing::Method{normalization});
           using SelT = decltype(sel);
           return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                        join, false);
+                                        join);
         },
         f.get());
   }
@@ -75,15 +75,8 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
 
   const auto query_type_ =
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
-  auto gi1 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range1}, query_type_);
-  auto gi2 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range2}, query_type_);
-
-  bool mirror = false;
-  if ((gi1.chrom() != gi2.chrom() && gi1 > gi2) ||
-      (gi1.chrom() == gi2.chrom() && gi1.start() > gi2.start())) {
-    mirror = true;
-    std::swap(gi1, gi2);
-  }
+  const auto gi1 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range1}, query_type_);
+  const auto gi2 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range2}, query_type_);
 
   return std::visit(
       [&](const auto &ff) {
@@ -93,7 +86,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
 
         using SelT = decltype(sel);
         return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                      join, mirror);
+                                      join);
       },
       f.get());
 }
@@ -103,7 +96,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   const auto &attrs = clr.attributes();
 
   py_attrs["bin-size"] = attrs.bin_size;
-  py_attrs["bin-type"] = attrs.bin_type.has_value() ? *attrs.bin_type : "fixed";
+  py_attrs["bin-type"] = attrs.bin_type == hictk::BinTable::Type::fixed ? "fixed" : "variable";
   py_attrs["format"] = attrs.format;
   py_attrs["format-version"] = attrs.format_version;
 
@@ -183,7 +176,7 @@ std::vector<std::string> avail_normalizations(const hictk::File &f) {
                                           bool divisive) {
   const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
                              : hictk::balancing::Weights::Type::MULTIPLICATIVE;
-  return f.normalization(normalization)(type);
+  return f.normalization(normalization).to_vector(type);
 }
 
 }  // namespace hictkpy::file

@@ -46,7 +46,7 @@ class TestClass:
         assert df["count"].dtype == np.int32
 
         df = f.fetch("chr2R:10,000,000-15,000,000", count_type="float").to_df()
-        assert df["count"].dtype == np.float64
+        assert df["count"].dtype == np.float32
 
         df = f.fetch("chr2R\t10000000\t15000000", query_type="BED").to_df()
         assert len(df) == 1275
@@ -77,16 +77,17 @@ class TestClass:
         assert df["count"].dtype == np.int32
 
         df = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="float").to_df()
-        assert df["count"].dtype == np.float64
+        assert df["count"].dtype == np.float32
 
         df = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED").to_df()
         assert len(df) == 4995
 
         df1 = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000").to_df()
-        df2 = f.fetch("chrX:0-10,000,000", "chr2R:10,000,000-15,000,000").to_df()
+        df2 = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000").to_df("lower_triangle")
 
         df2["bin1_id"], df2["bin2_id"] = df2["bin2_id"], df2["bin1_id"]
         df2.sort_values(by=["bin1_id", "bin2_id"], inplace=True)
+        df2.reset_index(inplace=True, drop=True)
         assert df1.equals(df2)
 
     def test_balanced(self, file, resolution):
