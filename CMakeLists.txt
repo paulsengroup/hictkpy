@@ -27,7 +27,7 @@ include(FetchContent)
 FetchContent_Declare(
   hictk
   URL       "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-devel.tar.xz"
-  URL_HASH  "SHA256=04d77590637a32a2ce9d39e33d302064d9b4abb0d01ac6adbcf96c6d4a394fe1"
+  URL_HASH  "SHA256=5023ab2742340181f2db074a8c0f44fa562897b73a582e0b89094068bb1ac133"
   EXCLUDE_FROM_ALL
   SYSTEM)
 
