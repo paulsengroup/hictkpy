@@ -2,46 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-execute_process(
-        COMMAND "${Python_EXECUTABLE}" -c "import pyarrow; print(pyarrow.get_include(), end='')"
-        RESULT_VARIABLE STATUS
-        OUTPUT_VARIABLE PYARROW_INCLUDE_DIR)
-if(STATUS EQUAL 0)
-  message(STATUS "Found pyarrow include directory: ${PYARROW_INCLUDE_DIR}")
-else()
-  message(FATAL_ERROR "Unable to find pyarrow include directory")
-endif()
-
-execute_process(
-        COMMAND "${Python_EXECUTABLE}" -c "import pyarrow; print(' '.join(pyarrow.get_library_dirs()), end='')"
-        RESULT_VARIABLE STATUS
-        OUTPUT_VARIABLE PYARROW_LIB_DIRS)
-if(STATUS EQUAL 0)
-  message(STATUS "Found pyarrow link directory: ${PYARROW_LIB_DIRS}")
-else()
-  message(FATAL_ERROR "Unable to find pyarrow link directory directory")
-endif()
-
-execute_process(
-        COMMAND "${Python_EXECUTABLE}" -c
-        "import pyarrow; print(' '.join(lib for lib in pyarrow.get_libraries() if lib != 'arrow'), end='')"
-        RESULT_VARIABLE STATUS
-        OUTPUT_VARIABLE PYARROW_LIBS)
-if(STATUS EQUAL 0)
-  message(STATUS "Found pyarrow libraries: ${PYARROW_LIBS}")
-else()
-  message(FATAL_ERROR "Unable to find pyarrow libraries")
-endif()
-
-execute_process(
-        COMMAND "${Python_EXECUTABLE}" -c "import numpy; print(numpy.get_include(), end='')"
-        RESULT_VARIABLE STATUS
-        OUTPUT_VARIABLE NUMPY_INCLUDE_DIR)
-if(STATUS EQUAL 0)
-  message(STATUS "Found numpy include directory: ${NUMPY_INCLUDE_DIR}")
-else()
-  message(FATAL_ERROR "Unable to find numpy include directory")
-endif()
+find_package(Pyarrow REQUIRED)
 
 nanobind_add_module(
   _hictkpy
@@ -65,7 +26,8 @@ target_link_libraries(
           hictk::cooler
           hictk::file
           hictk::hic
-          ${PYARROW_LIBS}
+          hictk::transformers
+          Arrow::python
 )
 
 install(TARGETS _hictkpy LIBRARY DESTINATION hictkpy)
