@@ -4,17 +4,17 @@
 
 #[=======================================================================[.rst:
 FindPyarrow
--------
+-----------
 
-Finds the Foo library.
+Finds the pyarrow library.
 
 Imported Targets
 ^^^^^^^^^^^^^^^^
 
 This module provides the following imported targets, if found:
 
-``Foo::Foo``
-  The Foo library
+``arrow_python``
+  The arrow_python library
 
 Result Variables
 ^^^^^^^^^^^^^^^^

@@ -152,7 +152,11 @@ find_library(
 
 
 if(Arrow_FOUND AND NOT TARGET Arrow::arrow_shared)
-  add_library(Arrow::arrow_shared SHARED IMPORTED)
+  if(WIN32)
+    add_library(Arrow::arrow_shared UNKNOWN IMPORTED)
+  else()
+    add_library(Arrow::arrow_shared SHARED IMPORTED)
+  endif()
   set_target_properties(Arrow::arrow_shared PROPERTIES IMPORTED_LOCATION "${Arrow_LIBRARY}" IMPORTED_CONFIGURATION
                                                                                             RELEASE)
   target_include_directories(Arrow::arrow_shared INTERFACE ${Arrow_INCLUDE_DIRS})

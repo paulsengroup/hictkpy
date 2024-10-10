@@ -2,6 +2,11 @@
 //
 // SPDX-License-Identifier: MIT
 
+#ifdef _WIN32
+// Workaround bug several symbol redefinition errors due to something including <winsock.h>
+#include <winsock2.h>
+#endif
+
 #include <arrow/python/arrow_to_pandas.h>
 #include <fmt/format.h>
 #include <nanobind/eigen/dense.h>
