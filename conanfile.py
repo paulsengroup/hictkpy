@@ -42,7 +42,7 @@ class HictkpyConan(ConanFile):
         self.requires("fmt/11.0.2#5c7438ef4d5d69ab106a41e460ce11f3", force=True)
         self.requires("hdf5/1.14.4.3#df1467d7374938c231edbe10e83f2bb4", force=True)
         self.requires("highfive/2.10.0#3d1bd25944a57fa1bc30a0a22923d528")
-        self.requires("libdeflate/1.21#7be662d433b8a5d0c7debfe8240ffa09")
+        self.requires("libdeflate/1.22#f95aebe763153ccbc4cc76c023e42e5a")
         self.requires("parallel-hashmap/1.4.0#36ac84df77219748440cdb0f23624d56")
         self.requires("readerwriterqueue/1.0.6#aaa5ff6fac60c2aee591e9e51b063b83")
         self.requires("span-lite/0.11.0#519fd49fff711674cfed8cd17d4ed422")
