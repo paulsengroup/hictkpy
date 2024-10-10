@@ -21,6 +21,22 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
+static std::pair<std::vector<std::string>, std::vector<std::uint32_t>> transform_chromosome_dict(
+    nb::dict chromosomes) {
+  const auto chrom_list = chromosomes.items();
+
+  std::vector<std::string> chrom_names(chrom_list.size());
+  std::vector<std::uint32_t> chrom_sizes(chrom_list.size());
+
+  for (std::size_t i = 0; i < chrom_list.size(); ++i) {
+    const auto kv = chrom_list[i];
+    chrom_names[i] = nb::cast<std::string>(kv[0]);
+    chrom_sizes[i] = nb::cast<std::uint32_t>(kv[1]);
+  }
+
+  return std::make_pair(std::move(chrom_names), std::move(chrom_sizes));
+}
+
 template <typename N>
 std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object df, bool sorted) {
   using BufferT1 = nb::ndarray<nb::numpy, nb::shape<-1>, std::uint64_t>;
@@ -135,13 +151,7 @@ void hic_file_writer_ctor(hictkpy::HiCFileWriter *fp, std::string_view path,
                           std::string_view assembly, std::size_t n_threads, std::size_t chunk_size,
                           std::string_view tmpdir, std::uint32_t compression_lvl,
                           bool skip_all_vs_all_matrix) {
-  std::vector<std::string> chrom_names{};
-  std::vector<std::uint32_t> chrom_sizes{};
-
-  std::for_each(chromosomes.begin(), chromosomes.end(), [&](const auto &kv) {
-    chrom_names.push_back(nb::cast<std::string>(kv.first));
-    chrom_sizes.push_back(nb::cast<std::uint32_t>(kv.second));
-  });
+  const auto [chrom_names, chrom_sizes] = transform_chromosome_dict(chromosomes);
 
   new (fp)
       HiCFileWriter{path,
@@ -245,13 +255,7 @@ void cool_file_writer_ctor(hictkpy::CoolFileWriter *fp, std::string_view path,
                            nanobind::dict chromosomes, std::uint32_t resolution,
                            std::string_view assembly, std::string_view tmpdir,
                            std::uint32_t compression_lvl) {
-  std::vector<std::string> chrom_names{};
-  std::vector<std::uint32_t> chrom_sizes{};
-
-  std::for_each(chromosomes.begin(), chromosomes.end(), [&](const auto &kv) {
-    chrom_names.push_back(nb::cast<std::string>(kv.first));
-    chrom_sizes.push_back(nb::cast<std::uint32_t>(kv.second));
-  });
+  const auto [chrom_names, chrom_sizes] = transform_chromosome_dict(chromosomes);
 
   new (fp)
       CoolFileWriter{path,
