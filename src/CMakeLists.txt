@@ -17,22 +17,30 @@ nanobind_add_module(
         hictkpy_file_creation.cpp
         hictkpy_multires_file.cpp
         hictkpy_pixel_selector.cpp
-        hictkpy_singlecell_file.cpp)
+        hictkpy_singlecell_file.cpp
+)
 
-target_include_directories(_hictkpy PRIVATE include "${PYARROW_INCLUDE_DIR}" "${NUMPY_INCLUDE_DIR}")
+target_include_directories(
+  _hictkpy
+  PRIVATE
+    include
+    "${PYARROW_INCLUDE_DIR}"
+    "${NUMPY_INCLUDE_DIR}"
+)
 target_link_directories(_hictkpy PRIVATE "${PYARROW_LIB_DIRS}")
 
 target_link_libraries(
-        _hictkpy
-        PRIVATE hictkpy_project_options
-        hictkpy_project_warnings
-        hictk::cooler
-        hictk::file
-        hictk::hic
-        hictk::transformers
-        Arrow::python
-        fmt::fmt-header-only
-        spdlog::spdlog_header_only
+  _hictkpy
+  PRIVATE
+    hictkpy_project_options
+    hictkpy_project_warnings
+    hictk::cooler
+    hictk::file
+    hictk::hic
+    hictk::transformers
+    Arrow::python
+    fmt::fmt-header-only
+    spdlog::spdlog_header_only
 )
 
 # TODO fixme
@@ -40,7 +48,6 @@ target_link_libraries(
 # Python bindings on recent versions of Windows.
 # Possibly related to https://github.com/gabime/spdlog/issues/3212
 target_compile_definitions(_hictkpy PRIVATE $<$<PLATFORM_ID:Windows>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_OFF>)
-
 
 install(TARGETS _hictkpy LIBRARY DESTINATION hictkpy)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/hictkpy")
@@ -52,8 +59,11 @@ string(REPLACE "\\" "/" HICTKPY_CURRENT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 string(REPLACE "\\" "/" HICTKPY_CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 string(REPLACE "\\" "/" HICTKPY_Python_EXECUTABLE ${Python_EXECUTABLE})
 
-configure_file("${PROJECT_SOURCE_DIR}/cmake/NanobindStubgen.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake" @ONLY)
+configure_file(
+  "${PROJECT_SOURCE_DIR}/cmake/NanobindStubgen.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake"
+  @ONLY
+)
 install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake")
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/py.typed" DESTINATION hictkpy)
