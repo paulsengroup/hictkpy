@@ -1,0 +1,7 @@
+# Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+set(ARGS "@HICTKPY_PROJECT_SOURCE_DIR@/utils/devel/stubgen.py;@HICTKPY_CURRENT_BINARY_DIR@/hictkpy;--force")
+execute_process(COMMAND "@HICTKPY_Python_EXECUTABLE@" ${ARGS}
+                WORKING_DIRECTORY "@HICTKPY_CMAKE_INSTALL_PREFIX@" COMMAND_ERROR_IS_FATAL ANY)

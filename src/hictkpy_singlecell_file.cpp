@@ -3,7 +3,18 @@
 // SPDX-License-Identifier: MIT
 
 #include <fmt/format.h>
+
+// clang-format off
+#include "hictkpy/suppress_warnings.hpp"
+HICTKPY_DISABLE_WARNING_PUSH
+HICTKPY_DISABLE_WARNING_OLD_STYLE_CAST
+HICTKPY_DISABLE_WARNING_PEDANTIC
+HICTKPY_DISABLE_WARNING_SHADOW
+HICTKPY_DISABLE_WARNING_SIGN_CONVERSION
+HICTKPY_DISABLE_WARNING_USELESS_CAST
 #include <nanobind/nanobind.h>
+HICTKPY_DISABLE_WARNING_POP
+// clang-format on
 
 #include <algorithm>
 #include <string>
@@ -30,7 +41,7 @@ nb::dict get_attrs(const hictk::cooler::SingleCellFile& sclr) {
   const auto& attrs = sclr.attributes();
 
   py_attrs["bin-size"] = attrs.bin_size;
-  py_attrs["bin-type"] = attrs.bin_type;
+  py_attrs["bin-type"] = attrs.bin_type == hictk::BinTable::Type::fixed ? "fixed" : "variable";
   py_attrs["format"] = attrs.format;
   py_attrs["format-version"] = attrs.format_version;
 
