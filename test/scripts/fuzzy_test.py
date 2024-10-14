@@ -299,7 +299,6 @@ def compare_coo(
         )
         return False
 
-
     expected = expected.tocsr()
     found = found.tocsr()
 
