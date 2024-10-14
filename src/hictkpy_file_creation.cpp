@@ -3,9 +3,22 @@
 // SPDX-License-Identifier: MIT
 
 #include <fmt/format.h>
+
+// clang-format off
+#include "hictkpy/suppress_warnings.hpp"
+HICTKPY_DISABLE_WARNING_PUSH
+HICTKPY_DISABLE_WARNING_OLD_STYLE_CAST
+HICTKPY_DISABLE_WARNING_PEDANTIC
+HICTKPY_DISABLE_WARNING_SHADOW
+HICTKPY_DISABLE_WARNING_SIGN_CONVERSION
+HICTKPY_DISABLE_WARNING_USELESS_CAST
 #include <nanobind/ndarray.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
+HICTKPY_DISABLE_WARNING_POP
+// clang-format on
+
+#include <spdlog/spdlog.h>
 
 #include <filesystem>
 #include <hictk/bin_table.hpp>
@@ -20,6 +33,21 @@
 namespace nb = nanobind;
 
 namespace hictkpy {
+
+static hictk::Reference transform_chromosome_dict(nb::dict chromosomes) {
+  const auto chrom_list = chromosomes.items();
+
+  std::vector<std::string> chrom_names(chrom_list.size());
+  std::vector<std::uint32_t> chrom_sizes(chrom_list.size());
+
+  for (std::size_t i = 0; i < chrom_list.size(); ++i) {
+    const auto kv = chrom_list[i];
+    chrom_names[i] = nb::cast<std::string>(kv[0]);
+    chrom_sizes[i] = nb::cast<std::uint32_t>(kv[1]);
+  }
+
+  return {chrom_names.begin(), chrom_names.end(), chrom_sizes.begin()};
+}
 
 template <typename N>
 std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object df, bool sorted) {
@@ -93,25 +121,40 @@ std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTable &bi
   return buffer;
 }
 
-HiCFileWriter::HiCFileWriter(std::string_view path, hictk::Reference chromosomes,
+HiCFileWriter::HiCFileWriter(std::string_view path, nb::dict chromosomes,
                              const std::vector<std::uint32_t> &resolutions,
                              std::string_view assembly, std::size_t n_threads,
                              std::size_t chunk_size, const std::filesystem::path &tmpdir,
                              std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
-    : _w(path, std::move(chromosomes), resolutions, assembly, n_threads, chunk_size, tmpdir,
-         compression_lvl, skip_all_vs_all_matrix) {}
+    : _w(path, transform_chromosome_dict(std::move(chromosomes)), resolutions, assembly, n_threads,
+         chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
 
-void HiCFileWriter::serialize(const std::string &log_lvl_str) {
+HiCFileWriter::HiCFileWriter(std::string_view path, nb::dict chromosomes, std::uint32_t resolution,
+                             std::string_view assembly, std::size_t n_threads,
+                             std::size_t chunk_size, const std::filesystem::path &tmpdir,
+                             std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
+    : HiCFileWriter(path, std::move(chromosomes), std::vector<std::uint32_t>{resolution}, assembly,
+                    n_threads, chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
+
+void HiCFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) {
   if (_finalized) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize was already called on file \"{}\""), _w.path()));
   }
+#ifndef _WIN32
+  // TODO fixme
+  // There is something very odd going on when trying to call most spdlog functions from within
+  // Python bindings on recent versions of Windows.
+  // Possibly related to https://github.com/gabime/spdlog/issues/3212
   spdlog::level::level_enum log_lvl = spdlog::level::from_str(log_lvl_str);
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
+#endif
   _w.serialize();
   _finalized = true;
+#ifndef _WIN32
   spdlog::default_logger()->set_level(previous_lvl);
+#endif
 }
 
 std::string_view HiCFileWriter::path() const noexcept { return _w.path(); }
@@ -130,51 +173,17 @@ void HiCFileWriter::add_pixels(nanobind::object df) {
   _w.add_pixels(_w.resolutions().front(), pixels.begin(), pixels.end());
 }
 
-void hic_file_writer_ctor(hictkpy::HiCFileWriter *fp, std::string_view path,
-                          nanobind::dict chromosomes, const std::vector<std::uint32_t> &resolutions,
-                          std::string_view assembly, std::size_t n_threads, std::size_t chunk_size,
-                          std::string_view tmpdir, std::uint32_t compression_lvl,
-                          bool skip_all_vs_all_matrix) {
-  std::vector<std::string> chrom_names{};
-  std::vector<std::uint32_t> chrom_sizes{};
-
-  std::for_each(chromosomes.begin(), chromosomes.end(), [&](const auto &kv) {
-    chrom_names.push_back(nb::cast<std::string>(kv.first));
-    chrom_sizes.push_back(nb::cast<std::uint32_t>(kv.second));
-  });
-
-  new (fp)
-      HiCFileWriter{path,
-                    hictk::Reference{chrom_names.begin(), chrom_names.end(), chrom_sizes.begin()},
-                    resolutions,
-                    assembly,
-                    n_threads,
-                    chunk_size,
-                    std::filesystem::path{tmpdir},
-                    compression_lvl,
-                    skip_all_vs_all_matrix};
-}
-
-void hic_file_writer_ctor_single_res(hictkpy::HiCFileWriter *fp, std::string_view path,
-                                     nanobind::dict chromosomes, std::uint32_t resolution,
-                                     std::string_view assembly, std::size_t n_threads,
-                                     std::size_t chunk_size, std::string_view tmpdir,
-                                     std::uint32_t compression_lvl, bool skip_all_vs_all_matrix) {
-  return hic_file_writer_ctor(fp, path, chromosomes, std::vector<std::uint32_t>{resolution},
-                              assembly, n_threads, chunk_size, tmpdir, compression_lvl,
-                              skip_all_vs_all_matrix);
-}
-
 std::string hic_file_writer_repr(hictkpy::HiCFileWriter &w) {
   return fmt::format(FMT_STRING("HiCFileWriter({})"), w.path());
 }
 
-CoolFileWriter::CoolFileWriter(std::string_view path_, hictk::Reference chromosomes_,
+CoolFileWriter::CoolFileWriter(std::string_view path_, nb::dict chromosomes_,
                                std::uint32_t resolution_, std::string_view assembly,
                                const std::filesystem::path &tmpdir, std::uint32_t compression_lvl)
     : _path(std::string{path_}),
-      _tmpdir(tmpdir / (std::string{path_} + ".tmp")),
-      _w(create_file(path_, std::move(chromosomes_), resolution_, _tmpdir())) {
+      _tmpdir(tmpdir / (_path + ".tmp")),
+      _w(create_file(_path, transform_chromosome_dict(std::move(chromosomes_)), resolution_,
+                     _tmpdir())) {
   if (std::filesystem::exists(_path)) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("unable to create .cool file \"{}\": file already exists"), path()));
@@ -211,14 +220,20 @@ void CoolFileWriter::add_pixels(nanobind::object df) {
       var);
 }
 
-void CoolFileWriter::serialize(const std::string &log_lvl_str) {
+void CoolFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) {
   if (_finalized) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize was already called on file \"{}\""), _w->path()));
   }
+#ifndef _WIN32
+  // TODO fixme
+  // There is something very odd going on when trying to call most spdlog functions from within
+  // Python bindings on recent versions of Windows.
+  // Possibly related to https://github.com/gabime/spdlog/issues/3212
   spdlog::level::level_enum log_lvl = spdlog::level::from_str(log_lvl_str);
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
+#endif
   std::visit(
       [&](const auto &num) {
         using N = hictk::remove_cvref_t<decltype(num)>;
@@ -227,7 +242,9 @@ void CoolFileWriter::serialize(const std::string &log_lvl_str) {
       _w->open("0").pixel_variant());
 
   _finalized = true;
+#ifndef _WIN32
   spdlog::default_logger()->set_level(previous_lvl);
+#endif
   const std::string sclr_path{_w->path()};
   _w.reset();
   std::filesystem::remove(sclr_path);
@@ -239,27 +256,6 @@ hictk::cooler::SingleCellFile CoolFileWriter::create_file(std::string_view path,
                                                           const std::filesystem::path &tmpdir) {
   return hictk::cooler::SingleCellFile::create(tmpdir / std::filesystem::path{path}.filename(),
                                                std::move(chromosomes), resolution, false);
-}
-
-void cool_file_writer_ctor(hictkpy::CoolFileWriter *fp, std::string_view path,
-                           nanobind::dict chromosomes, std::uint32_t resolution,
-                           std::string_view assembly, std::string_view tmpdir,
-                           std::uint32_t compression_lvl) {
-  std::vector<std::string> chrom_names{};
-  std::vector<std::uint32_t> chrom_sizes{};
-
-  std::for_each(chromosomes.begin(), chromosomes.end(), [&](const auto &kv) {
-    chrom_names.push_back(nb::cast<std::string>(kv.first));
-    chrom_sizes.push_back(nb::cast<std::uint32_t>(kv.second));
-  });
-
-  new (fp)
-      CoolFileWriter{path,
-                     hictk::Reference{chrom_names.begin(), chrom_names.end(), chrom_sizes.begin()},
-                     resolution,
-                     assembly,
-                     std::filesystem::path{tmpdir},
-                     compression_lvl};
 }
 
 std::string cool_file_writer_repr(hictkpy::CoolFileWriter &w) {

@@ -5,9 +5,11 @@
 [build-system]
 requires = [
   "conan>=2.0.5",
-  "scikit-build-core>=0.8",
+  "nanobind==2.2.0",
   "numpy",
   "pandas>=2.1.0,!=2.2.0",
+  "pyarrow==17.0.0",
+  "scikit-build-core>=0.10",
   "scipy",
   "typing_extensions",
 ]
@@ -17,7 +19,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "hictkpy"
 dynamic = ["version"]
-description = "Blazing fast toolkit to work with .hic and .cool files"
+description = "Python bindings for hictk: read and write .cool and .hic files directly from Python"
 readme = "README.md"
 authors = [
   {name = "Roberto Rossini", email = "roberros@uio.no"}
@@ -32,11 +34,12 @@ classifiers = [
 dependencies = [
   "numpy",
   "pandas>=2.1.0,!=2.2.0",
+  "pyarrow>=14",
   "scipy",
 ]
 
 optional-dependencies.test = [
-  "pytest>=6.0"
+  "pytest>=8.0"
 ]
 
 [tool.scikit-build]
@@ -46,21 +49,24 @@ wheel.expand-macos-universal-tags = true
 cmake.build-type = "Release"
 
 [tool.scikit-build.cmake.define]
+BUILD_SHARED_LIBS = "OFF"
 CMAKE_OSX_DEPLOYMENT_TARGET = "10.15"
 CMAKE_PROJECT_TOP_LEVEL_INCLUDES = { env="HICTKPY_PROJECT_TOP_LEVEL_INCLUDES", default="cmake/conan_provider.cmake" }
-HICTK_ENABLE_TESTING = "OFF"
-HICTK_BUILD_EXAMPLES = "OFF"
+CONAN_INSTALL_ARGS = "--settings=compiler.cppstd=17;--settings=build_type=Release;--build=missing;--build=b2/*;--update;--options=*/*:shared=False"
 HICTK_BUILD_BENCHMARKS = "OFF"
+HICTK_BUILD_EXAMPLES = "OFF"
 HICTK_BUILD_TOOLS = "OFF"
+HICTK_ENABLE_FUZZY_TESTING = "OFF"
 HICTK_ENABLE_GIT_VERSION_TRACKING = "OFF"
-BUILD_SHARED_LIBS = "OFF"
-CONAN_INSTALL_ARGS = "--settings=compiler.cppstd=17;--build=missing;--update;--options=*/*:shared=False"
+HICTK_ENABLE_TESTING = "OFF"
+HICTK_WITH_ARROW = "ON"
+HICTK_WITH_EIGEN = "ON"
 
 [tool.setuptools_scm]
 write_to = "src/_version.py"
 
 [tool.pytest.ini_options]
-minversion = "7.0"
+minversion = "8.0"
 addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = [
@@ -85,6 +91,10 @@ test-skip = ["cp313*", "*universal2", "pp*"]
 before-build = [
   "rm -rf '{project}/build'",
 ]
+environment = { PIP_VERBOSE=1 }
+
+# We are using static linking, thus repairing wheels is not necessary.
+repair-wheel-command = ""
 
 [tool.ruff]
 extend-select = [

@@ -40,7 +40,7 @@ class TestClass:
         assert m.dtype == np.int32
 
         m = f.fetch("chr2R:10,000,000-15,000,000", count_type="float").to_numpy()
-        assert m.dtype == np.float64
+        assert m.dtype == np.float32
 
         m = f.fetch("chr2R\t10000000\t15000000", query_type="BED").to_numpy()
         assert m.shape == (50, 50)
@@ -67,7 +67,7 @@ class TestClass:
         assert m.dtype == np.int32
 
         m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="float").to_numpy()
-        assert m.dtype == np.float64
+        assert m.dtype == np.float32
 
         m = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED").to_numpy()
         assert m.shape == (50, 100)

@@ -6,7 +6,7 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - ".github/workflows/pip.yml"
       - "cmake/**"
@@ -18,7 +18,7 @@ on:
       - "setup.cfg"
       - "setup.py"
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
   pull_request:
     paths:
@@ -49,56 +49,55 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, macos-latest, ubuntu-latest]
+        platform: [windows-2019, macos-latest, ubuntu-latest]
         python-version: ["3.9", "3.12"]
 
     runs-on: ${{ matrix.platform }}
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Add requirements
-      run: python -m pip install --upgrade wheel setuptools
+      - name: Add requirements
+        run: python -m pip install --upgrade wheel setuptools
 
-    - name: Generate cache key
-      id: cache-key
-      run: |
-        hash="${{ hashFiles('conanfile.txt', '.github/workflows/pip.yml') }}"
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          hash="${{ hashFiles('conanfile.txt', '.github/workflows/pip.yml') }}"
 
-        echo "conan-key=pip-$hash" >> $GITHUB_OUTPUT
+          echo "conan-key=pip-$hash" >> $GITHUB_OUTPUT
 
-    - name: Restore Conan cache
-      id: cache-conan
-      uses: actions/cache/restore@v4
-      with:
-        key: conan-${{ steps.cache-key.outputs.conan-key }}
-        path: ${{ env.CONAN_HOME }}
+      - name: Restore Conan cache
+        id: cache-conan
+        uses: actions/cache/restore@v4
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}
 
-    - name: Override default compilers (macOS)
-      if: matrix.platform == 'macos-latest'
-      run: |
-        echo 'CC=clang' >> $GITHUB_ENV
-        echo 'CXX=clang++' >> $GITHUB_ENV
+      - name: Override default compilers (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          echo 'CC=clang' >> $GITHUB_ENV
+          echo 'CXX=clang++' >> $GITHUB_ENV
 
-    - name: Build and install
-      run: pip install --verbose '.[test]'
+      - name: Build and install
+        run: pip install --verbose '.[test]'
 
-    - name: Save Conan cache
-      uses: actions/cache/save@v4
-      if: steps.cache-conan.outputs.cache-hit != 'true'
-      with:
-        key: conan-${{ steps.cache-key.outputs.conan-key }}
-        path: ${{ env.CONAN_HOME }}
+      - name: Save Conan cache
+        uses: actions/cache/save@v4
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}
 
-    - name: Test
-      run: python -m pytest test -v
-
+      - name: Test
+        run: python -m pytest test -v
 
   pip-status-check:
     name: Status Check (CI)
