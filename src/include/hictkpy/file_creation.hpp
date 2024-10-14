@@ -4,7 +4,18 @@
 
 #pragma once
 
+// clang-format off
+#include "hictkpy/suppress_warnings.hpp"
+HICTKPY_DISABLE_WARNING_PUSH
+HICTKPY_DISABLE_WARNING_OLD_STYLE_CAST
+HICTKPY_DISABLE_WARNING_PEDANTIC
+HICTKPY_DISABLE_WARNING_SHADOW
+HICTKPY_DISABLE_WARNING_SIGN_CONVERSION
+HICTKPY_DISABLE_WARNING_USELESS_CAST
 #include <nanobind/nanobind.h>
+HICTKPY_DISABLE_WARNING_POP
+// clang-format on
+
 #include <spdlog/spdlog.h>
 
 #include <hictk/cooler/cooler.hpp>
@@ -22,8 +33,13 @@ class HiCFileWriter {
   bool _finalized{false};
 
  public:
-  HiCFileWriter(std::string_view path, hictk::Reference chromosomes,
+  HiCFileWriter(std::string_view path, nanobind::dict chromosomes,
                 const std::vector<std::uint32_t>& resolutions,
+                std::string_view assembly = "unknown", std::size_t n_threads = 1,
+                std::size_t chunk_size = 10'000'000,
+                const std::filesystem::path& tmpdir = std::filesystem::temp_directory_path(),
+                std::uint32_t compression_lvl = 10, bool skip_all_vs_all_matrix = false);
+  HiCFileWriter(std::string_view path, nanobind::dict chromosomes, std::uint32_t resolution,
                 std::string_view assembly = "unknown", std::size_t n_threads = 1,
                 std::size_t chunk_size = 10'000'000,
                 const std::filesystem::path& tmpdir = std::filesystem::temp_directory_path(),
@@ -39,18 +55,6 @@ class HiCFileWriter {
   void serialize(const std::string& log_lvl_str = "warn");
 };
 
-void hic_file_writer_ctor(hictkpy::HiCFileWriter* fp, std::string_view path,
-                          nanobind::dict chromosomes, const std::vector<std::uint32_t>& resolutions,
-                          std::string_view assembly, std::size_t n_threads, std::size_t chunk_size,
-                          std::string_view tmpdir, std::uint32_t compression_lvl,
-                          bool skip_all_vs_all_matrix);
-
-void hic_file_writer_ctor_single_res(hictkpy::HiCFileWriter* fp, std::string_view path,
-                                     nanobind::dict chromosomes, std::uint32_t resolution,
-                                     std::string_view assembly, std::size_t n_threads,
-                                     std::size_t chunk_size, std::string_view tmpdir,
-                                     std::uint32_t compression_lvl, bool skip_all_vs_all_matrix);
-
 [[nodiscard]] std::string hic_file_writer_repr(hictkpy::HiCFileWriter& w);
 
 class CoolFileWriter {
@@ -61,7 +65,7 @@ class CoolFileWriter {
   bool _finalized{false};
 
  public:
-  CoolFileWriter(std::string_view path_, hictk::Reference chromosomes_, std::uint32_t resolution_,
+  CoolFileWriter(std::string_view path_, nanobind::dict chromosomes_, std::uint32_t resolution_,
                  std::string_view assembly = "unknown",
                  const std::filesystem::path& tmpdir = std::filesystem::temp_directory_path(),
                  std::uint32_t compression_lvl = 6);
@@ -80,11 +84,6 @@ class CoolFileWriter {
       std::string_view path, hictk::Reference chromosomes, std::uint32_t resolution,
       const std::filesystem::path& tmpdir);
 };
-
-void cool_file_writer_ctor(hictkpy::CoolFileWriter* fp, std::string_view path,
-                           nanobind::dict chromosomes, std::uint32_t resolution,
-                           std::string_view assembly, std::string_view tmpdir,
-                           std::uint32_t compression_lvl);
 
 [[nodiscard]] std::string cool_file_writer_repr(hictkpy::CoolFileWriter& w);
 

@@ -4,9 +4,19 @@
 
 #pragma once
 
+// clang-format off
+#include "hictkpy/suppress_warnings.hpp"
+HICTKPY_DISABLE_WARNING_PUSH
+HICTKPY_DISABLE_WARNING_OLD_STYLE_CAST
+HICTKPY_DISABLE_WARNING_PEDANTIC
+HICTKPY_DISABLE_WARNING_SHADOW
+HICTKPY_DISABLE_WARNING_SIGN_CONVERSION
+HICTKPY_DISABLE_WARNING_USELESS_CAST
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string_view.h>
 #include <nanobind/stl/tuple.h>
+HICTKPY_DISABLE_WARNING_POP
+// clang-format on
 
 #include <cstdint>
 #include <memory>
@@ -15,7 +25,8 @@
 
 #include "hictk/cooler/pixel_selector.hpp"
 #include "hictk/hic/pixel_selector.hpp"
-#include "hictk/transformers/join_genomic_coords.hpp"
+#include "hictk/transformers/common.hpp"
+#include "hictk/transformers/to_dataframe.hpp"
 
 namespace hictkpy {
 
@@ -25,23 +36,23 @@ struct PixelSelector {
     std::variant<std::shared_ptr<const hictk::cooler::PixelSelector>,
                  std::shared_ptr<const hictk::hic::PixelSelector>,
                  std::shared_ptr<const hictk::hic::PixelSelectorAll>>;
-
-  using PixelVar = std::variant<std::int32_t, double>;
   // clang-format on
+  using PixelVar = hictk::internal::NumericVariant;
+  using QuerySpan = hictk::transformers::QuerySpan;
+  using PixelFormat = hictk::transformers::DataFrameFormat;
 
   SelectorVar selector{};
   PixelVar pixel_count{std::int32_t(0)};
-  bool join{};
-  bool mirror{false};
+  hictk::transformers::DataFrameFormat pixel_format{hictk::transformers::DataFrameFormat::COO};
 
   PixelSelector() = default;
 
   PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_, std::string_view type,
-                bool join_, bool mirror_);
+                bool join);
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_, std::string_view type,
-                bool join_, bool mirror_);
+                bool join);
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_, std::string_view type,
-                bool join_, bool mirror_);
+                bool join);
 
   [[nodiscard]] std::string repr() const;
 
@@ -52,16 +63,20 @@ struct PixelSelector {
   [[nodiscard]] auto get_coord2() const -> PixelCoordTuple;
 
   [[nodiscard]] nanobind::object make_iterable() const;
-  [[nodiscard]] nanobind::object to_df() const;
-  [[nodiscard]] nanobind::object to_coo() const;
-  [[nodiscard]] nanobind::object to_numpy() const;
+  [[nodiscard]] nanobind::object to_arrow(std::string_view span = "upper_triangle") const;
+  [[nodiscard]] nanobind::object to_df(std::string_view span = "upper_triangle") const;
+  [[nodiscard]] nanobind::object to_pandas(std::string_view span = "upper_triangle") const;
+  [[nodiscard]] nanobind::object to_coo(std::string_view span = "upper_triangle") const;
+  [[nodiscard]] nanobind::object to_csr(std::string_view span = "upper_triangle") const;
+  [[nodiscard]] nanobind::object to_numpy(std::string_view span = "full") const;
   [[nodiscard]] nanobind::object sum() const;
   [[nodiscard]] std::int64_t nnz() const;
 
- private:
-  [[nodiscard]] constexpr bool int_pixels() const noexcept;
-  [[nodiscard]] constexpr bool float_pixels() const noexcept;
+  [[nodiscard]] static auto parse_span(std::string_view span) -> QuerySpan;
+  [[nodiscard]] static auto parse_count_type(std::string_view type) -> PixelVar;
+  [[nodiscard]] static std::string_view count_type_to_str(const PixelVar& var) noexcept;
 
+ private:
   [[nodiscard]] hictk::PixelCoordinates coord1() const noexcept;
   [[nodiscard]] hictk::PixelCoordinates coord2() const noexcept;
 
