@@ -30,7 +30,7 @@ Checks: >
   -readability-static-definition-in-anonymous-namespace,
   -zircon-*
 WarningsAsErrors: ""
-HeaderFilterRegex: "(^\\.\\/.*)|(.*hictk.*)"
+HeaderFilterRegex: "^include/hictkpy.*"
 FormatStyle: none
 CheckOptions:
   - key: cppcoreguidelines-macro-usage.AllowedRegexp
