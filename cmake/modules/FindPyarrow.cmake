@@ -199,7 +199,6 @@ if(Pyarrow_FOUND AND NOT TARGET Arrow::python)
   add_custom_target(
     update_arrow_lib_symlinks
     BYPRODUCTS
-      "${Pyarrow_LIBRARY}"
       "${Arrow_LIBRARY}"
     COMMAND
       "${Python_EXECUTABLE}" "${SCRIPT}"
