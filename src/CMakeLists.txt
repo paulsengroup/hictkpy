@@ -5,6 +5,7 @@
 find_package(FMT REQUIRED)
 find_package(Pyarrow REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(Filesystem REQUIRED)
 
 nanobind_add_module(
         _hictkpy
@@ -41,6 +42,7 @@ target_link_libraries(
     Arrow::python
     fmt::fmt-header-only
     spdlog::spdlog_header_only
+    std::filesystem
 )
 
 # TODO fixme
