@@ -344,10 +344,10 @@ hictk::internal::NumericVariant PixelSelector::parse_count_type(std::string_view
   if (type == "int64") {
     return {std::int64_t{}};
   }
-  if (type == "float32" || type == "float") {
+  if (type == "float32") {
     return {float{}};
   }
-  if (type == "float64" || type == "double") {
+  if (type == "float64" || type == "float" || type == "double") {
     return {double{}};
   }
 
