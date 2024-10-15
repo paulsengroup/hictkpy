@@ -173,7 +173,7 @@ struct Dynamic1DA {
     std::swap(new_buff, _buff);
     std::swap(new_vector, _vector);
   }
-  inline void grow() { resize(_buff.size() * 2); }
+  inline void grow() { resize(static_cast<std::int64_t>(_buff.size()) * 2); }
   inline void shrink_to_fit() { resize(_size); }
   [[nodiscard]] auto operator()() -> BufferT {
     shrink_to_fit();

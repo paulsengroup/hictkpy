@@ -82,7 +82,7 @@ class CoolFileWriter {
  private:
   [[nodiscard]] static hictk::cooler::SingleCellFile create_file(
       std::string_view path, hictk::Reference chromosomes, std::uint32_t resolution,
-      const std::filesystem::path& tmpdir);
+      std::string_view assembly, const std::filesystem::path& tmpdir);
 };
 
 [[nodiscard]] std::string cool_file_writer_repr(hictkpy::CoolFileWriter& w);

@@ -42,7 +42,7 @@ struct PixelSelector {
   using PixelFormat = hictk::transformers::DataFrameFormat;
 
   SelectorVar selector{};
-  PixelVar pixel_count{std::int32_t(0)};
+  PixelVar pixel_count{std::int32_t{0}};
   hictk::transformers::DataFrameFormat pixel_format{hictk::transformers::DataFrameFormat::COO};
 
   PixelSelector() = default;
