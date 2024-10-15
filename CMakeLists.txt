@@ -28,6 +28,7 @@ FetchContent_Declare(
   URL
     "${CMAKE_CURRENT_SOURCE_DIR}/external/project_options-v0.36.6.tar.xz"
   URL_HASH SHA256=b4df2a4107847248d4711ee48477cdf93c1a1c7d51a931937759eb9ffba67af8
+  EXCLUDE_FROM_ALL
   SYSTEM
 )
 
@@ -37,6 +38,7 @@ FetchContent_Declare(
     "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-312d83ec.tar.xz"
   URL_HASH "SHA256=a47b1088de6650179715db17337e09c44729f8e86b4457848e306f028d0b5878"
   EXCLUDE_FROM_ALL
+  OVERRIDE_FIND_PACKAGE
   SYSTEM
 )
 
@@ -46,9 +48,11 @@ FetchContent_Declare(
     "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.2.0.tar.xz"
   URL_HASH "SHA256=6f0064c5e94b0bc34637644ddf035cdc7831135949b843adf52bc4bdbe2c6b5d"
   EXCLUDE_FROM_ALL
+  OVERRIDE_FIND_PACKAGE
   SYSTEM
 )
 
+# Tweak hictk
 set(HICTK_BUILD_BENCHMARKS OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
 set(HICTK_BUILD_TOOLS OFF)
@@ -59,26 +63,10 @@ set(HICTK_WITH_ARROW_SHARED ON)
 set(HICTK_WITH_EIGEN ON)
 set(HICTK_ENABLE_GIT_VERSION_TRACKING OFF)
 
+# This must be called before finding hictk, such that hictk will link to the arrow lib shipped with the Python wheel
+# Furthermore, we are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
 find_package(Arrow REQUIRED)
-FetchContent_MakeAvailable(
-  hictk
-  _hictkpy_project_options
-)
-
-find_package(
-  Python
-  3.9
-  COMPONENTS
-    Interpreter
-    Development.Module
-  REQUIRED
-)
-
-find_package(nanobind QUIET)
-if(NOT nanobind_FOUND)
-  message(STATUS "Installing vendored version of nanobind...")
-  FetchContent_MakeAvailable(nanobind)
-endif()
+find_package(hictk REQUIRED)
 
 get_property(BUILDING_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(BUILDING_MULTI_CONFIG)
@@ -100,6 +88,8 @@ if(BUILDING_MULTI_CONFIG)
     set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE} CACHE STRING "Enabled build types" FORCE)
   endif()
 endif()
+
+FetchContent_MakeAvailable(_hictkpy_project_options)
 
 include("${_hictkpy_project_options_SOURCE_DIR}/src/DynamicProjectOptions.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake")

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 find_package(FMT REQUIRED)
+find_package(nanobind REQUIRED)
 find_package(Pyarrow REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Filesystem REQUIRED)
@@ -73,3 +74,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi" DESTINATION hic
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hictkpy.pyi" DESTINATION hictkpy)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/cooler.pyi" DESTINATION hictkpy)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hic.pyi" DESTINATION hictkpy)
+
+# Disable clang-tidy on nanobind
+# This seems to be the only reliable way to do so...
+configure_file("${PROJECT_SOURCE_DIR}/cmake/.clang-tidy.in" "${nanobind_SOURCE_DIR}/.clang-tidy" COPYONLY)
