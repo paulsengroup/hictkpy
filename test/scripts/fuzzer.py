@@ -33,6 +33,12 @@ def make_cli() -> argparse.ArgumentParser:
 
         raise ValueError("Not a positive integer")
 
+    def non_negative_int(arg) -> int:
+        if (n := int(arg)) >= 0:
+            return n
+
+        raise ValueError("Not a non-negative integer")
+
     def valid_fraction(arg) -> float:
         if (n := float(arg)) >= 0 and n <= 1:
             return n
@@ -59,8 +65,9 @@ def make_cli() -> argparse.ArgumentParser:
     )
     cli.add_argument(
         "--resolution",
-        type=positive_int,
-        help="Matrix resolution.\n" "Required when either test-uri or reference-uri are multi-resolution files.",
+        type=non_negative_int,
+        help="Matrix resolution.\n"
+        "Required when one or both of test-uri and reference-uri are multi-resolution files.",
     )
     cli.add_argument(
         "--1d-to-2d-query-ratio",
@@ -77,19 +84,19 @@ def make_cli() -> argparse.ArgumentParser:
     cli.add_argument(
         "--format",
         type=str,
-        choices={"df", "numpy", "coo"},
+        choices={"df", "numpy", "csr"},
         default="df",
         help="Format used to fetch pixels.",
     )
     cli.add_argument(
         "--query-length-avg",
-        type=float,
+        type=positive_int,
         default=1_000_000,
         help="Average query size.",
     )
     cli.add_argument(
         "--query-length-std",
-        type=float,
+        type=non_negative_int,
         default=250_000,
         help="Standard deviation for query size.",
     )
@@ -100,15 +107,15 @@ def make_cli() -> argparse.ArgumentParser:
         help="Name of the dataset to use for balancing.",
     )
     cli.add_argument(
-        "--seed",
-        type=int,
-        help="Seed used for PRNG.",
-    )
-    cli.add_argument(
         "--join",
         action="store_true",
         default=False,
-        help="Fetch pixels in BG2 format.\n",
+        help="Fetch pixels in BG2 format.\n" "Ignored when --format is not df.",
+    )
+    cli.add_argument(
+        "--seed",
+        type=int,
+        help="Seed used for PRNG.",
     )
     cli.add_argument(
         "--nproc",
@@ -143,14 +150,14 @@ def hictk_dump(
     query2: str,
     normalization: str = "NONE",
     query_type: str = "df",
-) -> pd.DataFrame | npt.NDArray | ss.coo_matrix | List[Any]:
+) -> pd.DataFrame | npt.NDArray | ss.csr_matrix | List[Any]:
     logging.debug("[hictkpy] running query for %s, %s...", query1, query2)
     if query_type == "df":
         return postproc_df(file.fetch(query1, query2, normalization, join=True).to_df())
-    if query_type == "coo":
-        return file.fetch(query1, query2, normalization).to_coo()
+    if query_type == "csr":
+        return file.fetch(query1, query2, normalization).to_csr(query_span="full")
     if query_type == "numpy":
-        return file.fetch(query1, query2, normalization).to_numpy()
+        return file.fetch(query1, query2, normalization).to_numpy(query_span="full")
 
     raise NotImplementedError
 
@@ -256,7 +263,7 @@ def compare_numpy(
         )
         return False
 
-    num_differences = (~np.isclose(expected, found, rtol=rtol)).sum()
+    num_differences = (~np.isclose(expected, found, rtol=rtol, equal_nan=True)).sum()
     if num_differences != 0:
         logging.warning(
             "[%d] %s, %s (%d nnz): FAIL! Found %d differences!",
@@ -272,12 +279,12 @@ def compare_numpy(
     return True
 
 
-def compare_coo(
-    worker_id: int, q1: str, q2: str, expected: ss.coo_matrix, found: ss.coo_matrix, rtol: float = 1.0e-5
+def compare_csr(
+    worker_id: int, q1: str, q2: str, expected: ss.csr_matrix, found: ss.csr_matrix, rtol: float = 1.0e-5
 ) -> bool:
     if expected.shape != found.shape:
         logging.warning(
-            "[%d] %s, %s (%d nnz): FAIL! COO matrices have different shapes! Expected %s, found %s",
+            "[%d] %s, %s (%d nnz): FAIL! CSR matrices have different shapes! Expected %s, found %s",
             worker_id,
             q1,
             q2,
@@ -289,7 +296,7 @@ def compare_coo(
 
     if expected.nnz != found.nnz:
         logging.warning(
-            "[%d] %s, %s (%d nnz): FAIL! COO matrices have different nnz! Expected %d, found %d",
+            "[%d] %s, %s (%d nnz): FAIL! CSR matrices have different nnz! Expected %d, found %d",
             worker_id,
             q1,
             q2,
@@ -299,16 +306,13 @@ def compare_coo(
         )
         return False
 
-    expected = expected.tocsr()
-    found = found.tocsr()
-
     expected.sort_indices()
     found.sort_indices()
 
     num_differences = (expected.indices != found.indices).sum()
     if num_differences != 0:
         logging.warning(
-            "[%d] %s, %s (%d nnz): FAIL! Found %d differences!",
+            "[%d] %s, %s (%d nnz): FAIL! Found %d differences in CSR matrix.indices!",
             worker_id,
             q1,
             q2,
@@ -317,7 +321,19 @@ def compare_coo(
         )
         return False
 
-    num_differences = np.isclose(expected.data, found.data, rtol=rtol).sum()
+    num_differences = (expected.indptr != found.indptr).sum()
+    if num_differences != 0:
+        logging.warning(
+            "[%d] %s, %s (%d nnz): FAIL! Found %d differences in CSR matrix.indptr!",
+            worker_id,
+            q1,
+            q2,
+            expected.nnz,
+            num_differences,
+        )
+        return False
+
+    num_differences = (~np.isclose(expected.data, found.data, rtol=rtol, equal_nan=True)).sum()
     if num_differences != 0:
         logging.warning(
             "[%d] %s, %s (%d nnz): FAIL! Found %d differences!",
@@ -334,14 +350,14 @@ def compare_coo(
 
 
 def results_are_identical(worker_id: int, q1: str, q2: str, expected, found) -> bool:
-    assert isinstance(expected, type(found))
-
     if isinstance(found, pd.DataFrame):
+        assert isinstance(expected, type(found))
         return compare_dfs(worker_id, q1, q2, expected, found)
     if isinstance(found, (np.ndarray, np.generic)):
+        assert isinstance(expected, type(found))
         return compare_numpy(worker_id, q1, q2, expected, found)
-    if isinstance(found, ss.coo_matrix):
-        return compare_coo(worker_id, q1, q2, expected, found)
+    if isinstance(found, ss.csr_matrix):
+        return compare_csr(worker_id, q1, q2, expected.tocsr(), found)
 
     raise NotImplementedError
 
@@ -384,7 +400,7 @@ def worker(
         if query_type == "df":
             clr_matrix_args["as_pixels"] = True
             clr_matrix_args["join"] = True
-        elif query_type == "coo":
+        elif query_type == "csr":
             clr_matrix_args["sparse"] = True
         elif query_type == "numpy":
             pass
@@ -397,7 +413,6 @@ def worker(
         weights = chrom_sizes / chrom_sizes.sum()
 
         clr = cooler.Cooler(str(path_to_reference_file))
-        assert clr.binsize == resolution
         sel = clr.matrix(**clr_matrix_args)
 
         f = hictkpy.File(str(path_to_file), resolution)
@@ -454,10 +469,22 @@ def main() -> int:
 
     reference_uri = str(args["reference-uri"])
     resolution = args["resolution"]
-    if resolution is None:
-        resolution = cooler.Cooler(reference_uri).binsize
-    else:
+
+    if cooler.fileops.is_multires_file(reference_uri):
+        if resolution is None:
+            raise RuntimeError(
+                "--resolution is a mandatory option when one or both of test-uri and reference-uri are multi-resolution files."
+            )
         reference_uri = f"{reference_uri}::/resolutions/{resolution}"
+
+    if cooler.fileops.is_cooler(reference_uri) and resolution is not None:
+        found_res = cooler.Cooler(reference_uri).binsize
+        if found_res is None:
+            found_res = 0
+        if found_res != resolution:
+            raise RuntimeError(
+                f'Cooler at "{reference_uri}" has an unexpected resolution: expected {resolution}, found {found_res}.'
+            )
 
     chroms = read_chrom_sizes_cooler(reference_uri)
 
