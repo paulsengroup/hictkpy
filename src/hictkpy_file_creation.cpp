@@ -183,7 +183,8 @@ CoolFileWriter::CoolFileWriter(std::string_view path_, nb::dict chromosomes_,
     : _path(std::string{path_}),
       _tmpdir(tmpdir / (_path + ".tmp")),
       _w(create_file(_path, transform_chromosome_dict(std::move(chromosomes_)), resolution_,
-                     _tmpdir())) {
+                     assembly, _tmpdir())),
+      _compression_lvl(compression_lvl) {
   if (std::filesystem::exists(_path)) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("unable to create .cool file \"{}\": file already exists"), path()));
@@ -253,9 +254,13 @@ void CoolFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) 
 hictk::cooler::SingleCellFile CoolFileWriter::create_file(std::string_view path,
                                                           hictk::Reference chromosomes,
                                                           std::uint32_t resolution,
+                                                          std::string_view assembly,
                                                           const std::filesystem::path &tmpdir) {
+  auto attrs = hictk::cooler::SingleCellAttributes::init(resolution);
+  attrs.assembly = assembly;
   return hictk::cooler::SingleCellFile::create(tmpdir / std::filesystem::path{path}.filename(),
-                                               std::move(chromosomes), resolution, false);
+                                               std::move(chromosomes), resolution, false,
+                                               std::move(attrs));
 }
 
 std::string cool_file_writer_repr(hictkpy::CoolFileWriter &w) {
