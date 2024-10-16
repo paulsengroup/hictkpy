@@ -32,7 +32,9 @@ HiCFileWriter::HiCFileWriter(std::string_view path, const nb::dict &chromosomes,
                              std::size_t chunk_size, const std::filesystem::path &tmpdir,
                              std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
     : _w(path, chromosome_dict_to_reference(chromosomes), resolutions, assembly, n_threads,
-         chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
+         chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {
+  SPDLOG_INFO(FMT_STRING("using \"{}\" folder to store temporary file(s)"), _tmpdir());
+}
 
 HiCFileWriter::HiCFileWriter(std::string_view path, const nb::dict &chromosomes,
                              std::uint32_t resolution, std::string_view assembly,
@@ -56,6 +58,8 @@ void HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
   const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
+
+  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _w.path());
 #endif
   try {
     _w.serialize();
@@ -66,6 +70,7 @@ void HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
 #endif
     throw;
   }
+  SPDLOG_INFO(FMT_STRING("successfully finalized \"{}\"!"), _w.path());
 #ifndef _WIN32
   spdlog::default_logger()->set_level(previous_lvl);
 #endif
@@ -84,6 +89,7 @@ void HiCFileWriter::add_pixels(const nb::object &df) {
   const auto pixels =
       coo_format ? coo_df_to_thin_pixels<float>(df, false)
                  : bg2_df_to_thin_pixels<float>(_w.bins(_w.resolutions().front()), df, false);
+  SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), _w.path());
   _w.add_pixels(_w.resolutions().front(), pixels.begin(), pixels.end());
 }
 
