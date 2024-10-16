@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <hictk/hic/file_writer.hpp>
 #include <hictk/reference.hpp>
+#include <hictk/tmpdir.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -18,6 +19,7 @@
 namespace hictkpy {
 
 class HiCFileWriter {
+  hictk::internal::TmpDir _tmpdir{};
   hictk::hic::internal::HiCFileWriter _w{};
   bool _finalized{false};
 
