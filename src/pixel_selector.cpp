@@ -7,36 +7,35 @@
 #include <winsock2.h>
 #endif
 
+#include <arrow/python/api.h>
+#include <arrow/table.h>
 #include <fmt/format.h>
 
-// clang-format off
-#include "hictkpy/suppress_warnings.hpp"
-HICTKPY_DISABLE_WARNING_PUSH
-HICTKPY_DISABLE_WARNING_CAST_ALIGN
-HICTKPY_DISABLE_WARNING_CXX98_COMPAT
-HICTKPY_DISABLE_WARNING_OLD_STYLE_CAST
-HICTKPY_DISABLE_WARNING_PEDANTIC
-HICTKPY_DISABLE_WARNING_SHADOW
-HICTKPY_DISABLE_WARNING_SIGN_CONVERSION
-HICTKPY_DISABLE_WARNING_USELESS_CAST
-#include <arrow/python/arrow_to_pandas.h>
-
-#include <nanobind/eigen/dense.h>
-#include <nanobind/eigen/sparse.h>
-#include <nanobind/make_iterator.h>
-#include <nanobind/nanobind.h>
-HICTKPY_DISABLE_WARNING_POP
-// clang-format on
-
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <hictk/bin_table.hpp>
+#include <hictk/cooler/pixel_selector.hpp>
+#include <hictk/fmt.hpp>
+#include <hictk/hic/pixel_selector.hpp>
+#include <hictk/transformers/common.hpp>
+#include <hictk/transformers/join_genomic_coords.hpp>
+#include <hictk/transformers/to_dataframe.hpp>
+#include <hictk/transformers/to_dense_matrix.hpp>
+#include <hictk/transformers/to_sparse_matrix.hpp>
+#include <hictkpy/common.hpp>
+#include <memory>
+#include <numeric>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 #include <variant>
 
-#include "hictk/cooler/cooler.hpp"
-#include "hictk/fmt.hpp"
-#include "hictk/hic.hpp"
-#include "hictk/transformers/to_dataframe.hpp"
-#include "hictk/transformers/to_dense_matrix.hpp"
-#include "hictk/transformers/to_sparse_matrix.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 
 namespace nb = nanobind;
@@ -157,8 +156,8 @@ nb::object PixelSelector::make_iterable() const {
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] std::shared_ptr<arrow::Table> make_bg2_arrow_df(const PixelSelector& sel,
-                                                              hictk::transformers::QuerySpan span) {
+[[nodiscard]] static std::shared_ptr<arrow::Table> make_bg2_arrow_df(
+    const PixelSelector& sel, hictk::transformers::QuerySpan span) {
   if constexpr (std::is_same_v<N, long double>) {
     return make_bg2_arrow_df<double>(sel, span);
   } else {
@@ -169,8 +168,8 @@ template <typename N, typename PixelSelector>
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] std::shared_ptr<arrow::Table> make_coo_arrow_df(const PixelSelector& sel,
-                                                              hictk::transformers::QuerySpan span) {
+[[nodiscard]] static std::shared_ptr<arrow::Table> make_coo_arrow_df(
+    const PixelSelector& sel, hictk::transformers::QuerySpan span) {
   if constexpr (std::is_same_v<N, long double>) {
     return make_coo_arrow_df<double>(sel, span);
   } else {
@@ -208,8 +207,8 @@ nb::object PixelSelector::to_pandas(std::string_view span) const {
 nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(span); }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
-                                         hictk::transformers::QuerySpan span) {
+[[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
+                                                hictk::transformers::QuerySpan span) {
   if constexpr (std::is_same_v<N, long double>) {
     return make_csr_matrix<double>(std::move(sel), span);
   } else {
@@ -237,8 +236,8 @@ nb::object PixelSelector::to_coo(std::string_view span) const {
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] nb::object make_numpy_matrix(std::shared_ptr<const PixelSelector> sel,
-                                           hictk::transformers::QuerySpan span) {
+[[nodiscard]] static nb::object make_numpy_matrix(std::shared_ptr<const PixelSelector> sel,
+                                                  hictk::transformers::QuerySpan span) {
   if constexpr (std::is_same_v<N, long double>) {
     return make_numpy_matrix<double>(std::move(sel), span);
   } else {
@@ -317,47 +316,7 @@ hictk::transformers::QuerySpan PixelSelector::parse_span(std::string_view span) 
 }
 
 hictk::internal::NumericVariant PixelSelector::parse_count_type(std::string_view type) {
-  static_assert(sizeof(unsigned) == 4);
-  static_assert(sizeof(int) == 4);
-  static_assert(sizeof(float) == 4);
-  static_assert(sizeof(double) == 8);
-
-  if (type == "uint8") {
-    return {std::uint8_t{}};
-  }
-  if (type == "uint16") {
-    return {std::uint16_t{}};
-  }
-  if (type == "uint32" || type == "uint") {
-    return {std::uint32_t{}};
-  }
-  if (type == "uint64") {
-    return {std::uint64_t{}};
-  }
-  if (type == "int8") {
-    return {std::int8_t{}};
-  }
-  if (type == "int16") {
-    return {std::int16_t{}};
-  }
-  if (type == "int32" || type == "int") {
-    return {std::int32_t{}};
-  }
-  if (type == "int64") {
-    return {std::int64_t{}};
-  }
-  if (type == "float32") {
-    return {float{}};
-  }
-  if (type == "float64" || type == "float" || type == "double") {
-    return {double{}};
-  }
-
-  throw std::runtime_error(fmt::format(
-      FMT_STRING(
-          "unable to map \"{}\" to a valid pixel count type. Valid types are: uint, int, float, "
-          "double, uint8, uint16, uint32, uint64, int8, int16, int32, int64, float32, and float64"),
-      type));
+  return map_dtype_to_type(type);
 }
 
 std::string_view PixelSelector::count_type_to_str(const PixelVar& var) noexcept {
@@ -394,7 +353,55 @@ std::string_view PixelSelector::count_type_to_str(const PixelVar& var) noexcept 
     return "float64";
   }
 
-  HICTK_UNREACHABLE_CODE;
+  unreachable_code();
+}
+
+void PixelSelector::bind(nb::module_& m) {
+  auto sel = nb::class_<PixelSelector>(
+      m, "PixelSelector",
+      "Class representing pixels overlapping with the given genomic intervals.");
+
+  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+
+  sel.def("__repr__", &PixelSelector::repr);
+
+  sel.def("coord1", &PixelSelector::get_coord1, "Get query coordinates for the first dimension.");
+  sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.");
+
+  sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
+          nb::sig("def __iter__(self) -> PixelIterator"),
+          "Return an iterator over the selected pixels.");
+
+  sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",
+          nb::sig("def to_arrow(self, query_span: str = \"upper_triangle\") -> pyarrow.Table"),
+          "Retrieve interactions as a pandas DataFrame.");
+  sel.def("to_pandas", &PixelSelector::to_pandas, nb::arg("query_span") = "upper_triangle",
+          nb::sig("def to_pandas(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
+          "Retrieve interactions as a pandas DataFrame.");
+  sel.def("to_df", &PixelSelector::to_df, nb::arg("query_span") = "upper_triangle",
+          nb::sig("def to_df(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
+          "Alias to to_pandas().");
+  sel.def("to_numpy", &PixelSelector::to_numpy, nb::arg("query_span") = "full",
+          nb::sig("def to_numpy(self, query_span: str = \"full\") -> numpy.ndarray"),
+          "Retrieve interactions as a numpy 2D matrix.");
+  sel.def(
+      "to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
+      nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
+      "Retrieve interactions as a SciPy COO matrix.");
+  sel.def(
+      "to_csr", &PixelSelector::to_csr, nb::arg("query_span") = "upper_triangle",
+      nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
+      "Retrieve interactions as a SciPy CSR matrix.");
+
+  sel.def("nnz", &PixelSelector::nnz,
+          "Get the number of non-zero entries for the current pixel selection.");
+  sel.def("sum", &PixelSelector::sum, nb::sig("def sum(self) -> int | float"),
+          "Get the total number of interactions for the current pixel selection.");
 }
 
 }  // namespace hictkpy

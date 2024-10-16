@@ -9,31 +9,32 @@
 
 #include <fmt/format.h>
 
-// clang-format off
-#include "hictkpy/suppress_warnings.hpp"
-HICTKPY_DISABLE_WARNING_PUSH
-HICTKPY_DISABLE_WARNING_CAST_ALIGN
-HICTKPY_DISABLE_WARNING_CXX98_COMPAT
-HICTKPY_DISABLE_WARNING_OLD_STYLE_CAST
-HICTKPY_DISABLE_WARNING_PEDANTIC
-HICTKPY_DISABLE_WARNING_SHADOW
-HICTKPY_DISABLE_WARNING_SIGN_CONVERSION
-HICTKPY_DISABLE_WARNING_USELESS_CAST
-#include <nanobind/nanobind.h>
-HICTKPY_DISABLE_WARNING_POP
-// clang-format on
-
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <hictk/balancing/methods.hpp>
+#include <hictk/balancing/weights.hpp>
+#include <hictk/bin_table.hpp>
+#include <hictk/cooler/cooler.hpp>
+#include <hictk/cooler/validation.hpp>
+#include <hictk/file.hpp>
+#include <hictk/genomic_interval.hpp>
+#include <hictk/hic.hpp>
+#include <hictk/hic/common.hpp>
+#include <hictk/hic/validation.hpp>
+#include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
+#include <vector>
 
-#include "hictk/balancing/methods.hpp"
-#include "hictk/file.hpp"
-#include "hictkpy/file.hpp"
+#include "hictkpy/bin_table.hpp"
+#include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
+#include "hictkpy/reference.hpp"
 
 namespace nb = nanobind;
 
@@ -51,14 +52,6 @@ std::string repr(const hictk::File &f) { return fmt::format(FMT_STRING("File({})
 bool is_cooler(std::string_view uri) { return bool(hictk::cooler::utils::is_cooler(uri)); }
 
 bool is_hic(std::string_view uri) { return hictk::hic::utils::is_hic_file(std::string{uri}); }
-
-bool is_mcool_file(std::string_view path) {
-  return bool(hictk::cooler::utils::is_multires_file(path));
-}
-
-bool is_scool_file(std::string_view path) {
-  return bool(hictk::cooler::utils::is_scool_file(path));
-}
 
 hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
                              std::string_view normalization, std::string_view count_type, bool join,
@@ -195,6 +188,48 @@ std::vector<std::string> avail_normalizations(const hictk::File &f) {
   const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
                              : hictk::balancing::Weights::Type::MULTIPLICATIVE;
   return f.normalization(normalization).to_vector(type);
+}
+
+void declare_file_class(nb::module_ &m) {
+  auto file = nb::class_<hictk::File>(m, "File",
+                                      "Class representing a file handle to a .cool or .hic file.");
+
+  file.def("__init__", &file::ctor, nb::arg("path"), nb::arg("resolution") = nb::none(),
+           nb::arg("matrix_type") = "observed", nb::arg("matrix_unit") = "BP",
+           "Construct a file object to a .hic, .cool or .mcool file given the file path and "
+           "resolution.\n"
+           "Resolution is ignored when opening single-resolution Cooler files.");
+
+  file.def("__repr__", &file::repr);
+
+  file.def("uri", &hictk::File::uri, "Return the file URI.");
+  file.def("path", &hictk::File::path, "Return the file path.");
+
+  file.def("is_hic", &hictk::File::is_hic, "Test whether file is in .hic format.");
+  file.def("is_cooler", &hictk::File::is_cooler, "Test whether file is in .cool format.");
+
+  file.def("chromosomes", &get_chromosomes_from_file<hictk::File>, nb::arg("include_all") = false,
+           "Get chromosomes sizes as a dictionary mapping names to sizes.");
+  file.def("bins", &get_bins_from_file<hictk::File>, nb::sig("def bins(self) -> pandas.DataFrame"),
+           "Get bins as a pandas DataFrame.");
+
+  file.def("resolution", &hictk::File::resolution, "Get the bin size in bp.");
+  file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
+  file.def("nchroms", &hictk::File::nchroms, "Get the total number of chromosomes.");
+
+  file.def("attributes", &file::attributes, "Get file attributes as a dictionary.");
+
+  file.def("fetch", &file::fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = "",
+           nb::arg("range2") = "", nb::arg("normalization") = "NONE", nb::arg("count_type") = "int",
+           nb::arg("join") = false, nb::arg("query_type") = "UCSC",
+           "Fetch interactions overlapping a region of interest.");
+
+  file.def("avail_normalizations", &file::avail_normalizations,
+           "Get the list of available normalizations.");
+  file.def("has_normalization", &hictk::File::has_normalization, nb::arg("normalization"),
+           "Check whether a given normalization is available.");
+  file.def("weights", &file::weights, nb::arg("name"), nb::arg("divisive") = true,
+           "Fetch the balancing weights for the given normalization method.");
 }
 
 }  // namespace hictkpy::file

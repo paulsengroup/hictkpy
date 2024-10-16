@@ -14,12 +14,15 @@ nanobind_add_module(
         NB_DOMAIN hictkpy
         LTO
         MODULE
-        hictkpy.cpp
-        hictkpy_file.cpp
-        hictkpy_file_creation.cpp
-        hictkpy_multires_file.cpp
-        hictkpy_pixel_selector.cpp
-        hictkpy_singlecell_file.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/common.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cooler_file_writer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/file.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/hic_file_writer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/hictkpy.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/multires_file.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/pixel_selector.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/reference.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/singlecell_file.cpp"
 )
 
 target_include_directories(
