@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import gc
+import logging
 import os
 import tempfile
 
@@ -22,6 +23,11 @@ pytestmark = pytest.mark.parametrize(
 
 
 class TestClass:
+    @staticmethod
+    def setup_method():
+        logging.basicConfig(level="INFO", force=True)
+        logging.getLogger().setLevel("INFO")
+
     def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
         f = hictkpy.File(file, resolution)
 
