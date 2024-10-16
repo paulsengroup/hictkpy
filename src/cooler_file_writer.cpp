@@ -5,6 +5,7 @@
 #include "hictkpy/cooler_file_writer.hpp"
 
 #include <fmt/format.h>
+#include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
 #include <cassert>
@@ -41,6 +42,8 @@ CoolerFileWriter::CoolerFileWriter(std::string_view path_, const nb::dict &chrom
     throw std::runtime_error(
         fmt::format(FMT_STRING("unable to create .cool file \"{}\": file already exists"), path()));
   }
+
+  SPDLOG_INFO(FMT_STRING("using \"{}\" folder to store temporary file(s)"), _tmpdir());
 }
 
 std::string_view CoolerFileWriter::path() const noexcept { return _path; }
@@ -85,6 +88,9 @@ void CoolerFileWriter::add_pixels(const nb::object &df) {
 
         auto clr = _w->create_cell<N>(cell_id, std::move(attrs),
                                       hictk::cooler::DEFAULT_HDF5_CACHE_SIZE * 4, 1);
+
+        SPDLOG_INFO(FMT_STRING("adding {} pixels of type {} to file \"{}\"..."), pixels.size(),
+                    dtype_str, clr.uri());
         clr.append_pixels(pixels.begin(), pixels.end());
 
         clr.flush();
@@ -113,6 +119,8 @@ void CoolerFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str,
   const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
+
+  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path);
 #endif
   try {
     std::visit(
@@ -129,6 +137,7 @@ void CoolerFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str,
   }
 
   _finalized = true;
+  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), _w->cells().size(), _path);
 #ifndef _WIN32
   spdlog::default_logger()->set_level(previous_lvl);
 #endif
