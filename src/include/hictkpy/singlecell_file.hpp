@@ -10,7 +10,7 @@
 
 namespace hictkpy::singlecell_file {
 
-[[nodiscard]] bool is_scool_file(std::string_view uri);
+[[nodiscard]] bool is_scool_file(std::string_view path);
 
 void declare_singlecell_file_class(nanobind::module_& m);
 

@@ -16,7 +16,7 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
-hictk::Reference chromosome_dict_to_reference(nb::dict chromosomes) {
+hictk::Reference chromosome_dict_to_reference(const nb::dict& chromosomes) {
   const auto chrom_list = chromosomes.items();
 
   std::vector<std::string> chrom_names(chrom_list.size());

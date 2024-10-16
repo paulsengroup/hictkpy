@@ -12,7 +12,7 @@
 
 namespace hictkpy {
 
-[[nodiscard]] hictk::Reference chromosome_dict_to_reference(nanobind::dict chromosomes);
+[[nodiscard]] hictk::Reference chromosome_dict_to_reference(const nanobind::dict &chromosomes);
 
 template <typename File>
 inline nanobind::typed<nanobind::dict, std::string, std::uint32_t> get_chromosomes_from_file(

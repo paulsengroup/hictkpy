@@ -22,24 +22,21 @@ class HiCFileWriter {
   bool _finalized{false};
 
  public:
-  HiCFileWriter(std::string_view path, nanobind::dict chromosomes,
-                const std::vector<std::uint32_t>& resolutions,
-                std::string_view assembly = "unknown", std::size_t n_threads = 1,
-                std::size_t chunk_size = 10'000'000,
-                const std::filesystem::path& tmpdir = std::filesystem::temp_directory_path(),
-                std::uint32_t compression_lvl = 10, bool skip_all_vs_all_matrix = false);
-  HiCFileWriter(std::string_view path, nanobind::dict chromosomes, std::uint32_t resolution,
-                std::string_view assembly = "unknown", std::size_t n_threads = 1,
-                std::size_t chunk_size = 10'000'000,
-                const std::filesystem::path& tmpdir = std::filesystem::temp_directory_path(),
-                std::uint32_t compression_lvl = 10, bool skip_all_vs_all_matrix = false);
+  HiCFileWriter(std::string_view path, const nanobind::dict& chromosomes,
+                const std::vector<std::uint32_t>& resolutions, std::string_view assembly,
+                std::size_t n_threads, std::size_t chunk_size, const std::filesystem::path& tmpdir,
+                std::uint32_t compression_lvl, bool skip_all_vs_all_matrix);
+  HiCFileWriter(std::string_view path, const nanobind::dict& chromosomes, std::uint32_t resolution,
+                std::string_view assembly, std::size_t n_threads, std::size_t chunk_size,
+                const std::filesystem::path& tmpdir, std::uint32_t compression_lvl,
+                bool skip_all_vs_all_matrix);
 
   [[nodiscard]] std::string_view path() const noexcept;
   [[nodiscard]] const std::vector<std::uint32_t>& resolutions() const noexcept;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
 
-  void add_pixels(nanobind::object df);
+  void add_pixels(const nanobind::object& df);
 
   void serialize(const std::string& log_lvl_str = "warn");
 

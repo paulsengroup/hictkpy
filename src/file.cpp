@@ -57,7 +57,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
                              std::string_view normalization, std::string_view count_type, bool join,
                              std::string_view query_type) {
   if (count_type != "float" && count_type != "int") {
-    throw std::runtime_error("count_type should be either \"float\" or \"int\"");
+    throw std::runtime_error(R"(count_type should be either "float" or "int")");
   }
 
   if (query_type != "UCSC" && query_type != "BED") {

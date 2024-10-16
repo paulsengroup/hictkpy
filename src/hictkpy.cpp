@@ -20,9 +20,6 @@
 namespace nb = nanobind;
 namespace hictkpy {
 
-namespace nb = nanobind;
-using namespace nb::literals;
-
 NB_MODULE(_hictkpy, m) {
   if (arrow::py::import_pyarrow() == -1) {
     throw std::runtime_error("failed to initialize pyarrow runtime");

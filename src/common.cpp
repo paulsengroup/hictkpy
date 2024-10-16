@@ -14,10 +14,12 @@
 namespace hictkpy {
 
 hictk::internal::NumericVariant map_dtype_to_type(std::string_view dtype) {
+  // NOLINTBEGIN(*-avoid-magic-numbers)
   static_assert(sizeof(unsigned) == 4);
   static_assert(sizeof(int) == 4);
   static_assert(sizeof(float) == 4);
   static_assert(sizeof(double) == 8);
+  // NOLINTEND(*-avoid-magic-numbers)
 
   if (dtype == "uint8") {
     return std::uint8_t{};

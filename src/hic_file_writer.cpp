@@ -25,20 +25,21 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
-HiCFileWriter::HiCFileWriter(std::string_view path, nb::dict chromosomes,
+HiCFileWriter::HiCFileWriter(std::string_view path, const nb::dict &chromosomes,
                              const std::vector<std::uint32_t> &resolutions,
                              std::string_view assembly, std::size_t n_threads,
                              std::size_t chunk_size, const std::filesystem::path &tmpdir,
                              std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
-    : _w(path, chromosome_dict_to_reference(std::move(chromosomes)), resolutions, assembly,
-         n_threads, chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
+    : _w(path, chromosome_dict_to_reference(chromosomes), resolutions, assembly, n_threads,
+         chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
 
-HiCFileWriter::HiCFileWriter(std::string_view path, nb::dict chromosomes, std::uint32_t resolution,
-                             std::string_view assembly, std::size_t n_threads,
-                             std::size_t chunk_size, const std::filesystem::path &tmpdir,
-                             std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
-    : HiCFileWriter(path, std::move(chromosomes), std::vector<std::uint32_t>{resolution}, assembly,
-                    n_threads, chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
+HiCFileWriter::HiCFileWriter(std::string_view path, const nb::dict &chromosomes,
+                             std::uint32_t resolution, std::string_view assembly,
+                             std::size_t n_threads, std::size_t chunk_size,
+                             const std::filesystem::path &tmpdir, std::uint32_t compression_lvl,
+                             bool skip_all_vs_all_matrix)
+    : HiCFileWriter(path, chromosomes, std::vector<std::uint32_t>{resolution}, assembly, n_threads,
+                    chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
 
 void HiCFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) {
   if (_finalized) {
@@ -50,7 +51,7 @@ void HiCFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) {
   // There is something very odd going on when trying to call most spdlog functions from within
   // Python bindings on recent versions of Windows.
   // Possibly related to https://github.com/gabime/spdlog/issues/3212
-  spdlog::level::level_enum log_lvl = spdlog::level::from_str(log_lvl_str);
+  const auto log_lvl = spdlog::level::from_str(log_lvl_str);
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
 #endif
@@ -69,7 +70,7 @@ const std::vector<std::uint32_t> &HiCFileWriter::resolutions() const noexcept {
 
 const hictk::Reference &HiCFileWriter::chromosomes() const { return _w.chromosomes(); }
 
-void HiCFileWriter::add_pixels(nb::object df) {
+void HiCFileWriter::add_pixels(const nb::object &df) {
   const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
   const auto pixels =
       coo_format ? coo_df_to_thin_pixels<float>(df, false)
@@ -87,6 +88,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
   auto writer = nb::class_<hictkpy::HiCFileWriter>(
       hic, "FileWriter", "Class representing a file handle to create .hic files.");
 
+  // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def(nb::init<std::string_view, nb::dict, std::uint32_t, std::string_view, std::size_t,
                       std::size_t, const std::filesystem::path &, std::uint32_t, bool>(),
              nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
@@ -104,6 +106,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
       nb::arg("tmpdir") = std::filesystem::temp_directory_path().string(),
       nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
       "Open a .hic file for writing.");
+  // NOLINTEND(*-avoid-magic-numbers)
 
   writer.def("__repr__", &hictkpy::HiCFileWriter::repr);
 

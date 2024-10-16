@@ -54,7 +54,7 @@ struct PixelSelector {
   [[nodiscard]] auto get_coord1() const -> PixelCoordTuple;
   [[nodiscard]] auto get_coord2() const -> PixelCoordTuple;
 
-  [[nodiscard]] nanobind::object make_iterable() const;
+  [[nodiscard]] nanobind::iterator make_iterable() const;
   [[nodiscard]] nanobind::object to_arrow(std::string_view span = "upper_triangle") const;
   [[nodiscard]] nanobind::object to_df(std::string_view span = "upper_triangle") const;
   [[nodiscard]] nanobind::object to_pandas(std::string_view span = "upper_triangle") const;
@@ -66,15 +66,17 @@ struct PixelSelector {
 
   [[nodiscard]] static auto parse_span(std::string_view span) -> QuerySpan;
   [[nodiscard]] static auto parse_count_type(std::string_view type) -> PixelVar;
-  [[nodiscard]] static std::string_view count_type_to_str(const PixelVar& var) noexcept;
+  [[nodiscard]] static std::string_view count_type_to_str(const PixelVar& var);
 
   static void bind(nanobind::module_& m);
 
  private:
+  // NOLINTBEGIN(bugprone-exception-escape)
   [[nodiscard]] hictk::PixelCoordinates coord1() const noexcept;
   [[nodiscard]] hictk::PixelCoordinates coord2() const noexcept;
 
   [[nodiscard]] const hictk::BinTable& bins() const noexcept;
+  // NOLINTEND(bugprone-exception-escape)
 };
 
 }  // namespace hictkpy

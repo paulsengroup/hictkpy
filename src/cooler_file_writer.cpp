@@ -7,6 +7,7 @@
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 
+#include <cassert>
 #include <cstdint>
 #include <filesystem>
 #include <hictk/cooler/cooler.hpp>
@@ -27,14 +28,14 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
-CoolerFileWriter::CoolerFileWriter(std::string_view path_, nb::dict chromosomes_,
+CoolerFileWriter::CoolerFileWriter(std::string_view path_, const nb::dict &chromosomes_,
                                    std::uint32_t resolution_, std::string_view assembly,
                                    const std::filesystem::path &tmpdir,
                                    std::uint32_t compression_lvl)
     : _path(std::string{path_}),
       _tmpdir(tmpdir / (_path + ".tmp")),
-      _w(create_file(_path, chromosome_dict_to_reference(std::move(chromosomes_)), resolution_,
-                     assembly, _tmpdir())),
+      _w(create_file(_path, chromosome_dict_to_reference(chromosomes_), resolution_, assembly,
+                     _tmpdir())),
       _compression_lvl(compression_lvl) {
   if (std::filesystem::exists(_path)) {
     throw std::runtime_error(
@@ -42,11 +43,30 @@ CoolerFileWriter::CoolerFileWriter(std::string_view path_, nb::dict chromosomes_
   }
 }
 
-std::string CoolerFileWriter::path() const noexcept { return _w->path(); }
-std::uint32_t CoolerFileWriter::resolution() const noexcept { return _w->resolution(); }
-const hictk::Reference &CoolerFileWriter::chromosomes() const { return _w->chromosomes(); }
+std::string_view CoolerFileWriter::path() const noexcept { return _path; }
 
-void CoolerFileWriter::add_pixels(nb::object df) {
+std::uint32_t CoolerFileWriter::resolution() const noexcept {
+  if (_w.has_value()) {
+    return _w->resolution();
+  }
+  return 0;
+}
+
+const hictk::Reference &CoolerFileWriter::chromosomes() const {
+  if (_w.has_value()) {
+    return _w->chromosomes();
+  }
+
+  const static hictk::Reference ref{};
+  return ref;
+}
+
+void CoolerFileWriter::add_pixels(const nb::object &df) {
+  if (!_w.has_value()) {
+    throw std::runtime_error(
+        "caught attempt to add_pixels to a .cool file that has already been finalized!");
+  }
+
   const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
 
   const auto cell_id = fmt::to_string(_w->cells().size());
@@ -75,14 +95,16 @@ void CoolerFileWriter::add_pixels(nb::object df) {
 void CoolerFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) {
   if (_finalized) {
     throw std::runtime_error(
-        fmt::format(FMT_STRING("finalize was already called on file \"{}\""), _w->path()));
+        fmt::format(FMT_STRING("serialize() was already called on file \"{}\""), _path));
   }
+  assert(_w.has_value());
+  // NOLINTBEGIN(*-unchecked-optional-access)
 #ifndef _WIN32
   // TODO fixme
   // There is something very odd going on when trying to call most spdlog functions from within
   // Python bindings on recent versions of Windows.
   // Possibly related to https://github.com/gabime/spdlog/issues/3212
-  spdlog::level::level_enum log_lvl = spdlog::level::from_str(log_lvl_str);
+  const auto log_lvl = spdlog::level::from_str(log_lvl_str);
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
 #endif
@@ -99,19 +121,19 @@ void CoolerFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str
 #endif
   const std::string sclr_path{_w->path()};
   _w.reset();
-  std::filesystem::remove(sclr_path);
+  std::filesystem::remove(sclr_path);  // NOLINT
+  // NOLINTEND(*-unchecked-optional-access)
 }
 
 hictk::cooler::SingleCellFile CoolerFileWriter::create_file(std::string_view path,
-                                                            hictk::Reference chromosomes,
+                                                            const hictk::Reference &chromosomes,
                                                             std::uint32_t resolution,
                                                             std::string_view assembly,
                                                             const std::filesystem::path &tmpdir) {
   auto attrs = hictk::cooler::SingleCellAttributes::init(resolution);
   attrs.assembly = assembly;
   return hictk::cooler::SingleCellFile::create(tmpdir / std::filesystem::path{path}.filename(),
-                                               std::move(chromosomes), resolution, false,
-                                               std::move(attrs));
+                                               chromosomes, resolution, false, std::move(attrs));
 }
 
 std::string CoolerFileWriter::repr() const {
@@ -127,12 +149,14 @@ void CoolerFileWriter::bind(nb::module_ &m) {
   auto writer = nb::class_<hictkpy::CoolerFileWriter>(
       cooler, "FileWriter", "Class representing a file handle to create .cool files.");
 
+  // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def(nb::init<std::string_view, nb::dict, std::uint32_t, std::string_view,
                       const std::filesystem::path &, std::uint32_t>(),
              nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
              nb::arg("assembly") = "unknown",
              nb::arg("tmpdir") = std::filesystem::temp_directory_path().string(),
              nb::arg("compression_lvl") = 6, "Open a .cool file for writing.");
+  // NOLINTEND(*-avoid-magic-numbers)
 
   writer.def("__repr__", &hictkpy::CoolerFileWriter::repr);
 

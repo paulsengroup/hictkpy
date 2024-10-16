@@ -34,7 +34,6 @@
 #include <utility>
 #include <variant>
 
-#include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 
@@ -72,7 +71,9 @@ std::string PixelSelector::repr() const {
                      count_type_to_str(pixel_count));
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 hictk::PixelCoordinates PixelSelector::coord1() const noexcept {
+  assert(!selector.valueless_by_exception());
   return std::visit(
       [](const auto& s) -> hictk::PixelCoordinates {
         if constexpr (std::is_same_v<std::decay_t<decltype(*s)>, hictk::hic::PixelSelectorAll>) {
@@ -84,7 +85,9 @@ hictk::PixelCoordinates PixelSelector::coord1() const noexcept {
       selector);
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 hictk::PixelCoordinates PixelSelector::coord2() const noexcept {
+  assert(!selector.valueless_by_exception());
   return std::visit(
       [](const auto& s) -> hictk::PixelCoordinates {
         if constexpr (std::is_same_v<std::decay_t<decltype(*s)>, hictk::hic::PixelSelectorAll>) {
@@ -96,7 +99,9 @@ hictk::PixelCoordinates PixelSelector::coord2() const noexcept {
       selector);
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 const hictk::BinTable& PixelSelector::bins() const noexcept {
+  assert(!selector.valueless_by_exception());
   return std::visit([](const auto& s) -> const hictk::BinTable& { return s->bins(); }, selector);
 }
 
@@ -137,12 +142,12 @@ template <typename N, typename PixelSelector>
                            sel.template begin<N>(), sel.template end<N>());
 }
 
-nb::object PixelSelector::make_iterable() const {
+nb::iterator PixelSelector::make_iterable() const {
   return std::visit(
-      [&](const auto& sel_ptr) -> nb::object {
+      [&](const auto& sel_ptr) -> nb::iterator {
         assert(!!sel_ptr);
         return std::visit(
-            [&]([[maybe_unused]] auto count) -> nb::object {
+            [&]([[maybe_unused]] auto count) -> nb::iterator {
               using N = decltype(count);
               if (pixel_format == PixelFormat::BG2) {
                 return make_bg2_iterable<N>(*sel_ptr);
@@ -319,9 +324,12 @@ hictk::internal::NumericVariant PixelSelector::parse_count_type(std::string_view
   return map_dtype_to_type(type);
 }
 
-std::string_view PixelSelector::count_type_to_str(const PixelVar& var) noexcept {
+std::string_view PixelSelector::count_type_to_str(const PixelVar& var) {
+  // NOLINTBEGIN(*-avoid-magic-numbers)
   static_assert(sizeof(float) == 4);
   static_assert(sizeof(double) == 8);
+  // NOLINTEND(*-avoid-magic-numbers)
+
   if (std::holds_alternative<std::uint8_t>(var)) {
     return "uint8";
   }

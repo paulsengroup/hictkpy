@@ -11,7 +11,6 @@
 #include <string>
 #include <string_view>
 
-#include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/reference.hpp"
 

@@ -25,17 +25,17 @@ class CoolerFileWriter {
   bool _finalized{false};
 
  public:
-  CoolerFileWriter(std::string_view path_, nanobind::dict chromosomes_, std::uint32_t resolution_,
-                   std::string_view assembly = "unknown",
-                   const std::filesystem::path& tmpdir = std::filesystem::temp_directory_path(),
-                   std::uint32_t compression_lvl = 6);
+  CoolerFileWriter() = delete;
+  CoolerFileWriter(std::string_view path_, const nanobind::dict& chromosomes_,
+                   std::uint32_t resolution_, std::string_view assembly,
+                   const std::filesystem::path& tmpdir, std::uint32_t);
 
-  [[nodiscard]] std::string path() const noexcept;
+  [[nodiscard]] std::string_view path() const noexcept;
   [[nodiscard]] std::uint32_t resolution() const noexcept;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
 
-  void add_pixels(nanobind::object df);
+  void add_pixels(const nanobind::object& df);
 
   void serialize(const std::string& log_lvl_str = "warn");
 
@@ -44,7 +44,7 @@ class CoolerFileWriter {
 
  private:
   [[nodiscard]] static hictk::cooler::SingleCellFile create_file(
-      std::string_view path, hictk::Reference chromosomes, std::uint32_t resolution,
+      std::string_view path, const hictk::Reference& chromosomes, std::uint32_t resolution,
       std::string_view assembly, const std::filesystem::path& tmpdir);
 };
 

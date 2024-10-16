@@ -10,7 +10,7 @@
 
 namespace hictkpy::multires_file {
 
-[[nodiscard]] bool is_mcool_file(std::string_view uri);
+[[nodiscard]] bool is_mcool_file(std::string_view path);
 
 void declare_multires_file_class(nanobind::module_& m);
 
