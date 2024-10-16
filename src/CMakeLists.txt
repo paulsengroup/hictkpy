@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 find_package(FMT REQUIRED)
+find_package(nanobind REQUIRED)
 find_package(Pyarrow REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Filesystem REQUIRED)
@@ -13,12 +14,15 @@ nanobind_add_module(
         NB_DOMAIN hictkpy
         LTO
         MODULE
-        hictkpy.cpp
-        hictkpy_file.cpp
-        hictkpy_file_creation.cpp
-        hictkpy_multires_file.cpp
-        hictkpy_pixel_selector.cpp
-        hictkpy_singlecell_file.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/common.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cooler_file_writer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/file.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/hic_file_writer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/hictkpy.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/multires_file.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/pixel_selector.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/reference.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/singlecell_file.cpp"
 )
 
 target_include_directories(
@@ -73,3 +77,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi" DESTINATION hic
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hictkpy.pyi" DESTINATION hictkpy)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/cooler.pyi" DESTINATION hictkpy)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hic.pyi" DESTINATION hictkpy)
+
+# Disable clang-tidy on nanobind
+# This seems to be the only reliable way to do so...
+configure_file("${PROJECT_SOURCE_DIR}/cmake/.clang-tidy.in" "${nanobind_SOURCE_DIR}/.clang-tidy" COPYONLY)
