@@ -34,7 +34,7 @@ class TestClass:
     def test_attributes(self, file, resolution):
         f = hictkpy.File(file, resolution)
         assert f.resolution() == 100_000
-        assert f.nchroms() == 8
+        # assert f.nchroms() == 8  # TODO enable after merging https://github.com/paulsengroup/hictk/pull/294
         assert f.nbins() == 1380
 
         assert "chr2L" in f.chromosomes()
