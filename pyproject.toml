@@ -5,10 +5,10 @@
 [build-system]
 requires = [
   "conan>=2.0.5",
-  "nanobind==2.2.0", # This is required in order to run stubgen
+  "nanobind>=2", # This is required in order to run stubgen
   "numpy",
-  "pandas>=2.1.0,!=2.2.0",
-  "pyarrow==17.0.0",
+  "pandas>=2.1,!=2.2.0",
+  "pyarrow>=14",
   "scikit-build-core>=0.10",
   "scipy",
   "typing_extensions",
