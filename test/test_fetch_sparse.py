@@ -20,6 +20,16 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
+def scipy_avail() -> bool:
+    try:
+        import scipy
+    except ModuleNotFoundError:
+        return False
+
+    return True
+
+
+@pytest.mark.skipif(not scipy_avail(), reason="scipy is not available")
 class TestClass:
     def test_genome_wide(self, file, resolution):
         f = hictkpy.File(file, resolution)

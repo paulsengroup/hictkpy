@@ -5,8 +5,8 @@
 import os
 
 import numpy as np
+import numpy.typing as npt
 import pytest
-from scipy.linalg import issymmetric
 
 import hictkpy
 
@@ -19,6 +19,16 @@ pytestmark = pytest.mark.parametrize(
         (os.path.join(testdir, "data", "hic_test_file.hic"), 100_000),
     ],
 )
+
+
+def issymmetric(m: npt.NDArray) -> bool:
+    assert m.ndim == 2
+    if m.size == 0:
+        return True
+    if m.shape[0] != m.shape[1]:
+        return False
+
+    return np.allclose(m, m.T, atol=0.0, rtol=0.0)
 
 
 class TestClass:

@@ -50,7 +50,8 @@ optional-dependencies.all = [
 ]
 
 optional-dependencies.test = [
-  "pytest>=8.0"
+  "hictkpy[all]",
+  "pytest>=8.0",
 ]
 
 [tool.scikit-build]

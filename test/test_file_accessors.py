@@ -20,13 +20,25 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
+def pandas_avail() -> bool:
+    try:
+        import pandas
+    except ModuleNotFoundError:
+        return False
+
+    return True
+
+
 class TestClass:
+    @pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
     def test_attributes(self, file, resolution):
         f = hictkpy.File(file, resolution)
         assert f.resolution() == 100_000
+        assert f.nchroms() == 8
         assert f.nbins() == 1380
 
         assert "chr2L" in f.chromosomes()
+
         assert len(f.bins()) == 1380
         assert len(f.chromosomes()) == 8
 
@@ -47,4 +59,4 @@ class TestClass:
 
         name = "weight" if f.is_cooler() else "ICE"
         weights = f.weights(name)
-        assert len(weights) == len(f.bins())
+        assert len(weights) == f.nbins()
