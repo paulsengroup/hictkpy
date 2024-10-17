@@ -6,7 +6,7 @@
 requires = [
   "conan>=2.0.5",
   "nanobind==2.2.0", # This is required in order to run stubgen
-  "numpy",
+  "numpy<2",  # We do this to be ABI compatible with both v1 and v2
   "pandas>=2.1.0,!=2.2.0",
   "pyarrow==17.0.0",
   "scikit-build-core>=0.10",
@@ -34,7 +34,7 @@ classifiers = [
 dependencies = [
   "numpy",
   "pandas>=2.1.0,!=2.2.0",
-  "pyarrow>=14",
+  "pyarrow>=15,<18",
   "scipy",
 ]
 
@@ -59,7 +59,7 @@ HICTK_BUILD_TOOLS = "OFF"
 HICTK_ENABLE_FUZZY_TESTING = "OFF"
 HICTK_ENABLE_GIT_VERSION_TRACKING = "OFF"
 HICTK_ENABLE_TESTING = "OFF"
-HICTK_WITH_ARROW = "ON"
+HICTK_WITH_PYARROW_UNSAFE = "ON"
 HICTK_WITH_EIGEN = "ON"
 
 [tool.setuptools_scm]

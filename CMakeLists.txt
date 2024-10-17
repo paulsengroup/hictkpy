@@ -34,9 +34,8 @@ FetchContent_Declare(
 
 FetchContent_Declare(
   hictk
-  URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-312d83ec.tar.xz"
-  URL_HASH "SHA256=a47b1088de6650179715db17337e09c44729f8e86b4457848e306f028d0b5878"
+  GIT_REPOSITORY https://github.com/paulsengroup/hictk.git
+  GIT_TAG "feature/pyarrow"
   EXCLUDE_FROM_ALL
   OVERRIDE_FIND_PACKAGE
   SYSTEM
@@ -59,13 +58,11 @@ set(HICTK_BUILD_TOOLS OFF)
 set(HICTK_ENABLE_FUZZY_TESTING OFF)
 set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_INSTALL OFF)
-set(HICTK_WITH_ARROW_SHARED ON)
+set(HICTK_WITH_PYARROW_UNSAFE ON)
 set(HICTK_WITH_EIGEN ON)
 set(HICTK_ENABLE_GIT_VERSION_TRACKING OFF)
 
-# This must be called before finding hictk, such that hictk will link to the arrow lib shipped with the Python wheel
-# Furthermore, we are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
-find_package(Arrow REQUIRED)
+# We are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
 find_package(hictk REQUIRED)
 
 get_property(BUILDING_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
