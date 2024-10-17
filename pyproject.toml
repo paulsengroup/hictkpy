@@ -45,8 +45,7 @@ optional-dependencies.scipy = [
 ]
 
 optional-dependencies.all = [
-  "hictkpy[pandas]",
-  "hictkpy[scipy]",
+  "hictkpy[pandas,scipy]",
 ]
 
 optional-dependencies.test = [
@@ -55,8 +54,7 @@ optional-dependencies.test = [
 ]
 
 optional-dependencies.dev = [
-  "hictkpy[all]",
-  "hictkpy[test]",
+  "hictkpy[all,test]",
   "black>=24.10",
   "clang-format>=19.1",
   "isort>=5.13",
