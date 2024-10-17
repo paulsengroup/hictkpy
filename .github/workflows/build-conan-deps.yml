@@ -105,6 +105,7 @@ jobs:
         with:
           key: ${{ steps.generate-cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}/p
+          lookup-only: true
 
       - name: Clean Conan cache (pre-build)
         if: steps.cache-conan.outputs.cache-hit != 'true'
@@ -150,10 +151,7 @@ jobs:
           conan profile detect --force
 
           conan install /tmp/conanfile.py \
-             --update                     \
              --build='missing'            \
-             -pr:b=default                \
-             -pr:h=default                \
              -s build_type=Release        \
              -s compiler.cppstd="$cppstd" \
              --options='*/*:shared=False'
@@ -211,6 +209,7 @@ jobs:
 
     env:
       CONAN_HOME: "${{ github.workspace }}/.conan2"
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
       HOMEBREW_NO_AUTO_UPDATE: "1"
 
     outputs:
@@ -257,6 +256,7 @@ jobs:
         with:
           key: ${{ steps.generate-cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}/p
+          lookup-only: true
 
       - uses: actions/setup-python@v5
         if: steps.cache-conan.outputs.cache-hit != 'true'
@@ -282,13 +282,11 @@ jobs:
       - name: Install dependencies
         if: steps.cache-conan.outputs.cache-hit != 'true'
         run: |
-          conan install conanfile.py                  \
-             --update                                 \
-             --build='missing'                        \
-             -pr:b=default                            \
-             -pr:h=default                            \
-             -s build_type=Release                    \
-             -s compiler.cppstd=${{ inputs.cppstd }}  \
+          conan install conanfile.py                     \
+             --build='missing'                           \
+             -s build_type=Release                       \
+             -s compiler.cppstd=${{ inputs.cppstd }}     \
+             -s:h os.version="$MACOSX_DEPLOYMENT_TARGET" \
              --options='*/*:shared=False'
 
       - name: Clean Conan cache (post-build)
@@ -363,6 +361,7 @@ jobs:
         with:
           key: ${{ steps.generate-cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}\p
+          lookup-only: true
 
       - uses: actions/setup-python@v5
         if: steps.cache-conan.outputs.cache-hit != 'true'
@@ -393,10 +392,7 @@ jobs:
         if: steps.cache-conan.outputs.cache-hit != 'true'
         run: |
           conan install conanfile.py                  \
-             --update                                 \
              --build='missing'                        \
-             -pr:b=default                            \
-             -pr:h=default                            \
              -s build_type=Release                    \
              -s compiler.runtime_type=Release         \
              -s compiler.cppstd=${{ inputs.cppstd }}  \
