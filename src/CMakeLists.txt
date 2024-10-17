@@ -19,6 +19,7 @@ nanobind_add_module(
         "${CMAKE_CURRENT_SOURCE_DIR}/file.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/hic_file_writer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/hictkpy.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/logger.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/multires_file.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/pixel_selector.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/reference.cpp"

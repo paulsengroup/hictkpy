@@ -5,6 +5,7 @@
 #include "hictkpy/cooler_file_writer.hpp"
 
 #include <fmt/format.h>
+#include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
 #include <cassert>
@@ -41,6 +42,8 @@ CoolerFileWriter::CoolerFileWriter(std::string_view path_, const nb::dict &chrom
     throw std::runtime_error(
         fmt::format(FMT_STRING("unable to create .cool file \"{}\": file already exists"), path()));
   }
+
+  SPDLOG_INFO(FMT_STRING("using \"{}\" folder to store temporary file(s)"), _tmpdir());
 }
 
 std::string_view CoolerFileWriter::path() const noexcept { return _path; }
@@ -85,6 +88,9 @@ void CoolerFileWriter::add_pixels(const nb::object &df) {
 
         auto clr = _w->create_cell<N>(cell_id, std::move(attrs),
                                       hictk::cooler::DEFAULT_HDF5_CACHE_SIZE * 4, 1);
+
+        SPDLOG_INFO(FMT_STRING("adding {} pixels of type {} to file \"{}\"..."), pixels.size(),
+                    dtype_str, clr.uri());
         clr.append_pixels(pixels.begin(), pixels.end());
 
         clr.flush();
@@ -92,11 +98,17 @@ void CoolerFileWriter::add_pixels(const nb::object &df) {
       var);
 }
 
-void CoolerFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) {
+void CoolerFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str,
+                                std::size_t chunk_size, std::size_t update_freq) {
   if (_finalized) {
     throw std::runtime_error(
-        fmt::format(FMT_STRING("serialize() was already called on file \"{}\""), _path));
+        fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
   }
+
+  if (chunk_size == 0) {
+    throw std::runtime_error("chunk_size must be greater than 0");
+  }
+
   assert(_w.has_value());
   // NOLINTBEGIN(*-unchecked-optional-access)
 #ifndef _WIN32
@@ -104,18 +116,28 @@ void CoolerFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str
   // There is something very odd going on when trying to call most spdlog functions from within
   // Python bindings on recent versions of Windows.
   // Possibly related to https://github.com/gabime/spdlog/issues/3212
-  const auto log_lvl = spdlog::level::from_str(log_lvl_str);
+  const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
+
+  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path);
 #endif
-  std::visit(
-      [&](const auto &num) {
-        using N = hictk::remove_cvref_t<decltype(num)>;
-        _w->aggregate<N>(_path, false, _compression_lvl);
-      },
-      _w->open("0").pixel_variant());
+  try {
+    std::visit(
+        [&](const auto &num) {
+          using N = hictk::remove_cvref_t<decltype(num)>;
+          _w->aggregate<N>(_path, false, _compression_lvl, chunk_size, update_freq);
+        },
+        _w->open("0").pixel_variant());
+  } catch (...) {
+#ifndef _WIN32
+    spdlog::default_logger()->set_level(previous_lvl);
+#endif
+    throw;
+  }
 
   _finalized = true;
+  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), _w->cells().size(), _path);
 #ifndef _WIN32
   spdlog::default_logger()->set_level(previous_lvl);
 #endif
@@ -171,7 +193,10 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");
-  writer.def("finalize", &hictkpy::CoolerFileWriter::serialize, nb::arg("log_lvl") = "warn",
+  // NOLINTBEGIN(*-avoid-magic-numbers)
+  writer.def("finalize", &hictkpy::CoolerFileWriter::finalize, nb::arg("log_lvl") = "WARN",
+             nb::arg("chunk_size") = 500'000, nb::arg("update_frequency") = 10'000'000,
              "Write interactions to file.");
+  // NOLINTEND(*-avoid-magic-numbers)
 }
 }  // namespace hictkpy
