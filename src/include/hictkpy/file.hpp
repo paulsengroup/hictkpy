@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <hictk/file.hpp>
 #include <optional>
 #include <string>
@@ -15,13 +16,14 @@
 #include "hictkpy/pixel_selector.hpp"
 
 namespace hictkpy::file {
-void ctor(hictk::File *fp, std::string_view path, std::optional<std::int32_t> resolution,
-          std::string_view matrix_type, std::string_view matrix_unit);
+void ctor(hictk::File *fp, const std::filesystem::path &path,
+          std::optional<std::int32_t> resolution, std::string_view matrix_type,
+          std::string_view matrix_unit);
 
 [[nodiscard]] std::string repr(const hictk::File &f);
 
-[[nodiscard]] bool is_cooler(std::string_view uri);
-[[nodiscard]] bool is_hic(std::string_view uri);
+[[nodiscard]] bool is_cooler(const std::filesystem::path &uri);
+[[nodiscard]] bool is_hic(const std::filesystem::path &uri);
 
 [[nodiscard]] hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1,
                                            std::string_view range2, std::string_view normalization,

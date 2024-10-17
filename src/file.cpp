@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <filesystem>
 #include <hictk/balancing/methods.hpp>
 #include <hictk/balancing/weights.hpp>
 #include <hictk/bin_table.hpp>
@@ -39,23 +40,28 @@
 namespace nb = nanobind;
 
 namespace hictkpy::file {
-void ctor(hictk::File *fp, std::string_view path, std::optional<std::int32_t> resolution,
-          std::string_view matrix_type, std::string_view matrix_unit) {
-  new (fp) hictk::File{std::string{path},
-                       !!resolution ? static_cast<std::uint32_t>(*resolution) : std::uint32_t{0},
+static void ctor(hictk::File *fp, const std::filesystem::path &path,
+                 std::optional<std::int32_t> resolution, std::string_view matrix_type,
+                 std::string_view matrix_unit) {
+  new (fp) hictk::File{path.string(), static_cast<std::uint32_t>(resolution.value_or(0)),
                        hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
                        hictk::hic::ParseUnitStr(std::string{matrix_unit})};
 }
 
-std::string repr(const hictk::File &f) { return fmt::format(FMT_STRING("File({})"), f.uri()); }
+static std::string repr(const hictk::File &f) {
+  return fmt::format(FMT_STRING("File({})"), f.uri());
+}
 
-bool is_cooler(std::string_view uri) { return bool(hictk::cooler::utils::is_cooler(uri)); }
+bool is_cooler(const std::filesystem::path &uri) {
+  return bool(hictk::cooler::utils::is_cooler(uri.string()));
+}
 
-bool is_hic(std::string_view uri) { return hictk::hic::utils::is_hic_file(std::string{uri}); }
+bool is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
 
-hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std::string_view range2,
-                             std::string_view normalization, std::string_view count_type, bool join,
-                             std::string_view query_type) {
+static hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1,
+                                    std::string_view range2, std::string_view normalization,
+                                    std::string_view count_type, bool join,
+                                    std::string_view query_type) {
   if (count_type != "float" && count_type != "int") {
     throw std::runtime_error(R"(count_type should be either "float" or "int")");
   }
@@ -102,7 +108,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
       f.get());
 }
 
-[[nodiscard]] inline nb::dict get_cooler_attrs(const hictk::cooler::File &clr) {
+static nb::dict get_cooler_attrs(const hictk::cooler::File &clr) {
   nb::dict py_attrs;
   const auto &attrs = clr.attributes();
 
@@ -153,7 +159,7 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   return py_attrs;
 }
 
-[[nodiscard]] inline nb::dict get_hic_attrs(const hictk::hic::File &hf) {
+static nb::dict get_hic_attrs(const hictk::hic::File &hf) {
   nb::dict py_attrs;
 
   py_attrs["bin_size"] = hf.resolution();
@@ -167,14 +173,14 @@ hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1, std:
   return py_attrs;
 }
 
-nb::dict attributes(const hictk::File &f) {
+static nb::dict attributes(const hictk::File &f) {
   if (f.is_cooler()) {
     return get_cooler_attrs(f.get<hictk::cooler::File>());
   }
   return get_hic_attrs(f.get<hictk::hic::File>());
 }
 
-std::vector<std::string> avail_normalizations(const hictk::File &f) {
+static std::vector<std::string> avail_normalizations(const hictk::File &f) {
   const auto norms_ = f.avail_normalizations();
   std::vector<std::string> norms{norms_.size()};
   std::transform(norms_.begin(), norms_.end(), norms.begin(),
@@ -183,12 +189,14 @@ std::vector<std::string> avail_normalizations(const hictk::File &f) {
   return norms;
 }
 
-[[nodiscard]] std::vector<double> weights(const hictk::File &f, std::string_view normalization,
-                                          bool divisive) {
+static std::vector<double> weights(const hictk::File &f, std::string_view normalization,
+                                   bool divisive) {
   const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
                              : hictk::balancing::Weights::Type::MULTIPLICATIVE;
   return f.normalization(normalization).to_vector(type);
 }
+
+static std::filesystem::path get_path(const hictk::File &f) { return f.path(); }
 
 void declare_file_class(nb::module_ &m) {
   auto file = nb::class_<hictk::File>(m, "File",
@@ -203,7 +211,7 @@ void declare_file_class(nb::module_ &m) {
   file.def("__repr__", &file::repr);
 
   file.def("uri", &hictk::File::uri, "Return the file URI.");
-  file.def("path", &hictk::File::path, "Return the file path.");
+  file.def("path", &file::get_path, "Return the file path.");
 
   file.def("is_hic", &hictk::File::is_hic, "Test whether file is in .hic format.");
   file.def("is_cooler", &hictk::File::is_cooler, "Test whether file is in .cool format.");

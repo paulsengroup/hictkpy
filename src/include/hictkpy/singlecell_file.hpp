@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <string_view>
+#include <filesystem>
 
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy::singlecell_file {
 
-[[nodiscard]] bool is_scool_file(std::string_view path);
+[[nodiscard]] bool is_scool_file(const std::filesystem::path& path);
 
 void declare_singlecell_file_class(nanobind::module_& m);
 

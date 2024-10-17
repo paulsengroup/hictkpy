@@ -2,18 +2,18 @@
 #
 # SPDX-License-Identifier: MIT
 
-import os
+import pathlib
 
 import pytest
 
 import hictkpy
 
-testdir = os.path.dirname(os.path.abspath(__file__))
+testdir = pathlib.Path(__file__).resolve().parent
 
 pytestmark = pytest.mark.parametrize(
     "file",
     [
-        (os.path.join(testdir, "data", "cooler_test_file.mcool")),
+        testdir / "data" / "cooler_test_file.mcool",
     ],
 )
 

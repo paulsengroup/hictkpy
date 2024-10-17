@@ -9,7 +9,6 @@
 #include <hictk/cooler/validation.hpp>
 #include <hictk/multires_file.hpp>
 #include <string>
-#include <string_view>
 
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/reference.hpp"
@@ -18,16 +17,18 @@ namespace nb = nanobind;
 
 namespace hictkpy::multires_file {
 
-static void ctor(hictk::MultiResFile* fp, std::string_view path) {
-  new (fp) hictk::MultiResFile(std::string{path});
+static void ctor(hictk::MultiResFile* fp, const std::filesystem::path& path) {
+  new (fp) hictk::MultiResFile{path.string()};
 }
 
 static std::string repr(const hictk::MultiResFile& mrf) {
   return fmt::format(FMT_STRING("MultiResFile({})"), mrf.path());
 }
 
-bool is_mcool_file(std::string_view path) {
-  return bool(hictk::cooler::utils::is_multires_file(path));
+static std::filesystem::path get_path(const hictk::MultiResFile& mrf) { return mrf.path(); }
+
+bool is_mcool_file(const std::filesystem::path& path) {
+  return bool(hictk::cooler::utils::is_multires_file(path.string()));
 }
 
 void declare_multires_file_class(nb::module_& m) {
@@ -38,7 +39,7 @@ void declare_multires_file_class(nb::module_& m) {
 
   mres_file.def("__repr__", &multires_file::repr);
 
-  mres_file.def("path", &hictk::MultiResFile::path, "Get the file path.");
+  mres_file.def("path", &multires_file::get_path, "Get the file path.");
   mres_file.def("chromosomes", &get_chromosomes_from_file<hictk::MultiResFile>,
                 nb::arg("include_all") = false,
                 "Get chromosomes sizes as a dictionary mapping names to sizes.");

@@ -415,7 +415,7 @@ def worker(
         clr = cooler.Cooler(str(path_to_reference_file))
         sel = clr.matrix(**clr_matrix_args)
 
-        f = hictkpy.File(str(path_to_file), resolution)
+        f = hictkpy.File(path_to_file, resolution)
 
         while time.time() < end_time:
             if early_return.value:

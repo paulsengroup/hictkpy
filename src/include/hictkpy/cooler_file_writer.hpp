@@ -14,11 +14,12 @@
 #include <string_view>
 
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/reference.hpp"
 
 namespace hictkpy {
 
 class CoolerFileWriter {
-  std::string _path{};
+  std::filesystem::path _path{};
   hictk::internal::TmpDir _tmpdir{};
   std::optional<hictk::cooler::SingleCellFile> _w{};
   std::uint32_t _compression_lvl{};
@@ -26,11 +27,11 @@ class CoolerFileWriter {
 
  public:
   CoolerFileWriter() = delete;
-  CoolerFileWriter(std::string_view path_, const nanobind::dict& chromosomes_,
+  CoolerFileWriter(std::filesystem::path path_, const ChromosomeDict& chromosomes_,
                    std::uint32_t resolution_, std::string_view assembly,
-                   const std::filesystem::path& tmpdir, std::uint32_t);
+                   const std::filesystem::path& tmpdir, std::uint32_t compression_lvl);
 
-  [[nodiscard]] std::string_view path() const noexcept;
+  [[nodiscard]] const std::filesystem::path& path() const noexcept;
   [[nodiscard]] std::uint32_t resolution() const noexcept;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
