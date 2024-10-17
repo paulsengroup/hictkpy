@@ -37,6 +37,9 @@ class TestClass:
             w.add_pixels(df[start:end])
 
         w.finalize()
+        with pytest.raises(Exception):
+            w.add_pixels(df)
+
         del w
         gc.collect()
 
@@ -58,6 +61,9 @@ class TestClass:
             w.add_pixels(df[start:end])
 
         w.finalize()
+        with pytest.raises(Exception):
+            w.add_pixels(df)
+
         del w
         gc.collect()
 

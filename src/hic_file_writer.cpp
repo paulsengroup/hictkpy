@@ -72,6 +72,11 @@ const std::vector<std::uint32_t> &HiCFileWriter::resolutions() const noexcept {
 const hictk::Reference &HiCFileWriter::chromosomes() const { return _w.chromosomes(); }
 
 void HiCFileWriter::add_pixels(const nb::object &df) {
+  if (_finalized) {
+    throw std::runtime_error(
+        "caught attempt to add_pixels to a .hic file that has already been finalized!");
+  }
+
   const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
   const auto pixels =
       coo_format ? coo_df_to_thin_pixels<float>(df, false)
