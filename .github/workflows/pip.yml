@@ -12,13 +12,11 @@ on:
       - "cmake/**"
       - "src/**"
       - "test/**"
+      - "utils/devel/stubgen.py"
+      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
-      - "conanfile.txt"
+      - "conanfile.py"
       - "pyproject.toml"
-      - "setup.cfg"
-      - "setup.py"
-    tags:
-      - "v*.*.*"
 
   pull_request:
     paths:
@@ -26,11 +24,11 @@ on:
       - "cmake/**"
       - "src/**"
       - "test/**"
+      - "utils/devel/stubgen.py"
+      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
-      - "conanfile.txt"
+      - "conanfile.py"
       - "pyproject.toml"
-      - "setup.cfg"
-      - "setup.py"
 
 env:
   CONAN_HOME: "${{ github.workspace }}/conan/"
@@ -69,9 +67,9 @@ jobs:
       - name: Generate cache key
         id: cache-key
         run: |
-          hash="${{ hashFiles('conanfile.txt', '.github/workflows/pip.yml') }}"
+          hash="${{ hashFiles('conanfile.py') }}"
 
-          echo "conan-key=pip-$hash" >> $GITHUB_OUTPUT
+            echo "conan-key=pip-$hash" >> $GITHUB_OUTPUT
 
       - name: Restore Conan cache
         id: cache-conan

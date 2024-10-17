@@ -35,7 +35,7 @@ CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const Chromosome
                                    const std::filesystem::path &tmpdir,
                                    std::uint32_t compression_lvl)
     : _path(std::move(path_)),
-      _tmpdir(tmpdir / (_path.string() + ".tmp")),
+      _tmpdir(tmpdir, true),
       _w(create_file(_path.string(), chromosome_dict_to_reference(chromosomes_), resolution_,
                      assembly, _tmpdir())),
       _compression_lvl(compression_lvl) {

@@ -31,8 +31,9 @@ HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const Chromosom
                              std::string_view assembly, std::size_t n_threads,
                              std::size_t chunk_size, const std::filesystem::path &tmpdir,
                              std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
-    : _w(path_.string(), chromosome_dict_to_reference(chromosomes), resolutions_, assembly,
-         n_threads, chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
+    : _tmpdir(tmpdir, true),
+      _w(path_.string(), chromosome_dict_to_reference(chromosomes), resolutions_, assembly,
+         n_threads, chunk_size, _tmpdir(), compression_lvl, skip_all_vs_all_matrix) {}
 
 HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const ChromosomeDict &chromosomes,
                              std::uint32_t resolution, std::string_view assembly,
