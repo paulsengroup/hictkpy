@@ -18,7 +18,7 @@ namespace hictkpy {
 
 template <typename File>
 inline nanobind::object get_bins_from_file(const File &f) {
-  auto pd = nanobind::module_::import_("pandas");
+  auto pd = import_module_checked("pandas");
 
   Dynamic1DA<std::int32_t> chrom_ids{};
   Dynamic1DA<std::int32_t> starts{};

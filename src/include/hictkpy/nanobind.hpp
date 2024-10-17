@@ -27,3 +27,16 @@ HICTKPY_DISABLE_WARNING_USELESS_CAST
 #include <nanobind/stl/vector.h>
 HICTKPY_DISABLE_WARNING_POP
 // clang-format on
+
+#include <string>
+
+inline nanobind::module_ import_module_checked(const std::string& module_name) {
+  try {
+    return nanobind::module_::import_(module_name.c_str());
+  } catch (nanobind::python_error& e) {
+    // NOLINTNEXTLINE(*-pro-type-vararg)
+    nanobind::raise_from(e, PyExc_ModuleNotFoundError,
+                         "To enable %s support, please install %s with: pip install 'hictkpy[%s]'",
+                         module_name.c_str(), module_name.c_str(), module_name.c_str());
+  }
+}
