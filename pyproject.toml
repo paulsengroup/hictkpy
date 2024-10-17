@@ -33,9 +33,20 @@ classifiers = [
 
 dependencies = [
   "numpy",
-  "pandas>=2.1.0,!=2.2.0",
   "pyarrow>=14",
+]
+
+optional-dependencies.pandas = [
+  "pandas>=2.1.0,!=2.2.0",
+]
+
+optional-dependencies.scipy = [
   "scipy",
+]
+
+optional-dependencies.all = [
+  "hictkpy[pandas]",
+  "hictkpy[scipy]",
 ]
 
 optional-dependencies.test = [
