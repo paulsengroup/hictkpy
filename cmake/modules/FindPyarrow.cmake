@@ -195,16 +195,17 @@ if(Pyarrow_FOUND AND NOT TARGET Arrow::python)
   )
   target_link_directories(Arrow::python INTERFACE ${Pyarrow_LIBRARY_DIRS})
 
-  file(REAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../../utils/devel/symlink_pyarrow_libs.py" SCRIPT)
-  add_custom_target(
-    update_arrow_lib_symlinks
-    BYPRODUCTS
-      "${Arrow_LIBRARY}"
-    COMMAND
-      "${Python_EXECUTABLE}" "${SCRIPT}"
-  )
-  unset(SCRIPT)
-
+  if(NOT TARGET update_arrow_lib_symlinks)
+    file(REAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../../utils/devel/symlink_pyarrow_libs.py" SCRIPT)
+    add_custom_target(
+      update_arrow_lib_symlinks
+      BYPRODUCTS
+        "${Arrow_LIBRARY}"
+      COMMAND
+        "${Python_EXECUTABLE}" "${SCRIPT}"
+    )
+    unset(SCRIPT)
+  endif()
   add_dependencies(Arrow::python update_arrow_lib_symlinks)
 endif()
 
