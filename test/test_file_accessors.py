@@ -13,7 +13,7 @@ testdir = pathlib.Path(__file__).resolve().parent
 pytestmark = pytest.mark.parametrize(
     "file,resolution",
     [
-        (testdir / "data" / "cooler_test_file.mcool::/resolutions/100000", None),
+        ((testdir / "data" / "cooler_test_file.mcool::/resolutions/100000").as_posix(), None),
         (testdir / "data" / "cooler_test_file.mcool", 100_000),
         (testdir / "data" / "hic_test_file.hic", 100_000),
     ],

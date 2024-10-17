@@ -10,7 +10,7 @@ import hictkpy
 
 testdir = pathlib.Path(__file__).resolve().parent
 
-cool_file = testdir / "data" / "cooler_test_file.mcool::/resolutions/100000"
+cool_file = (testdir / "data" / "cooler_test_file.mcool::/resolutions/100000").as_posix()
 mcool_file = testdir / "data" / "cooler_test_file.mcool"
 scool_file = testdir / "data" / "cooler_test_file.scool"
 hic_file = testdir / "data" / "hic_test_file.hic"
