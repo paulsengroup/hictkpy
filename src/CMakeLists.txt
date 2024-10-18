@@ -50,12 +50,6 @@ target_link_libraries(
     std::filesystem
 )
 
-# TODO fixme
-# There is something very odd going on when trying to call most spdlog functions from within
-# Python bindings on recent versions of Windows.
-# Possibly related to https://github.com/gabime/spdlog/issues/3212
-target_compile_definitions(_hictkpy PRIVATE $<$<PLATFORM_ID:Windows>:SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_OFF>)
-
 install(TARGETS _hictkpy LIBRARY DESTINATION hictkpy)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/hictkpy")
 file(TOUCH "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi")
