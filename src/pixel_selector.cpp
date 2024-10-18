@@ -7,7 +7,7 @@
 #include <winsock2.h>
 #endif
 
-#include <arrow/python/api.h>
+#include <arrow/python/pyarrow.h>
 #include <arrow/table.h>
 #include <fmt/format.h>
 

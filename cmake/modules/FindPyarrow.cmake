@@ -6,15 +6,13 @@
 FindPyarrow
 ---------
 
-Finds pyarrow and the Arrow library that is shipped as part of the pyarrow wheels.
+Finds pyarrow library that is shipped as part of the pyarrow wheels.
 
 Imported Targets
 ^^^^^^^^^^^^^^^^
 
 This module provides the following imported targets, if found:
 
-``Arrow::arrow_shared``
-  The Arrow shared library
 ``Arrow::python
   The pyarrow library
 
@@ -25,11 +23,11 @@ Result Variables
 This will define the following variables:
 
 ``Pyarrow_FOUND``
-  True if the system has the Arrow library.
+  True if the system has the Pyarrow library.
 ``Pyarrow_VERSION``
-  The version of the Arrow library which was found.
+  The version of the Pyarrow library which was found.
 ``Pyarrow_INCLUDE_DIRS``
-  Include directories needed to use Arrow.
+  Include directories needed to use Pyarrow.
 
 Cache Variables
 ^^^^^^^^^^^^^^^
@@ -39,25 +37,7 @@ The following cache variables may also be set:
 ``Pyarrow_LIBRARY``
   The path to the Arrow::python library.
 
-``Arrow_LIBRARY``
-  The path to the Arrow library.
-
 #]=======================================================================]
-
-function(symlink_pyarrow_libs Python_EXECUTABLE)
-  file(REAL_PATH "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../../utils/devel/symlink_pyarrow_libs.py" SCRIPT)
-  execute_process(
-    COMMAND
-      "${Python_EXECUTABLE}" "${SCRIPT}"
-    RESULT_VARIABLE STATUS
-  )
-  if(NOT STATUS EQUAL 0)
-    message(
-      FATAL_ERROR
-      "Unable to create symlink to pyarrow libraries. Please make sure that: pyarrow is installed, and that you have write permissions for the Python site-package folder"
-    )
-  endif()
-endfunction()
 
 find_package(
   Python
@@ -68,13 +48,10 @@ find_package(
   REQUIRED
 )
 
-if(TARGET Arrow::arrow_shared AND TARGET Arrow::python)
-  message(DEBUG "Arrow::arrow_shared and Arrow::python have already been defined")
-  symlink_pyarrow_libs("${Python_EXECUTABLE}")
+if(TARGET Arrow::python)
+  message(DEBUG "Arrow::python has already been defined")
   return()
 endif()
-
-set(Arrow_FOUND FALSE)
 
 # Try to import pyarrow
 execute_process(
@@ -102,16 +79,14 @@ if(NOT STATUS EQUAL 0)
   return()
 endif()
 
-if(Pyarrow_VERSION VERSION_LESS 14.0.0)
-  message(WARNING "pyarrow version ${Pyarrow_VERSION} is too old. Minimum version required: 14.0.0")
+if(Pyarrow_VERSION VERSION_LESS 15.0.0)
+  message(WARNING "pyarrow version ${Pyarrow_VERSION} is too old. Minimum version required: 15.0.0")
   set(Pyarrow_FOUND FALSE)
   unset(Pyarrow_VERSION)
   return()
 endif()
 
 set(Pyarrow_VERSION_STRING "${Pyarrow_VERSION}")
-
-symlink_pyarrow_libs("${Python_EXECUTABLE}")
 
 # Get include dirs
 execute_process(
@@ -154,24 +129,7 @@ find_package_handle_standard_args(
   VERSION_VAR Pyarrow_VERSION
 )
 
-set(Arrow_FOUND ${Pyarrow_FOUND})
-set(Arrow_INCLUDE_DIRS ${Pyarrow_INCLUDE_DIRS})
-set(Arrow_LIBRARY_DIRS ${Pyarrow_LIBRARY_DIRS})
-set(Arrow_VERSION ${Pyarrow_VERSION})
-
-find_package_handle_standard_args(
-  Arrow
-  FOUND_VAR Arrow_FOUND
-  REQUIRED_VARS
-    Arrow_INCLUDE_DIRS
-    Arrow_LIBRARY_DIRS
-  VERSION_VAR Arrow_VERSION
-  NAME_MISMATCHED
-)
-
 find_library(Pyarrow_LIBRARY arrow_python REQUIRED PATHS ${Pyarrow_LIBRARY_DIRS} NO_DEFAULT_PATH)
-
-find_library(Arrow_LIBRARY arrow REQUIRED PATHS ${Arrow_LIBRARY_DIRS} NO_DEFAULT_PATH)
 
 if(Pyarrow_FOUND AND NOT TARGET Arrow::python)
   if(WIN32)
@@ -194,43 +152,8 @@ if(Pyarrow_FOUND AND NOT TARGET Arrow::python)
       ${Python_NumPy_INCLUDE_DIR}
   )
   target_link_directories(Arrow::python INTERFACE ${Pyarrow_LIBRARY_DIRS})
-
-  file(REAL_PATH "${CMAKE_CURRENT_LIST_DIR}/../../utils/devel/symlink_pyarrow_libs.py" SCRIPT)
-  add_custom_target(
-    update_arrow_lib_symlinks
-    BYPRODUCTS
-      "${Arrow_LIBRARY}"
-    COMMAND
-      "${Python_EXECUTABLE}" "${SCRIPT}"
-  )
-  unset(SCRIPT)
-
-  add_dependencies(Arrow::python update_arrow_lib_symlinks)
 endif()
 
-if(Arrow_FOUND AND NOT TARGET Arrow::arrow_shared)
-  if(WIN32)
-    add_library(Arrow::arrow_shared UNKNOWN IMPORTED)
-  else()
-    add_library(Arrow::arrow_shared SHARED IMPORTED)
-  endif()
-  set_target_properties(
-    Arrow::arrow_shared
-    PROPERTIES
-      IMPORTED_LOCATION
-        "${Arrow_LIBRARY}"
-      IMPORTED_CONFIGURATION
-        Release
-  )
-  target_include_directories(Arrow::arrow_shared INTERFACE ${Arrow_INCLUDE_DIRS})
-  target_link_directories(Arrow::arrow_shared INTERFACE ${Arrow_LIBRARY_DIRS})
-endif()
-
-mark_as_advanced(
-  Arrow_VERSION
-  Arrow_INCLUDE_DIRS
-  Arrow_LIBRARY_DIRS
-)
 mark_as_advanced(
   Pyarrow_VERSION
   Pyarrow_INCLUDE_DIRS

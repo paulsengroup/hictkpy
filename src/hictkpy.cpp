@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
-#include <arrow/python/api.h>
+#include <arrow/config.h>
+#include <arrow/python/pyarrow.h>
 #include <spdlog/spdlog.h>
 
 #include <cstdint>
@@ -37,6 +38,8 @@ NB_MODULE(_hictkpy, m) {
     throw std::runtime_error("failed to initialize pyarrow runtime");
   }
 
+  m.attr("__hictkpy_arrow_version__") =
+      std::make_tuple(ARROW_VERSION_MAJOR, ARROW_VERSION_MINOR, ARROW_VERSION_PATCH);
   m.attr("__hictk_version__") = hictk::config::version::str();
 
   m.doc() = "Blazing fast toolkit to work with .hic and .cool files.";

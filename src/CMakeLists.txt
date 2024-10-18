@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+find_package(Arrow REQUIRED)
 find_package(FMT REQUIRED)
 find_package(nanobind REQUIRED)
 find_package(Pyarrow REQUIRED)
