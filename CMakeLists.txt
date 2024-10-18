@@ -160,12 +160,12 @@ if(WIN32)
 endif()
 
 if(MSVC)
-  if(MSVC_VERSION GREATER 1939)
-    message(
-      FATAL_ERROR
-      "MSVC versions after 19.39.33523.0 (and at least up to 19.42.34321.1) are known to produce broken hictkpy wheels. Please try again using MSVC 19.39.33523.0 (Visual Studio 17.9) or older."
-    )
-  endif()
+  # if(MSVC_VERSION GREATER 1939)
+  #   message(
+  #     FATAL_ERROR
+  #     "MSVC versions after 19.39.33523.0 (and at least up to 19.42.34321.1) are known to produce broken hictkpy wheels. Please try again using MSVC 19.39.33523.0 (Visual Studio 17.9) or older."
+  #   )
+  # endif()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
 endif()
 
