@@ -5,11 +5,11 @@
 Quickstart
 ##########
 
-hictkpy provides Python bindings for hictk through pybind11.
+hictkpy provides Python bindings for hictk through `nanobind <https://github.com/wjakob/nanobind>`_.
 
-``hictk.File()`` can open .cool and .hic files and allows retrieval of interactions as well as file metadata.
+``hictk.File()`` can open .cool and .hic files and can be used to fetch interactions as well as file metadata.
 
-The example use file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_, which can be downloaded from `here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
+The examples in this section use file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_, which can be downloaded from `here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
 
 Opening files
 -------------
@@ -30,7 +30,7 @@ Reading file metadata
 
 .. code-block:: ipythonconsole
 
-  In [4]: f.bin_size()
+  In [4]: f.resolution()
   Out[4]: 10000
 
   In [5]: f.chromosomes()
@@ -51,15 +51,15 @@ Reading file metadata
    'assembly': '/var/lib/cwl/stgb25a903a-ebb6-4a56-bf3f-90bd84a40bf4/4DNFIBEEN92C.chrom.sizes',
    'format-url': 'https://github.com/aidenlab/hic-format',
    'nbins': 13758,
-   'nchroms': 8}
+   'nchroms': 7}
 
 
 Fetch interactions
 ------------------
 
-Interactions can be fetched by calling the :py:meth:`hictkpy.File.fetch` method on :py:meth:`hictkpy.File` objects.
+Interactions can be fetched by calling the :py:meth:`hictkpy.File.fetch()` method on :py:meth:`hictkpy.File()` objects.
 
-:py:meth:`hictkpy.File.fetch` returns :py:meth:`hictkpy.PixelSelector` objects, which are very cheap to create.
+:py:meth:`hictkpy.File.fetch()` returns :py:meth:`hictkpy.PixelSelector` objects, which are very cheap to create.
 
 .. code-block:: ipythonconsole
 
@@ -107,24 +107,24 @@ Fetching interactions as pandas DataFrames
 
   [339041 rows x 7 columns]
 
-Fetching interactions as scipy.sparse.coo_matrix
+Fetching interactions as scipy.sparse.csr_matrix
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: ipythonconsole
 
-  In [15]: sel = f.fetch("2L:10,000,000-20,000,000", join=True)
+  In [15]: sel = f.fetch("2L:10,000,000-20,000,000")
 
-  In [16]: sel.to_coo()
+  In [16]: sel.to_csr()
   Out[16]:
-  <1000x1000 sparse matrix of type '<class 'numpy.int32'>'
-          with 339041 stored elements in COOrdinate format>
+  <Compressed Sparse Row sparse matrix of dtype 'int32'
+          with 339041 stored elements and shape (1000, 1000)>
 
-Fetching interactions as numpy NDarray
+Fetching interactions as numpy NDArray
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: ipythonconsole
 
-  In [17]: sel = f.fetch("2L:10,000,000-20,000,000", join=True)
+  In [17]: sel = f.fetch("2L:10,000,000-20,000,000")
 
   In [18]: m = sel.to_numpy()
 
@@ -144,3 +144,55 @@ Fetching interactions as numpy NDarray
 .. only:: latex
 
   .. image:: assets/heatmap_001.pdf
+
+
+Fetching other types of data
+----------------------------
+
+Fetching the table of bins as pandas.DataFrame:
+
+.. code-block:: ipythonconsole
+
+  In [23]: f.bins()
+  Out[23]:
+        chrom    start      end
+  0        2L        0    10000
+  1        2L    10000    20000
+  2        2L    20000    30000
+  3        2L    30000    40000
+  4        2L    40000    50000
+  ...     ...      ...      ...
+  13753     Y  3620000  3630000
+  13754     Y  3630000  3640000
+  13755     Y  3640000  3650000
+  13756     Y  3650000  3660000
+  13757     Y  3660000  3667352
+
+  [13758 rows x 3 columns]
+
+Fetching balancing weights:
+
+.. code-block:: ipythonconsole
+
+  In [24]: import pandas as pd
+
+  In [25]: weights = {}
+      ...: for norm in f.avail_normalizations():
+      ...:     weights[norm] = f.weights(norm)
+      ...: weights = pd.DataFrame(weights)
+      ...: weights
+  Out[25]:
+               KR        VC   VC_SQRT
+  0      0.582102  0.666016  0.759389
+  1      1.300415  1.496604  1.138349
+  2      1.180977  1.470464  1.128364
+  3      1.007625  1.266340  1.047122
+  4      1.175642  1.492664  1.136850
+  ...         ...       ...       ...
+  13753       NaN  0.000000  0.000000
+  13754       NaN  0.000000  0.000000
+  13755       NaN  0.000000  0.000000
+  13756  1.155544  2.234906  0.631055
+  13757       NaN  0.069841  0.111556
+
+  [13758 rows x 3 columns]
