@@ -4,20 +4,19 @@
 
 import gc
 import logging
-import os
-import tempfile
+import pathlib
 
 import pytest
 
 import hictkpy
 
-testdir = os.path.dirname(os.path.abspath(__file__))
+testdir = pathlib.Path(__file__).resolve().parent
 
 
 pytestmark = pytest.mark.parametrize(
     "file,resolution",
     [
-        (os.path.join(testdir, "data", "hic_test_file.hic"), 100_000),
+        (testdir / "data" / "hic_test_file.hic", 100_000),
     ],
 )
 
@@ -34,7 +33,7 @@ class TestClass:
         df = f.fetch(join=False).to_df()
         expected_sum = df["count"].sum()
 
-        path = os.path.join(tmpdir, "test1.hic")
+        path = tmpdir / "test1.hic"
         w = hictkpy.hic.FileWriter(path, f.chromosomes(), f.resolution())
 
         chunk_size = 1000
@@ -43,6 +42,9 @@ class TestClass:
             w.add_pixels(df[start:end])
 
         w.finalize()
+        with pytest.raises(Exception):
+            w.add_pixels(df)
+
         del w
         gc.collect()
 
@@ -55,7 +57,7 @@ class TestClass:
         df = f.fetch(join=True).to_df()
         expected_sum = df["count"].sum()
 
-        path = os.path.join(tmpdir, "test2.hic")
+        path = tmpdir / "test2.hic"
         w = hictkpy.hic.FileWriter(path, f.chromosomes(), f.resolution())
 
         chunk_size = 1000
@@ -64,6 +66,9 @@ class TestClass:
             w.add_pixels(df[start:end])
 
         w.finalize()
+        with pytest.raises(Exception):
+            w.add_pixels(df)
+
         del w
         gc.collect()
 

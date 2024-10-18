@@ -7,6 +7,7 @@
 #include <fmt/format.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <hictk/bin_table.hpp>
 #include <hictk/cooler/singlecell_cooler.hpp>
 #include <hictk/cooler/validation.hpp>
@@ -22,16 +23,20 @@ namespace nb = nanobind;
 
 namespace hictkpy::singlecell_file {
 
-bool is_scool_file(std::string_view path) {
-  return bool(hictk::cooler::utils::is_scool_file(path));
+bool is_scool_file(const std::filesystem::path& path) {
+  return bool(hictk::cooler::utils::is_scool_file(path.string()));
 }
 
-static void ctor(hictk::cooler::SingleCellFile* fp, std::string_view path) {
-  new (fp) hictk::cooler::SingleCellFile(std::string{path});
+static void ctor(hictk::cooler::SingleCellFile* fp, const std::filesystem::path& path) {
+  new (fp) hictk::cooler::SingleCellFile{path};
 }
 
 static std::string repr(const hictk::cooler::SingleCellFile& sclr) {
   return fmt::format(FMT_STRING("SingleCellFile({})"), sclr.path());
+}
+
+static std::filesystem::path get_path(const hictk::cooler::SingleCellFile& sclr) {
+  return sclr.path();
 }
 
 static nb::dict get_attrs(const hictk::cooler::SingleCellFile& sclr) {
@@ -103,7 +108,7 @@ void declare_singlecell_file_class(nb::module_& m) {
 
   scell_file.def("__repr__", &singlecell_file::repr);
 
-  scell_file.def("path", &hictk::cooler::SingleCellFile::path, "Get the file path.");
+  scell_file.def("path", &singlecell_file::get_path, "Get the file path.");
   scell_file.def("resolution", &hictk::cooler::SingleCellFile::resolution,
                  "Get the bin size in bp.");
   scell_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::SingleCellFile>,
