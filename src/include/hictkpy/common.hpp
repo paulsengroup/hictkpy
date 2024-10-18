@@ -7,6 +7,7 @@
 #include <hictk/common.hpp>
 #include <hictk/numeric_variant.hpp>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <type_traits>
 
@@ -59,5 +60,7 @@ template <typename T>
 }
 
 [[nodiscard]] hictk::internal::NumericVariant map_dtype_to_type(std::string_view dtype);
+
+[[nodiscard]] std::string normalize_log_lvl(std::string_view lvl);
 
 }  // namespace hictkpy

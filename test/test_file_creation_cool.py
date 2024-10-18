@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 import gc
+import logging
 import pathlib
-import tempfile
 
 import pytest
 
@@ -22,7 +22,13 @@ pytestmark = pytest.mark.parametrize(
 
 
 class TestClass:
+    @staticmethod
+    def setup_method():
+        logging.basicConfig(level="INFO", force=True)
+        logging.getLogger().setLevel("INFO")
+
     def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
+
         f = hictkpy.File(file, resolution)
 
         df = f.fetch(join=False).to_df()
@@ -36,9 +42,11 @@ class TestClass:
             end = start + chunk_size
             w.add_pixels(df[start:end])
 
-        w.finalize()
+        w.finalize("info", 100_000, 100_000)
         with pytest.raises(Exception):
             w.add_pixels(df)
+        with pytest.raises(Exception):
+            w.finalize()
 
         del w
         gc.collect()
@@ -60,9 +68,11 @@ class TestClass:
             end = start + chunk_size
             w.add_pixels(df[start:end])
 
-        w.finalize()
+        w.finalize("info", 100_000, 100_000)
         with pytest.raises(Exception):
             w.add_pixels(df)
+        with pytest.raises(Exception):
+            w.finalize()
 
         del w
         gc.collect()
@@ -85,9 +95,11 @@ class TestClass:
             end = start + chunk_size
             w.add_pixels(df[start:end])
 
-        w.finalize()
+        w.finalize("info", 100_000, 100_000)
         with pytest.raises(Exception):
             w.add_pixels(df)
+        with pytest.raises(Exception):
+            w.finalize()
 
         del w
         gc.collect()

@@ -38,7 +38,7 @@ class CoolerFileWriter {
 
   void add_pixels(const nanobind::object& df);
 
-  void serialize(const std::string& log_lvl_str = "warn");
+  void finalize(std::string_view log_lvl_str, std::size_t chunk_size, std::size_t update_frequency);
 
   [[nodiscard]] std::string repr() const;
   static void bind(nanobind::module_& m);

@@ -6,6 +6,8 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <hictk/numeric_variant.hpp>
 #include <stdexcept>
@@ -63,6 +65,13 @@ hictk::internal::NumericVariant map_dtype_to_type(std::string_view dtype) {
           "double, uint8, uint16, uint32, uint64, int8, int16, int32, int64, float32, and "
           "float64."),
       dtype));
+}
+
+std::string normalize_log_lvl(std::string_view lvl) {
+  std::string normalized_lvl{lvl};
+  std::transform(normalized_lvl.begin(), normalized_lvl.end(), normalized_lvl.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  return normalized_lvl;
 }
 
 }  // namespace hictkpy

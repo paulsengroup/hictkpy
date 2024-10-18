@@ -41,7 +41,7 @@ class HiCFileWriter {
 
   void add_pixels(const nanobind::object& df);
 
-  void serialize(const std::string& log_lvl_str = "warn");
+  void finalize(std::string_view log_lvl_str);
 
   [[nodiscard]] std::string repr() const;
 
