@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <hictk/reference.hpp>
+#include <hictk/tmpdir.hpp>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -25,21 +26,21 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
-HiCFileWriter::HiCFileWriter(std::string_view path, const nb::dict &chromosomes,
-                             const std::vector<std::uint32_t> &resolutions,
+HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const ChromosomeDict &chromosomes,
+                             const std::vector<std::uint32_t> &resolutions_,
                              std::string_view assembly, std::size_t n_threads,
                              std::size_t chunk_size, const std::filesystem::path &tmpdir,
                              std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
     : _tmpdir(tmpdir, true),
-      _w(path, chromosome_dict_to_reference(chromosomes), resolutions, assembly, n_threads,
-         chunk_size, _tmpdir(), compression_lvl, skip_all_vs_all_matrix) {}
+      _w(path_.string(), chromosome_dict_to_reference(chromosomes), resolutions_, assembly,
+         n_threads, chunk_size, _tmpdir(), compression_lvl, skip_all_vs_all_matrix) {}
 
-HiCFileWriter::HiCFileWriter(std::string_view path, const nb::dict &chromosomes,
+HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const ChromosomeDict &chromosomes,
                              std::uint32_t resolution, std::string_view assembly,
                              std::size_t n_threads, std::size_t chunk_size,
                              const std::filesystem::path &tmpdir, std::uint32_t compression_lvl,
                              bool skip_all_vs_all_matrix)
-    : HiCFileWriter(path, chromosomes, std::vector<std::uint32_t>{resolution}, assembly, n_threads,
+    : HiCFileWriter(path_, chromosomes, std::vector<std::uint32_t>{resolution}, assembly, n_threads,
                     chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
 
 void HiCFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) {
@@ -63,7 +64,9 @@ void HiCFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str) {
 #endif
 }
 
-std::string_view HiCFileWriter::path() const noexcept { return _w.path(); }
+std::filesystem::path HiCFileWriter::path() const noexcept {
+  return std::filesystem::path{_w.path()};
+}
 
 const std::vector<std::uint32_t> &HiCFileWriter::resolutions() const noexcept {
   return _w.resolutions();
@@ -95,23 +98,25 @@ void HiCFileWriter::bind(nb::module_ &m) {
       hic, "FileWriter", "Class representing a file handle to create .hic files.");
 
   // NOLINTBEGIN(*-avoid-magic-numbers)
-  writer.def(nb::init<std::string_view, nb::dict, std::uint32_t, std::string_view, std::size_t,
-                      std::size_t, const std::filesystem::path &, std::uint32_t, bool>(),
+  writer.def(nb::init<const std::filesystem::path &, const ChromosomeDict &, std::uint32_t,
+                      std::string_view, std::size_t, std::size_t, const std::filesystem::path &,
+                      std::uint32_t, bool>(),
              nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
              nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
              nb::arg("chunk_size") = 10'000'000,
-             nb::arg("tmpdir") = std::filesystem::temp_directory_path().string(),
+             nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
              "Open a .hic file for writing.");
 
-  writer.def(
-      nb::init<std::string_view, nb::dict, const std::vector<std::uint32_t> &, std::string_view,
-               std::size_t, std::size_t, const std::filesystem::path &, std::uint32_t, bool>(),
-      nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolutions"),
-      nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1, nb::arg("chunk_size") = 10'000'000,
-      nb::arg("tmpdir") = std::filesystem::temp_directory_path().string(),
-      nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
-      "Open a .hic file for writing.");
+  writer.def(nb::init<const std::filesystem::path &, const ChromosomeDict &,
+                      const std::vector<std::uint32_t> &, std::string_view, std::size_t,
+                      std::size_t, const std::filesystem::path &, std::uint32_t, bool>(),
+             nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolutions"),
+             nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
+             nb::arg("chunk_size") = 10'000'000,
+             nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
+             nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
+             "Open a .hic file for writing.");
   // NOLINTEND(*-avoid-magic-numbers)
 
   writer.def("__repr__", &hictkpy::HiCFileWriter::repr);

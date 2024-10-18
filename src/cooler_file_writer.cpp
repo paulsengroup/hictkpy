@@ -5,6 +5,7 @@
 #include "hictkpy/cooler_file_writer.hpp"
 
 #include <fmt/format.h>
+#include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
 #include <cassert>
@@ -12,6 +13,7 @@
 #include <filesystem>
 #include <hictk/cooler/cooler.hpp>
 #include <hictk/reference.hpp>
+#include <hictk/tmpdir.hpp>
 #include <hictk/type_traits.hpp>
 #include <stdexcept>
 #include <string>
@@ -28,14 +30,14 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
-CoolerFileWriter::CoolerFileWriter(std::string_view path_, const nb::dict &chromosomes_,
+CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const ChromosomeDict &chromosomes_,
                                    std::uint32_t resolution_, std::string_view assembly,
                                    const std::filesystem::path &tmpdir,
                                    std::uint32_t compression_lvl)
-    : _path(std::string{path_}),
+    : _path(std::move(path_)),
       _tmpdir(tmpdir, true),
-      _w(create_file(_path, chromosome_dict_to_reference(chromosomes_), resolution_, assembly,
-                     _tmpdir())),
+      _w(create_file(_path.string(), chromosome_dict_to_reference(chromosomes_), resolution_,
+                     assembly, _tmpdir())),
       _compression_lvl(compression_lvl) {
   if (std::filesystem::exists(_path)) {
     throw std::runtime_error(
@@ -43,7 +45,7 @@ CoolerFileWriter::CoolerFileWriter(std::string_view path_, const nb::dict &chrom
   }
 }
 
-std::string_view CoolerFileWriter::path() const noexcept { return _path; }
+const std::filesystem::path &CoolerFileWriter::path() const noexcept { return _path; }
 
 std::uint32_t CoolerFileWriter::resolution() const noexcept {
   if (_w.has_value()) {
@@ -111,7 +113,7 @@ void CoolerFileWriter::serialize([[maybe_unused]] const std::string &log_lvl_str
   std::visit(
       [&](const auto &num) {
         using N = hictk::remove_cvref_t<decltype(num)>;
-        _w->aggregate<N>(_path, false, _compression_lvl);
+        _w->aggregate<N>(_path.string(), false, _compression_lvl);
       },
       _w->open("0").pixel_variant());
 
@@ -150,11 +152,11 @@ void CoolerFileWriter::bind(nb::module_ &m) {
       cooler, "FileWriter", "Class representing a file handle to create .cool files.");
 
   // NOLINTBEGIN(*-avoid-magic-numbers)
-  writer.def(nb::init<std::string_view, nb::dict, std::uint32_t, std::string_view,
-                      const std::filesystem::path &, std::uint32_t>(),
+  writer.def(nb::init<std::filesystem::path, const ChromosomeDict &, std::uint32_t,
+                      std::string_view, const std::filesystem::path &, std::uint32_t>(),
              nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
              nb::arg("assembly") = "unknown",
-             nb::arg("tmpdir") = std::filesystem::temp_directory_path().string(),
+             nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 6, "Open a .cool file for writing.");
   // NOLINTEND(*-avoid-magic-numbers)
 

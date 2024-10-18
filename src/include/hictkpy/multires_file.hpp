@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <string_view>
+#include <filesystem>
 
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy::multires_file {
 
-[[nodiscard]] bool is_mcool_file(std::string_view path);
+[[nodiscard]] bool is_mcool_file(const std::filesystem::path& path);
 
 void declare_multires_file_class(nanobind::module_& m);
 
