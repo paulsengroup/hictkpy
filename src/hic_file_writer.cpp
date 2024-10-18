@@ -52,30 +52,20 @@ void HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _w.path()));
   }
 
-#ifndef _WIN32
-  // TODO fixme
-  // There is something very odd going on when trying to call most spdlog functions from within
-  // Python bindings on recent versions of Windows.
-  // Possibly related to https://github.com/gabime/spdlog/issues/3212
   const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
 
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _w.path());
-#endif
   try {
     _w.serialize();
     _finalized = true;
   } catch (...) {
-#ifndef _WIN32
     spdlog::default_logger()->set_level(previous_lvl);
-#endif
     throw;
   }
   SPDLOG_INFO(FMT_STRING("successfully finalized \"{}\"!"), _w.path());
-#ifndef _WIN32
   spdlog::default_logger()->set_level(previous_lvl);
-#endif
 }
 
 std::filesystem::path HiCFileWriter::path() const noexcept {
