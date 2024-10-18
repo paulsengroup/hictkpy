@@ -158,6 +158,7 @@ if(WIN32)
     INTERFACE
       NOMINMAX
       _CRT_SECURE_NO_WARNINGS
+      _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR # https://github.com/gabime/spdlog/issues/3212
   )
 endif()
 
