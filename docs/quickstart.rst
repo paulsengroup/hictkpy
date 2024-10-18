@@ -136,4 +136,11 @@ Fetching interactions as numpy NDarray
 
   In [22]: plt.show()
 
-.. image:: assets/heatmap_001.avif
+
+.. only:: not latex
+
+  .. image:: assets/heatmap_001.avif
+
+.. only:: latex
+
+  .. image:: assets/heatmap_001.pdf
