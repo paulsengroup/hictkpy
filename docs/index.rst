@@ -5,7 +5,7 @@
 Introduction
 ============
 
-hictkpy provides Python bindings to `hictk <https://github/paulsengroup/hictk>`_, a blazing fast toolkit to work with .hic and .cool files.
+hictkpy provides Python bindings to `hictk <https://github.com/paulsengroup/hictk>`_, a blazing fast toolkit to work with .hic and .cool files.
 
 .. only:: not latex
 
