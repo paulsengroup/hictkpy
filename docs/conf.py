@@ -1,8 +1,18 @@
-#!/usr/bin/env python3
-
 # Copyright (C) 2023 Roberto Rossini <roberros@uio.no>
 #
 # SPDX-License-Identifier: MIT
+
+
+import os
+
+# Define the canonical URL if you are using a custom domain on Read the Docs
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
+
+# Tell Jinja2 templates the build is running on Read the Docs
+if os.environ.get("READTHEDOCS", "") == "True":
+    if "html_context" not in globals():
+        html_context = {}
+    html_context["READTHEDOCS"] = True
 
 # -- General configuration ------------------------------------------------
 
@@ -14,8 +24,6 @@
 # ones.
 extensions = [
     "sphinx_copybutton",
-    "sphinxcontrib.rsvgconverter",
-    "sphinxcontrib.moderncmakedomain",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
@@ -205,6 +213,7 @@ htmlhelp_basename = "hictkpy_doc"
 copybutton_selector = "div:not(.no-copybutton) > div.highlight > pre"
 copybutton_exclude = ".linenos, .gp, .go"
 copybutton_copy_empty_lines = False
+copybutton_prompt_text = "user@dev:/tmp$"
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -214,13 +223,6 @@ latex_elements = {
     "papersize": "a4paper",
     "pointsize": "10pt",
     "classoptions": ",openany,oneside",
-    "preamble": r"""
-\usepackage{MnSymbol}
-\DeclareUnicodeCharacter{25CB}{\ensuremath{\circ}}
-\DeclareUnicodeCharacter{25CF}{\ensuremath{\bullet}}
-\DeclareUnicodeCharacter{21B5}{\ensuremath{\rhookswarrow}}
-\DeclareUnicodeCharacter{2194}{\ensuremath{\leftrightarrow}}
-""",
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
@@ -249,3 +251,10 @@ latex_documents = [
 
 # If false, no module index is generated.
 # latex_domain_indices = True
+
+linkcheck_ignore = [
+    r"https://hictkpy.*.org\.readthedocs\.build/.*",
+]
+
+primary_domain = "py"
+highlight_language = "py"
