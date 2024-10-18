@@ -18,6 +18,7 @@ Generic API
 .. autoclass:: MultiResFile
 
    .. automethod:: __init__
+   .. automethod:: __getitem__
    .. automethod:: chromosomes
    .. automethod:: path
    .. automethod:: resolutions
@@ -46,6 +47,9 @@ Generic API
    .. automethod:: coord2
    .. automethod:: nnz
    .. automethod:: sum
+   .. automethod:: to_arrow
    .. automethod:: to_coo
+   .. automethod:: to_csr
    .. automethod:: to_df
    .. automethod:: to_numpy
+   .. automethod:: to_pandas
