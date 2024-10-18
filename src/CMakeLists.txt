@@ -52,7 +52,6 @@ target_link_libraries(
 
 install(TARGETS _hictkpy LIBRARY DESTINATION hictkpy)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/hictkpy")
-file(TOUCH "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi")
 
 # This properly escapes Windows paths
 string(REPLACE "\\" "/" HICTKPY_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
@@ -69,7 +68,6 @@ install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake")
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/py.typed" DESTINATION hictkpy)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi" DESTINATION hictkpy)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hictkpy.pyi" DESTINATION hictkpy)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/cooler.pyi" DESTINATION hictkpy)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hic.pyi" DESTINATION hictkpy)
 
