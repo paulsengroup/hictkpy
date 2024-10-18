@@ -21,6 +21,16 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
+def pandas_avail() -> bool:
+    try:
+        import pandas
+    except ModuleNotFoundError:
+        return False
+
+    return True
+
+
+@pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
 class TestClass:
     @staticmethod
     def setup_method():

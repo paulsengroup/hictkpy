@@ -206,6 +206,7 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
 }
 
 nb::object PixelSelector::to_pandas(std::string_view span) const {
+  import_module_checked("pandas");
   return to_arrow(span).attr("to_pandas")();
 }
 
@@ -222,6 +223,7 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_csr(std::string_view span) const {
+  import_module_checked("scipy");
   const auto query_span = parse_span(span);
 
   return std::visit(
@@ -237,6 +239,7 @@ nb::object PixelSelector::to_csr(std::string_view span) const {
 }
 
 nb::object PixelSelector::to_coo(std::string_view span) const {
+  import_module_checked("scipy");
   return to_csr(span).attr("tocoo")(false);
 }
 

@@ -37,10 +37,6 @@ NB_MODULE(_hictkpy, m) {
     throw std::runtime_error("failed to initialize pyarrow runtime");
   }
 
-  [[maybe_unused]] auto np = nb::module_::import_("numpy");
-  [[maybe_unused]] auto pd = nb::module_::import_("pandas");
-  [[maybe_unused]] auto ss = nb::module_::import_("scipy.sparse");
-
   m.attr("__hictk_version__") = hictk::config::version::str();
 
   m.doc() = "Blazing fast toolkit to work with .hic and .cool files.";

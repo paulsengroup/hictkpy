@@ -20,6 +20,16 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
+def pandas_avail() -> bool:
+    try:
+        import pandas
+    except ModuleNotFoundError:
+        return False
+
+    return True
+
+
+@pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
 class TestClass:
     def test_genome_wide(self, file, resolution):
         f = hictkpy.File(file, resolution)
