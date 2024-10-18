@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include <arrow/config.h>
 #include <arrow/python/api.h>
 #include <spdlog/spdlog.h>
 
@@ -30,8 +31,25 @@ namespace hictkpy {
   return logger;
 }
 
+static void check_arrow_abi_compat() {
+  if (arrow::GetBuildInfo().version_major != ARROW_VERSION_MAJOR ||
+      arrow::GetBuildInfo().version_minor != ARROW_VERSION_MINOR) {
+    throw std::runtime_error(fmt::format(
+        FMT_STRING(
+            "Detected Arrow ABI version mismatch!\n"
+            "hictkpy was compiled with Arrow v{}, which is not ABI compatible with the currently "
+            "installed version of Arrow (v{}).\n"
+            "Please install a compatible version of Arrow with e.g. \"pip install "
+            "pyarrow=={}.{}\"."),
+        ARROW_VERSION_STRING, arrow::GetBuildInfo().version_string, ARROW_VERSION_MAJOR,
+        ARROW_VERSION_MINOR));
+  }
+}
+
 NB_MODULE(_hictkpy, m) {
   [[maybe_unused]] const auto logger = init_logger();
+
+  check_arrow_abi_compat();
 
   if (arrow::py::import_pyarrow() == -1) {
     throw std::runtime_error("failed to initialize pyarrow runtime");
