@@ -3,11 +3,24 @@
 # SPDX-License-Identifier: MIT
 
 
-def _load_arrow_python_lib():
-    import pyarrow
+def _load_pyarrow_and_check_abi_compat():
+    import pyarrow as pa
+
+    from ._hictkpy import __hictkpy_arrow_version__
+
+    major, minor, patch = __hictkpy_arrow_version__
+
+    if not pa.__version__.startswith(f"{major}.{minor}"):
+        raise ImportError(
+            "Detected Arrow ABI version mismatch!\n"
+            f"hictkpy was compiled with Arrow v{major}.{minor}.{patch}, which is not ABI compatible with the currently "
+            f"installed version of pyarrow (v{pa.__version__}).\n"
+            'Please install a compatible version of pyarrow with e.g. "pip install '
+            f'pyarrow=={major}.{minor}".'
+        )
 
 
-_load_arrow_python_lib()
+_load_pyarrow_and_check_abi_compat()
 
 
 from importlib.metadata import version
