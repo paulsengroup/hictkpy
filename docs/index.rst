@@ -5,7 +5,7 @@
 Introduction
 ============
 
-hictkpy provides Python bindings to `hictk <https://github/paulsengroup/hictk>`_, a blazing fast toolkit to work with .hic and .cool files.
+hictkpy provides Python bindings to `hictk <https://github.com/paulsengroup/hictk>`_, a blazing fast toolkit to work with .hic and .cool files.
 
 .. only:: not latex
 
@@ -13,7 +13,7 @@ hictkpy provides Python bindings to `hictk <https://github/paulsengroup/hictk>`_
    ---------------------
 
    You are reading the HTML version of the documentation. An alternative `PDF
-   version <https://hictkpy.readthedocs.io/_/downloads/en/latest/pdf/>`__ is
+   version <https://hictkpy.readthedocs.io/_/downloads/en/stable/pdf/>`_ is
    also available.
 
    Installation
@@ -21,9 +21,16 @@ hictkpy provides Python bindings to `hictk <https://github/paulsengroup/hictk>`_
 
 .. only:: latex
 
+   Documentation formats
+   ---------------------
+
+   You are reading the PDF version of the documentation.
+
+   The live HTML version of the documentation is available at `<https://hictkpy.readthedocs.io/en/stable/>`_.
+
    .. rubric:: Installation
 
-Python bindings for hictk can be installed using pip or conda. See :doc:`here <./installation>` for more details.
+Python bindings for hictk can be installed using pip or conda. Refer to :doc:`Installation <./installation>` for more details.
 
 .. only:: not latex
 

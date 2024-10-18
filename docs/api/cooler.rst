@@ -11,6 +11,7 @@ Cooler API
 .. autoclass:: SingleCellFile
 
    .. automethod:: __init__
+   .. automethod:: __getitem__
    .. automethod:: attributes
    .. automethod:: bins
    .. automethod:: cells
