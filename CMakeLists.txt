@@ -52,6 +52,16 @@ FetchContent_Declare(
   SYSTEM
 )
 
+FetchContent_Declare(
+  nanoarrow
+  URL
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/nanoarrow-v0.6.0.tar.xz"
+  URL_HASH "SHA256=7e51399d65a65e45842e3075098b3cf1a53448b0fe4fdf7fa0fec99e16ec7a0b"
+  EXCLUDE_FROM_ALL
+  OVERRIDE_FIND_PACKAGE
+  SYSTEM
+)
+
 # Tweak hictk
 set(HICTK_BUILD_BENCHMARKS OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
