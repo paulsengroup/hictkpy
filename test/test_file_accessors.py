@@ -8,6 +8,8 @@ import pytest
 
 import hictkpy
 
+from .helpers import pandas_avail
+
 testdir = pathlib.Path(__file__).resolve().parent
 
 pytestmark = pytest.mark.parametrize(
@@ -18,15 +20,6 @@ pytestmark = pytest.mark.parametrize(
         (testdir / "data" / "hic_test_file.hic", 100_000),
     ],
 )
-
-
-def pandas_avail() -> bool:
-    try:
-        import pandas
-    except ModuleNotFoundError:
-        return False
-
-    return True
 
 
 class TestClass:
