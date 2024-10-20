@@ -51,6 +51,8 @@ class TestClass:
         df = f.fetch("chr2R:10,000,000-15,000,000", join=True).to_df()
         assert df["count"].sum() == 4_519_080
         assert len(df.columns) == 7
+        assert df["chrom1"].dtype.name == "category"
+        assert df["chrom2"].dtype.name == "category"
 
         df = f.fetch("chr2R:10,000,000-15,000,000", count_type="int").to_df()
         assert df["count"].dtype == np.int32
@@ -82,6 +84,8 @@ class TestClass:
         df = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", join=True).to_df()
         assert df["count"].sum() == 83_604
         assert len(df.columns) == 7
+        assert df["chrom1"].dtype.name == "category"
+        assert df["chrom2"].dtype.name == "category"
 
         df = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="int").to_df()
         assert df["count"].dtype == np.int32
