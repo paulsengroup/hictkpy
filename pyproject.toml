@@ -24,6 +24,11 @@ authors = [
 requires-python = ">=3.9"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
   "License :: OSI Approved :: MIT License"
 ]
@@ -104,10 +109,10 @@ testpaths = [
 ]
 
 [tool.cibuildwheel]
-skip = ["cp313*", "*musllinux*", "pp*"]
+skip = ["cp314*", "*musllinux*", "pp*"]
 test-command = "python -m pytest {project}/test"
 test-extras = ["test"]
-test-skip = ["cp313*", "*universal2", "pp*"]
+test-skip = ["cp314*", "*universal2", "pp*"]
 
 # Setuptools bug causes collision between pypy and cpython artifacts
 before-build = [
