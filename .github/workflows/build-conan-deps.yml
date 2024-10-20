@@ -261,7 +261,7 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.cache-conan.outputs.cache-hit != 'true'
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Update build deps
         if: steps.cache-conan.outputs.cache-hit != 'true'
@@ -366,7 +366,7 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.cache-conan.outputs.cache-hit != 'true'
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Update build deps
         if: steps.cache-conan.outputs.cache-hit != 'true'
