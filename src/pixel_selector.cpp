@@ -185,6 +185,8 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_arrow(std::string_view span) const {
+  std::ignore = import_module_checked("pyarrow");
+
   const auto query_span = parse_span(span);
   auto table = std::visit(
       [&](const auto& sel_ptr) -> std::shared_ptr<arrow::Table> {
@@ -254,6 +256,8 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_numpy(std::string_view span) const {
+  std::ignore = import_module_checked("numpy");
+
   const auto query_span = parse_span(span);
 
   return std::visit(
