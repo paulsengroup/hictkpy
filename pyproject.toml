@@ -6,11 +6,8 @@
 requires = [
   "conan>=2.0.5",
   "nanobind>=2", # This is required in order to run stubgen
-  "numpy",
-  "pandas>=2.1,!=2.2.0",
-  "pyarrow==17.0",
+  "numpy>=2",
   "scikit-build-core>=0.10",
-  "scipy",
   "typing_extensions",
 ]
 
@@ -31,13 +28,19 @@ classifiers = [
   "License :: OSI Approved :: MIT License"
 ]
 
-dependencies = [
+dependencies = []
+
+optional-dependencies.numpy = [
   "numpy",
-  "pyarrow==17.0",
 ]
 
 optional-dependencies.pandas = [
+  "hictkpy[pyarrow]",
   "pandas>=2.1.0,!=2.2.0",
+]
+
+optional-dependencies.pyarrow = [
+  "pyarrow>=16",
 ]
 
 optional-dependencies.scipy = [
@@ -45,7 +48,7 @@ optional-dependencies.scipy = [
 ]
 
 optional-dependencies.all = [
-  "hictkpy[pandas,scipy]",
+  "hictkpy[numpy,pandas,pyarrow,scipy]",
 ]
 
 optional-dependencies.test = [

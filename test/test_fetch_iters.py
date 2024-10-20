@@ -2,9 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
+import math
 import pathlib
 
-import numpy as np
 import pytest
 
 import hictkpy
@@ -87,4 +87,4 @@ class TestClass:
         else:
             sel = f.fetch("chr2R:10,000,000-15,000,000", normalization="ICE")
 
-        assert np.isclose(59.349524704033215, compute_sum(sel))
+        assert math.isclose(59.349524704033215, compute_sum(sel), rel_tol=1.0e-5, abs_tol=1.0e-8)

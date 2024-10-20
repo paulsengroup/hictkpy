@@ -10,6 +10,8 @@ import pytest
 
 import hictkpy
 
+from .helpers import pandas_avail, pyarrow_avail
+
 testdir = pathlib.Path(__file__).resolve().parent
 
 
@@ -21,16 +23,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-def pandas_avail() -> bool:
-    try:
-        import pandas
-    except ModuleNotFoundError:
-        return False
-
-    return True
-
-
-@pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
+@pytest.mark.skipif(not pandas_avail() or not pyarrow_avail(), reason="either pandas or pyarrow are not available")
 class TestClass:
     @staticmethod
     def setup_method():

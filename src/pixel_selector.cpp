@@ -7,7 +7,6 @@
 #include <winsock2.h>
 #endif
 
-#include <arrow/python/pyarrow.h>
 #include <arrow/table.h>
 #include <fmt/format.h>
 
@@ -36,6 +35,7 @@
 
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
+#include "hictkpy/to_pyarrow.hpp"
 
 namespace nb = nanobind;
 
@@ -185,8 +185,10 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_arrow(std::string_view span) const {
+  std::ignore = import_pyarrow_checked();
+
   const auto query_span = parse_span(span);
-  const auto table = std::visit(
+  auto table = std::visit(
       [&](const auto& sel_ptr) -> std::shared_ptr<arrow::Table> {
         assert(!!sel_ptr);
         return std::visit(
@@ -202,12 +204,12 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
       },
       selector);
 
-  return nb::steal(arrow::py::wrap_table(table));
+  return export_pyarrow_table(std::move(table));
 }
 
 nb::object PixelSelector::to_pandas(std::string_view span) const {
   import_module_checked("pandas");
-  return to_arrow(span).attr("to_pandas")();
+  return to_arrow(span).attr("to_pandas")(nb::arg("self_destruct") = true);
 }
 
 nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(span); }
@@ -254,6 +256,8 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_numpy(std::string_view span) const {
+  std::ignore = import_module_checked("numpy");
+
   const auto query_span = parse_span(span);
 
   return std::visit(

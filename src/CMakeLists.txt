@@ -2,10 +2,18 @@
 #
 # SPDX-License-Identifier: MIT
 
+find_package(
+  Python
+  3.9
+  COMPONENTS
+    Interpreter
+    NumPy
+  REQUIRED
+)
+
 find_package(Arrow REQUIRED)
 find_package(FMT REQUIRED)
 find_package(nanobind REQUIRED)
-find_package(Pyarrow REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Filesystem REQUIRED)
 
@@ -25,16 +33,15 @@ nanobind_add_module(
         "${CMAKE_CURRENT_SOURCE_DIR}/pixel_selector.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/reference.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/singlecell_file.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/to_pyarrow.cpp"
 )
 
 target_include_directories(
   _hictkpy
   PRIVATE
     include
-    "${PYARROW_INCLUDE_DIR}"
-    "${NUMPY_INCLUDE_DIR}"
+    "${Python_NumPy_INCLUDE_DIR}"
 )
-target_link_directories(_hictkpy PRIVATE "${PYARROW_LIB_DIRS}")
 
 target_link_libraries(
   _hictkpy
@@ -45,7 +52,7 @@ target_link_libraries(
     hictk::file
     hictk::hic
     hictk::transformers
-    Arrow::python
+    Arrow::arrow_$<IF:$<BOOL:${BUILD_SHARED_LIBS}>,shared,static>
     fmt::fmt-header-only
     spdlog::spdlog_header_only
     std::filesystem
