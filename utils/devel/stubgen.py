@@ -51,9 +51,6 @@ def main():
     if "" not in sys.path and "." not in sys.path:
         sys.path.insert(0, "")
 
-    pyarrow = importlib.import_module("pyarrow")
-    pyarrow.create_library_symlinks()
-
     touch_file(os.path.join(args["output-dir"], "py.typed"), args["force"])
 
     process_module("hictkpy._hictkpy", os.path.join(args["output-dir"], "__init__.pyi"), args["force"])
