@@ -114,7 +114,7 @@ static void release_arrow_array_streamPyCapsule(PyObject* capsule) {
 nb::object export_pyarrow_table(std::shared_ptr<arrow::Table> arrow_table) {
   assert(arrow_table);
 
-  const auto pa = import_module_checked("pyarrow");
+  const auto pa = import_pyarrow_checked();
 
   std::vector<nb::object> columns_py(static_cast<std::size_t>(arrow_table->num_columns()));
   std::vector<std::shared_ptr<arrow::ChunkedArray>> columns(columns_py.size());

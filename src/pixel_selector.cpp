@@ -185,7 +185,7 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_arrow(std::string_view span) const {
-  std::ignore = import_module_checked("pyarrow");
+  std::ignore = import_pyarrow_checked();
 
   const auto query_span = parse_span(span);
   auto table = std::visit(
