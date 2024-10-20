@@ -30,7 +30,16 @@ def pandas_avail() -> bool:
     return True
 
 
-@pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
+def pyarrow_avail() -> bool:
+    try:
+        import pyarrow
+    except ModuleNotFoundError:
+        return False
+
+    return True
+
+
+@pytest.mark.skipif(not pandas_avail() or not pyarrow_avail(), reason="either pandas or pyarrow are not available")
 class TestClass:
     @staticmethod
     def setup_method():
