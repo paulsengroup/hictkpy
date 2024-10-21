@@ -16,11 +16,11 @@ using ChromosomeDict = nanobind::typed<nanobind::dict, std::string, std::uint32_
 
 [[nodiscard]] hictk::Reference chromosome_dict_to_reference(const ChromosomeDict &chromosomes);
 
-template <typename File>
-inline nanobind::typed<nanobind::dict, std::string, std::uint32_t> get_chromosomes_from_file(
-    const File &f, bool include_all = false) {
+template <typename T>
+inline nanobind::typed<nanobind::dict, std::string, std::uint32_t> get_chromosomes_from_object(
+    const T &obj, bool include_all = false) {
   nanobind::typed<nanobind::dict, std::string, std::uint32_t> py_chroms{};  // NOLINT
-  for (const auto &chrom : f.chromosomes()) {
+  for (const auto &chrom : obj.chromosomes()) {
     if (!include_all && chrom.is_all()) {
       continue;
     }

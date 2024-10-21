@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
@@ -26,6 +27,24 @@
 namespace nb = nanobind;
 
 namespace hictkpy {
+
+[[nodiscard]] static ChromosomeDict get_chromosomes_checked(const hictk::BinTable &bins) {
+  if (bins.type() != hictk::BinTable::Type::fixed) {
+    throw std::runtime_error(
+        "constructing .hic files is only supported when the BinTable has a uniform bin size");
+  }
+
+  ChromosomeDict chroms{};
+  for (const auto &chrom : bins.chromosomes()) {
+    if (chrom.is_all()) {
+      continue;
+    }
+    const auto *chrom_name = chrom.name().data();
+    chroms[chrom_name] = chrom.size();
+  }
+
+  return chroms;
+}
 
 HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const ChromosomeDict &chromosomes,
                              const std::vector<std::uint32_t> &resolutions_,
@@ -45,6 +64,14 @@ HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const Chromosom
                              bool skip_all_vs_all_matrix)
     : HiCFileWriter(path_, chromosomes, std::vector<std::uint32_t>{resolution}, assembly, n_threads,
                     chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
+
+HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const hictkpy::BinTable &bins_,
+                             std::string_view assembly, std::size_t n_threads,
+                             std::size_t chunk_size, const std::filesystem::path &tmpdir,
+                             std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
+    : HiCFileWriter(path_, get_chromosomes_checked(*bins_.get()), bins_.get()->resolution(),
+                    assembly, n_threads, chunk_size, tmpdir, compression_lvl,
+                    skip_all_vs_all_matrix) {}
 
 void HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
   if (_finalized) {
@@ -111,17 +138,29 @@ void HiCFileWriter::bind(nb::module_ &m) {
              nb::arg("chunk_size") = 10'000'000,
              nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
-             "Open a .hic file for writing.");
+             "Open a .hic file for writing given a list of chromosomes with their sizes and one "
+             "resolution.");
 
-  writer.def(nb::init<const std::filesystem::path &, const ChromosomeDict &,
-                      const std::vector<std::uint32_t> &, std::string_view, std::size_t,
-                      std::size_t, const std::filesystem::path &, std::uint32_t, bool>(),
-             nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolutions"),
-             nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
-             nb::arg("chunk_size") = 10'000'000,
-             nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
-             nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
-             "Open a .hic file for writing.");
+  writer.def(
+      nb::init<const std::filesystem::path &, const ChromosomeDict &,
+               const std::vector<std::uint32_t> &, std::string_view, std::size_t, std::size_t,
+               const std::filesystem::path &, std::uint32_t, bool>(),
+      nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolutions"),
+      nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1, nb::arg("chunk_size") = 10'000'000,
+      nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
+      nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
+      "Open a .hic file for writing given a list of chromosomes with their sizes and one or more "
+      "resolutions.");
+
+  writer.def(
+      nb::init<const std::filesystem::path &, const hictkpy::BinTable &, std::string_view,
+               std::size_t, std::size_t, const std::filesystem::path &, std::uint32_t, bool>(),
+      nb::arg("path"), nb::arg("bins"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
+      nb::arg("chunk_size") = 10'000'000,
+      nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
+      nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
+      "Open a .hic file for writing given a BinTable. Only BinTable with a fixed bin size are "
+      "supported.");
   // NOLINTEND(*-avoid-magic-numbers)
 
   writer.def("__repr__", &hictkpy::HiCFileWriter::repr);
@@ -129,8 +168,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
   writer.def("path", &hictkpy::HiCFileWriter::path, "Get the file path.");
   writer.def("resolutions", &hictkpy::HiCFileWriter::resolutions,
              "Get the list of resolutions in bp.");
-  writer.def("chromosomes", &get_chromosomes_from_file<hictkpy::HiCFileWriter>,
-             nb::arg("include_all") = false,
+  writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::HiCFileWriter>,
+             nb::arg("include_ALL") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
   writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,
