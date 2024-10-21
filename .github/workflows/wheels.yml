@@ -297,7 +297,7 @@ jobs:
     # if: github.event_name == 'push'  # TODO fixme
     needs: [package-artifacts]
     environment:
-      name: test-pypi
+      name: Test PyPI
       url: https://test.pypi.org/p/hictkpy
     permissions:
       id-token: write
@@ -329,7 +329,7 @@ jobs:
     if: github.event_name == 'release' && github.event.action == 'published'
     needs: [package-artifacts]
     environment:
-      name: pypi
+      name: PyPI
       url: https://pypi.org/p/hictkpy
     permissions:
       id-token: write
