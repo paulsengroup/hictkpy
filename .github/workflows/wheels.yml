@@ -313,7 +313,7 @@ jobs:
 
       - name: Extract dist.tar
         run: |
-          tar -xf dist.tar
+          tar -tf dist.tar --wildcards "*cp312*.whl" "*.tar.gz"
           rm dist.tar
 
       - name: Upload wheels to Test PyPI
