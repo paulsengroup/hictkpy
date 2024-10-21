@@ -10,6 +10,7 @@ def _get_hictkpy_version() -> str:
 
 
 from ._hictkpy import (
+    BinTable,
     File,
     MultiResFile,
     PixelSelector,
@@ -26,6 +27,7 @@ from ._hictkpy import (
 __version__ = _get_hictkpy_version()
 __all__ = [
     "__doc__",
+    "BinTable",
     "File",
     "MultiResFile",
     "PixelSelector",
