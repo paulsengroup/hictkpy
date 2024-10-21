@@ -16,7 +16,8 @@ class TestClass:
         bins = hictkpy.BinTable(chroms, 100)
 
         assert len(bins.chromosomes()) == 2
-        assert bins.bin_size() == 100
+        assert bins.resolution() == 100
+        assert bins.type() == "fixed"
         assert len(bins) == 15
 
     def test_getters(self):
