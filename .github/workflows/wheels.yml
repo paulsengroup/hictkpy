@@ -294,7 +294,7 @@ jobs:
 
   test-pypi-publish:
     name: Upload wheels to Test PyPI
-    # if: github.event_name == 'push'  # TODO fixme
+    if: github.event_name == 'push'
     needs: [package-artifacts]
     environment:
       name: Test PyPI
@@ -316,7 +316,6 @@ jobs:
           rm dist.tar
 
       - name: Upload wheels to Test PyPI
-        if: false # TODO fixme
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: true
