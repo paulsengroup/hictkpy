@@ -20,8 +20,10 @@ It is also possible to install hictkpy with a minimal set of dependencies with o
 
 .. code-block:: bash
 
-  pip install hictkpy
+  pip install hictkpy  # this target has no runtime dependencies!
+  pip install 'hictkpy[numpy]'
   pip install 'hictkpy[pandas]'
+  pip install 'hictkpy[pyarrow]'
   pip install 'hictkpy[scipy]'
 
 
