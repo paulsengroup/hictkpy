@@ -45,6 +45,10 @@ const hictk::Reference& BinTable::chromosomes() const noexcept { return _bins->c
 
 std::uint32_t BinTable::resolution() const noexcept { return _bins->resolution(); }
 
+std::string_view BinTable::type() const noexcept {
+  return _bins->type() == hictk::BinTable::Type::fixed ? "fixed" : "variable";
+}
+
 std::size_t BinTable::size() const noexcept { return _bins->size(); }
 
 std::string BinTable::repr() const {
@@ -403,6 +407,9 @@ void BinTable::bind(nb::module_& m) {
   bt.def("bin_size", &BinTable::resolution,
          "Get the bin size for the bin table. "
          "Return 0 in case the bin table has a variable bin size.");
+
+  bt.def("type", &BinTable::type,
+         "Get the type of table underlying the BinTable object (i.e. fixed or variable).");
 
   bt.def("__len__", &BinTable::size, "Get the number of bins in the bin table.");
 

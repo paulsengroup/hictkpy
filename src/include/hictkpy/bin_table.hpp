@@ -31,6 +31,7 @@ class BinTable {
 
   [[nodiscard]] const hictk::Reference& chromosomes() const noexcept;
   [[nodiscard]] std::uint32_t resolution() const noexcept;
+  [[nodiscard]] std::string_view type() const noexcept;
   [[nodiscard]] std::size_t size() const noexcept;
 
   [[nodiscard]] std::string repr() const;
