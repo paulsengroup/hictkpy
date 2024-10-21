@@ -460,7 +460,7 @@ void BinTable::bind(nb::module_& m) {
   bt.def(nb::init<nb::object>(), nb::arg("bins"),
          "Construct a table of bins from a pandas.DataFrame with columns [\"chrom\", \"start\", "
          "\"end\"].",
-         nb::sig("def __init__(self, df: pandas.DataFrame) -> hictkpy.BinTable"));
+         nb::sig("def __init__(self, df: pandas.DataFrame)"));
 
   bt.def("__repr__", &BinTable::repr);
 
