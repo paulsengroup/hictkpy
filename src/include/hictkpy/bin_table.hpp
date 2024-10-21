@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <hictk/bin.hpp>
 #include <hictk/bin_table.hpp>
+#include <hictk/reference.hpp>
 #include <memory>
 #include <optional>
 #include <string>

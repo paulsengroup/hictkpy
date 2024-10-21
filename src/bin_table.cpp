@@ -5,6 +5,7 @@
 #include "hictkpy/bin_table.hpp"
 
 #include <arrow/array.h>
+#include <arrow/buffer.h>
 #include <arrow/builder.h>
 #include <arrow/table.h>
 #include <arrow/type.h>
@@ -14,12 +15,18 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <hictk/bin.hpp>
 #include <hictk/bin_table.hpp>
+#include <hictk/genomic_interval.hpp>
 #include <hictk/reference.hpp>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
 #include "hictkpy/reference.hpp"
