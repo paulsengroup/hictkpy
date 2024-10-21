@@ -380,7 +380,7 @@ static auto compute_num_bins(const hictk::BinTable& bins, const hictk::GenomicIn
 
 nb::object BinTable::to_df(std::optional<std::string_view> range,
                            std::string_view query_type) const {
-  auto pd = nb::module_::import_("pandas");
+  auto pd = import_module_checked("pandas");
 
   const auto qt =
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
