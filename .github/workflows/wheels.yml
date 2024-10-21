@@ -292,6 +292,70 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  test-pypi-publish:
+    name: Upload wheels to Test PyPI
+    # if: github.event_name == 'push'  # TODO fixme
+    needs: [package-artifacts]
+    environment:
+      name: test-pypi
+      url: https://test.pypi.org/p/hictkpy
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+          merge-multiple: true
+
+      - name: Extract dist.tar
+        run: |
+          tar -xf dist.tar
+          rm dist.tar
+
+      - name: Upload wheels to Test PyPI
+        if: false # TODO fixme
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
+          print-hash: true
+          repository-url: https://test.pypi.org/legacy/
+          verbose: true
+
+  pypi-publish:
+    name: Upload release to PyPI
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: [package-artifacts]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/hictkpy
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+          merge-multiple: true
+
+      - name: Extract dist.tar
+        run: |
+          tar -xf dist.tar
+          rm dist.tar
+
+      - name: Upload wheels to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
+          print-hash: true
+          verbose: true
+
   build-wheels-status-check:
     name: Status Check (Build wheels)
     if: ${{ always() }}
@@ -300,11 +364,18 @@ jobs:
       - build-sdist
       - build-wheels
       - package-artifacts
+      - test-pypi-publish
+      - pypi-publish
 
     steps:
       - name: Collect job results
         if: |
-          needs.build-sdist.result != 'success'  ||
-          needs.build-wheels.result != 'success' ||
-          needs.package-artifacts.result != 'success'
+          needs.build-sdist.result != 'success'        ||
+          needs.build-wheels.result != 'success'       ||
+          needs.package-artifacts.result != 'success'  ||
+          (
+           needs.test-pypi-publish.result != 'success' &&
+           needs.pypi-publish.result != 'success'      &&
+           github.event_name != 'workflow_dispatch'
+          )
         run: exit 1
