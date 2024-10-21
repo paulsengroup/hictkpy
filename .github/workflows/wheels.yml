@@ -308,12 +308,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dist
-          path: dist
           merge-multiple: true
 
       - name: Extract dist.tar
         run: |
-          tar -tf dist.tar --wildcards "*cp312*.whl" "*.tar.gz"
+          tar -xf dist.tar --wildcards "*cp312*.whl" "*.tar.gz"
           rm dist.tar
 
       - name: Upload wheels to Test PyPI
