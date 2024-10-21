@@ -341,6 +341,6 @@ jobs:
           needs.package-artifacts.result != 'success'  ||
           (
            needs.pypi-publish.result != 'success'      &&
-           github.event_name != 'workflow_dispatch'
+           needs.pypi-publish.result != 'skipped'
           )
         run: exit 1
