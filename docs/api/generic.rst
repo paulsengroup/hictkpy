@@ -49,3 +49,17 @@ Generic API
    .. automethod:: to_coo
    .. automethod:: to_df
    .. automethod:: to_numpy
+
+.. autoclass:: Bin
+
+.. autoclass:: BinTable
+
+   .. automethod:: __init__
+   .. automethod:: chromosomes
+   .. automethod:: get
+   .. automethod:: get_id
+   .. automethod:: get_ids
+   .. automethod:: merge
+   .. automethod:: resolution
+   .. automethod:: to_df
+   .. automethod:: type
