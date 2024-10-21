@@ -11,6 +11,28 @@ from .helpers import numpy_avail, pandas_avail, pyarrow_avail
 
 
 class TestClass:
+    def test_ctor_fixed_bins(self):
+        chroms = {"chr1": 1000, "chr2": 500}
+        bins = hictkpy.BinTable(chroms, 100)
+        assert bins.type() == "fixed"
+        assert len(bins) == 15
+
+    @pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
+    def test_ctor_variable_bins(self):
+        import pandas as pd
+
+        data = pd.DataFrame(
+            {
+                "chrom": ["chr1", "chr1", "chr2", "chr2", "chr3"],
+                "start": [0, 100, 0, 15, 0],
+                "end": [100, 127, 15, 75, 12],
+            }
+        )
+
+        bins = hictkpy.BinTable(data)
+        assert bins.type() == "variable"
+        assert len(bins) == len(data)
+
     def test_accessors(self):
         chroms = {"chr1": 1000, "chr2": 500}
         bins = hictkpy.BinTable(chroms, 100)
