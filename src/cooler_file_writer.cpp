@@ -177,7 +177,7 @@ void CoolerFileWriter::bind(nb::module_ &m) {
   writer.def("path", &hictkpy::CoolerFileWriter::path, "Get the file path.");
   writer.def("resolutions", &hictkpy::CoolerFileWriter::resolution, "Get the resolution in bp.");
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::CoolerFileWriter>,
-             nb::arg("include_all") = false,
+             nb::arg("include_ALL") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
   writer.def("add_pixels", &hictkpy::CoolerFileWriter::add_pixels,

@@ -130,7 +130,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
   writer.def("resolutions", &hictkpy::HiCFileWriter::resolutions,
              "Get the list of resolutions in bp.");
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::HiCFileWriter>,
-             nb::arg("include_all") = false,
+             nb::arg("include_ALL") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.");
 
   writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,

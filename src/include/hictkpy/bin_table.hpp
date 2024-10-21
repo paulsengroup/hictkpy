@@ -9,6 +9,7 @@
 #include <hictk/bin.hpp>
 #include <hictk/bin_table.hpp>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -39,7 +40,7 @@ class BinTable {
   [[nodiscard]] hictk::Bin bin_id_to_coord(std::uint64_t bin_id) const;
   [[nodiscard]] nanobind::object bin_ids_to_coords(std::vector<std::uint64_t> bin_ids) const;
 
-  [[nodiscard]] nanobind::object coord_to_bin(std::string_view chrom, std::uint32_t pos) const;
+  [[nodiscard]] hictk::Bin coord_to_bin(std::string_view chrom, std::uint32_t pos) const;
   [[nodiscard]] nanobind::object coords_to_bins(const std::vector<std::string>& chroms,
                                                 const std::vector<std::uint32_t>& positions) const;
 
@@ -52,7 +53,8 @@ class BinTable {
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
 
-  [[nodiscard]] nanobind::object to_df(std::string_view range, std::string_view query_type) const;
+  [[nodiscard]] nanobind::object to_df(std::optional<std::string_view> range,
+                                       std::string_view query_type) const;
 
   static void bind(nanobind::module_& m);
 

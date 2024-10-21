@@ -41,7 +41,7 @@ void declare_multires_file_class(nb::module_& m) {
 
   mres_file.def("path", &multires_file::get_path, "Get the file path.");
   mres_file.def("chromosomes", &get_chromosomes_from_object<hictk::MultiResFile>,
-                nb::arg("include_all") = false,
+                nb::arg("include_ALL") = false,
                 "Get chromosomes sizes as a dictionary mapping names to sizes.");
   mres_file.def("resolutions", &hictk::MultiResFile::resolutions,
                 "Get the list of available resolutions.");

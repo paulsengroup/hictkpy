@@ -216,10 +216,10 @@ void declare_file_class(nb::module_ &m) {
   file.def("is_hic", &hictk::File::is_hic, "Test whether file is in .hic format.");
   file.def("is_cooler", &hictk::File::is_cooler, "Test whether file is in .cool format.");
 
-  file.def("chromosomes", &get_chromosomes_from_object<hictk::File>, nb::arg("include_all") = false,
+  file.def("chromosomes", &get_chromosomes_from_object<hictk::File>, nb::arg("include_ALL") = false,
            "Get chromosomes sizes as a dictionary mapping names to sizes.");
-  file.def("bins", &get_bins_from_object<hictk::File>, nb::sig("def bins(self) -> BinTable"),
-           "Get table of bins.");
+  file.def("bins", &get_bins_from_object<hictk::File>, "Get table of bins.",
+           nb::sig("def bins(self) -> hictkpy.BinTable"));
 
   file.def("resolution", &hictk::File::resolution, "Get the bin size in bp.");
   file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");

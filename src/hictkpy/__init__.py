@@ -10,6 +10,7 @@ def _get_hictkpy_version() -> str:
 
 
 from ._hictkpy import (
+    Bin,
     BinTable,
     File,
     MultiResFile,
@@ -27,6 +28,7 @@ from ._hictkpy import (
 __version__ = _get_hictkpy_version()
 __all__ = [
     "__doc__",
+    "Bin",
     "BinTable",
     "File",
     "MultiResFile",
