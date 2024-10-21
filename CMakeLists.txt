@@ -59,13 +59,10 @@ set(HICTK_BUILD_TOOLS OFF)
 set(HICTK_ENABLE_FUZZY_TESTING OFF)
 set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_INSTALL OFF)
-set(HICTK_WITH_ARROW_SHARED ON)
 set(HICTK_WITH_EIGEN ON)
 set(HICTK_ENABLE_GIT_VERSION_TRACKING OFF)
 
-# This must be called before finding hictk, such that hictk will link to the arrow lib shipped with the Python wheel
-# Furthermore, we are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
-find_package(Arrow REQUIRED)
+# We are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
 find_package(hictk REQUIRED)
 
 get_property(BUILDING_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -158,6 +155,7 @@ if(WIN32)
     INTERFACE
       NOMINMAX
       _CRT_SECURE_NO_WARNINGS
+      _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR # https://github.com/gabime/spdlog/issues/3212
   )
 endif()
 

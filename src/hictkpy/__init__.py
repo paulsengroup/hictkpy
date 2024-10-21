@@ -3,16 +3,15 @@
 # SPDX-License-Identifier: MIT
 
 
-def _load_arrow_python_lib():
-    import pyarrow
+def _get_hictkpy_version() -> str:
+    from importlib.metadata import version
 
+    return version("hictkpy")
 
-_load_arrow_python_lib()
-
-
-from importlib.metadata import version
 
 from ._hictkpy import (
+    Bin,
+    BinTable,
     File,
     MultiResFile,
     PixelSelector,
@@ -26,9 +25,11 @@ from ._hictkpy import (
     is_scool_file,
 )
 
-__version__ = version("hictkpy")
+__version__ = _get_hictkpy_version()
 __all__ = [
     "__doc__",
+    "Bin",
+    "BinTable",
     "File",
     "MultiResFile",
     "PixelSelector",

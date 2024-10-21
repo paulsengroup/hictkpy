@@ -4,11 +4,11 @@
 
 import pathlib
 
-import numpy as np
 import pytest
-from scipy.linalg import issymmetric
 
 import hictkpy
+
+from .helpers import numpy_avail
 
 testdir = pathlib.Path(__file__).resolve().parent
 
@@ -21,6 +21,19 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
+def issymmetric(m) -> bool:
+    import numpy as np
+
+    assert m.ndim == 2
+    if m.size == 0:
+        return True
+    if m.shape[0] != m.shape[1]:
+        return False
+
+    return np.allclose(m, m.T, atol=0.0, rtol=0.0)
+
+
+@pytest.mark.skipif(not numpy_avail(), reason="numpy is not available")
 class TestClass:
     def test_genome_wide(self, file, resolution):
         f = hictkpy.File(file, resolution)
@@ -30,6 +43,8 @@ class TestClass:
         assert issymmetric(m)
 
     def test_cis(self, file, resolution):
+        import numpy as np
+
         f = hictkpy.File(file, resolution)
         m = f.fetch("chr2R:10,000,000-15,000,000").to_numpy()
         assert m.shape == (50, 50)
@@ -58,6 +73,8 @@ class TestClass:
         assert m.sum() == 12_607_205
 
     def test_trans(self, file, resolution):
+        import numpy as np
+
         f = hictkpy.File(file, resolution)
         m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000").to_numpy()
         assert m.shape == (50, 100)

@@ -35,6 +35,8 @@ class HictkpyConan(ConanFile):
         return 17
 
     def requirements(self):
+        self.requires("arrow/17.0.0#81be2aa6c49800df8cc163adf4b99e9f")
+        self.requires("boost/1.86.0#cd839a2082585255010f9e82eea94c7f", force=True)
         self.requires("bshoshany-thread-pool/4.1.0#be1802a8768416a6c9b1393cf0ce5e9c")
         self.requires("concurrentqueue/1.0.4#1e48e1c712bcfd892087c9c622a51502")
         self.requires("eigen/3.4.0#2e192482a8acff96fe34766adca2b24c")
@@ -57,6 +59,54 @@ class HictkpyConan(ConanFile):
         if self.settings.compiler in ["clang", "gcc"]:
             self.settings.compiler.libcxx = "libstdc++11"
 
+        self.options["arrow"].compute = True
+        self.options["arrow"].parquet = False
+        self.options["arrow"].with_boost = True
+        self.options["arrow"].with_re2 = True
+        self.options["arrow"].with_thrift = False
+        self.options["boost"].system_no_deprecated = True
+        self.options["boost"].asio_no_deprecated = True
+        self.options["boost"].filesystem_no_deprecated = True
+        self.options["boost"].filesystem_version = 4
+        self.options["boost"].zlib = False
+        self.options["boost"].bzip2 = False
+        self.options["boost"].lzma = False
+        self.options["boost"].zstd = False
+        self.options["boost"].without_atomic = False
+        self.options["boost"].without_charconv = True
+        self.options["boost"].without_chrono = True
+        self.options["boost"].without_cobalt = True
+        self.options["boost"].without_container = True
+        self.options["boost"].without_context = True
+        self.options["boost"].without_contract = True
+        self.options["boost"].without_coroutine = True
+        self.options["boost"].without_date_time = True
+        self.options["boost"].without_exception = True
+        self.options["boost"].without_fiber = True
+        self.options["boost"].without_filesystem = False
+        self.options["boost"].without_graph = True
+        self.options["boost"].without_graph_parallel = True
+        self.options["boost"].without_iostreams = True
+        self.options["boost"].without_json = True
+        self.options["boost"].without_locale = True
+        self.options["boost"].without_log = True
+        self.options["boost"].without_math = True
+        self.options["boost"].without_mpi = True
+        self.options["boost"].without_nowide = True
+        self.options["boost"].without_process = False
+        self.options["boost"].without_program_options = True
+        self.options["boost"].without_python = True
+        self.options["boost"].without_random = True
+        self.options["boost"].without_regex = True
+        self.options["boost"].without_serialization = True
+        self.options["boost"].without_stacktrace = True
+        self.options["boost"].without_system = False
+        self.options["boost"].without_test = True
+        self.options["boost"].without_thread = True
+        self.options["boost"].without_timer = True
+        self.options["boost"].without_type_erasure = True
+        self.options["boost"].without_url = True
+        self.options["boost"].without_wave = True
         self.options["fmt"].header_only = True
         self.options["hdf5"].enable_cxx = False
         self.options["hdf5"].hl = False

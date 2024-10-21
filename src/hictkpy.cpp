@@ -2,15 +2,17 @@
 //
 // SPDX-License-Identifier: MIT
 
-#include <arrow/python/api.h>
+#include <spdlog/spdlog.h>
 
 #include <cstdint>
 #include <hictk/version.hpp>
 #include <stdexcept>
 
+#include "hictkpy/bin_table.hpp"
 #include "hictkpy/cooler_file_writer.hpp"
 #include "hictkpy/file.hpp"
 #include "hictkpy/hic_file_writer.hpp"
+#include "hictkpy/logger.hpp"
 #include "hictkpy/multires_file.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
@@ -20,14 +22,16 @@
 namespace nb = nanobind;
 namespace hictkpy {
 
-NB_MODULE(_hictkpy, m) {
-  if (arrow::py::import_pyarrow() == -1) {
-    throw std::runtime_error("failed to initialize pyarrow runtime");
-  }
+[[nodiscard]] static hictkpy::Logger init_logger() {
+  hictkpy::Logger logger{spdlog::level::debug};
+#ifndef _WIN32
+  spdlog::set_default_logger(logger.get_logger());
+#endif
+  return logger;
+}
 
-  [[maybe_unused]] auto np = nb::module_::import_("numpy");
-  [[maybe_unused]] auto pd = nb::module_::import_("pandas");
-  [[maybe_unused]] auto ss = nb::module_::import_("scipy.sparse");
+NB_MODULE(_hictkpy, m) {
+  [[maybe_unused]] const auto logger = init_logger();
 
   m.attr("__hictk_version__") = hictk::config::version::str();
 
@@ -45,6 +49,8 @@ NB_MODULE(_hictkpy, m) {
   declare_thin_pixel_class<double>(m, "FP");
   declare_pixel_class<std::int64_t>(m, "Int");
   declare_pixel_class<double>(m, "FP");
+
+  BinTable::bind(m);
 
   PixelSelector::bind(m);
 

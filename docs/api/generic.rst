@@ -54,7 +54,7 @@ Generic API
    .. automethod:: to_numpy
    .. automethod:: to_pandas
 
-  .. automethod:: __iter__
+   .. automethod:: __iter__
 
     .. code-block:: ipythonconsole
 
@@ -109,3 +109,19 @@ Generic API
         chr2L 10000000 10010000 chr2L 10090000 10100000 105
         chr2L 10000000 10010000 chr2L 10100000 10110000 99
         chr2L 10000000 10010000 chr2L 10110000 10120000 120
+
+.. autoclass:: Bin
+
+.. autoclass:: BinTable
+
+   .. automethod:: __init__
+   .. automethod:: chromosomes
+   .. automethod:: get
+   .. automethod:: get_id
+   .. automethod:: get_ids
+   .. automethod:: merge
+   .. automethod:: resolution
+   .. automethod:: to_df
+   .. automethod:: type
+
+   .. automethod:: __iter__

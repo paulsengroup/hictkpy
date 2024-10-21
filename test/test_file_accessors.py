@@ -8,6 +8,8 @@ import pytest
 
 import hictkpy
 
+from .helpers import pandas_avail
+
 testdir = pathlib.Path(__file__).resolve().parent
 
 pytestmark = pytest.mark.parametrize(
@@ -21,12 +23,15 @@ pytestmark = pytest.mark.parametrize(
 
 
 class TestClass:
+    @pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
     def test_attributes(self, file, resolution):
         f = hictkpy.File(file, resolution)
         assert f.resolution() == 100_000
+        # assert f.nchroms() == 8  # TODO enable after merging https://github.com/paulsengroup/hictk/pull/294
         assert f.nbins() == 1380
 
         assert "chr2L" in f.chromosomes()
+
         assert len(f.bins()) == 1380
         assert len(f.chromosomes()) == 8
 
@@ -47,4 +52,4 @@ class TestClass:
 
         name = "weight" if f.is_cooler() else "ICE"
         weights = f.weights(name)
-        assert len(weights) == len(f.bins())
+        assert len(weights) == f.nbins()

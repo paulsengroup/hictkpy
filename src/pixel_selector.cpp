@@ -7,7 +7,6 @@
 #include <winsock2.h>
 #endif
 
-#include <arrow/python/api.h>
 #include <arrow/table.h>
 #include <fmt/format.h>
 
@@ -36,6 +35,7 @@
 
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
+#include "hictkpy/to_pyarrow.hpp"
 
 namespace nb = nanobind;
 
@@ -185,8 +185,10 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_arrow(std::string_view span) const {
+  std::ignore = import_pyarrow_checked();
+
   const auto query_span = parse_span(span);
-  const auto table = std::visit(
+  auto table = std::visit(
       [&](const auto& sel_ptr) -> std::shared_ptr<arrow::Table> {
         assert(!!sel_ptr);
         return std::visit(
@@ -202,11 +204,12 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
       },
       selector);
 
-  return nb::steal(arrow::py::wrap_table(table));
+  return export_pyarrow_table(std::move(table));
 }
 
 nb::object PixelSelector::to_pandas(std::string_view span) const {
-  return to_arrow(span).attr("to_pandas")();
+  import_module_checked("pandas");
+  return to_arrow(span).attr("to_pandas")(nb::arg("self_destruct") = true);
 }
 
 nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(span); }
@@ -222,6 +225,7 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_csr(std::string_view span) const {
+  import_module_checked("scipy");
   const auto query_span = parse_span(span);
 
   return std::visit(
@@ -237,6 +241,7 @@ nb::object PixelSelector::to_csr(std::string_view span) const {
 }
 
 nb::object PixelSelector::to_coo(std::string_view span) const {
+  import_module_checked("scipy");
   return to_csr(span).attr("tocoo")(false);
 }
 
@@ -251,6 +256,8 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_numpy(std::string_view span) const {
+  std::ignore = import_module_checked("numpy");
+
   const auto query_span = parse_span(span);
 
   return std::visit(
@@ -382,7 +389,7 @@ void PixelSelector::bind(nb::module_& m) {
   sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.");
 
   sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
-          nb::sig("def __iter__(self) -> PixelIterator"),
+          nb::sig("def __iter__(self) -> hictkpy.PixelIterator"),
           "Return an iterator over the selected pixels.");
 
   sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",

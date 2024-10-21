@@ -2,12 +2,14 @@
 #
 # SPDX-License-Identifier: MIT
 
+import math
 import pathlib
 
-import numpy as np
 import pytest
 
 import hictkpy
+
+from .helpers import numpy_avail, scipy_avail
 
 testdir = pathlib.Path(__file__).resolve().parent
 
@@ -20,6 +22,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
+@pytest.mark.skipif(not scipy_avail(), reason="scipy is not available")
 class TestClass:
     def test_genome_wide(self, file, resolution):
         f = hictkpy.File(file, resolution)
@@ -35,11 +38,14 @@ class TestClass:
         assert m.shape == (50, 50)
         assert m.sum() == 4_519_080
 
-        m = f.fetch("chr2R:10,000,000-15,000,000", count_type="int").to_coo()
-        assert m.dtype == np.int32
+        if numpy_avail():
+            import numpy as np
 
-        m = f.fetch("chr2R:10,000,000-15,000,000", count_type="float").to_coo()
-        assert m.dtype == np.float64
+            m = f.fetch("chr2R:10,000,000-15,000,000", count_type="int").to_coo()
+            assert m.dtype == np.int32
+
+            m = f.fetch("chr2R:10,000,000-15,000,000", count_type="float").to_coo()
+            assert m.dtype == np.float64
 
         m = f.fetch("chr2R\t10000000\t15000000", query_type="BED").to_coo()
         assert m.shape == (50, 50)
@@ -59,11 +65,14 @@ class TestClass:
         assert m.shape == (50, 100)
         assert m.sum() == 83_604
 
-        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="int").to_coo()
-        assert m.dtype == np.int32
+        if numpy_avail():
+            import numpy as np
 
-        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="float").to_coo()
-        assert m.dtype == np.float64
+            m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="int").to_coo()
+            assert m.dtype == np.int32
+
+            m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="float").to_coo()
+            assert m.dtype == np.float64
 
         m = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED").to_coo()
         assert m.shape == (50, 100)
@@ -76,4 +85,4 @@ class TestClass:
         else:
             m = f.fetch("chr2R:10,000,000-15,000,000", normalization="ICE").to_coo()
 
-        assert np.isclose(59.349524704033215, m.sum())
+        assert math.isclose(59.349524704033215, m.sum(), rel_tol=1.0e-5, abs_tol=1.0e-8)

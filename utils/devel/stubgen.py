@@ -23,10 +23,12 @@ def make_cli() -> argparse.ArgumentParser:
 
 def process_module(mod_name: str, out_file: str, force: bool):
     print(f'Processing module "{mod_name}"...', file=sys.stderr)
-    sg = StubGen(importlib.import_module(mod_name))
-
     if not force and os.path.exists(out_file):
         raise RuntimeError(f'Refusing to overwrite file "{out_file}". Pass --force to overwrite.')
+
+    mod = importlib.import_module(mod_name)
+    sg = StubGen(mod)
+    sg.put(mod)
 
     print(f'Writing stub to file "{out_file}"...', file=sys.stderr)
     with open(out_file, "w") as f:
@@ -49,13 +51,9 @@ def main():
     if "" not in sys.path and "." not in sys.path:
         sys.path.insert(0, "")
 
-    pyarrow = importlib.import_module("pyarrow")
-    pyarrow.create_library_symlinks()
-
-    touch_file(os.path.join(args["output-dir"], "__init__.pyi"), args["force"])
     touch_file(os.path.join(args["output-dir"], "py.typed"), args["force"])
 
-    process_module("hictkpy._hictkpy", os.path.join(args["output-dir"], "hictkpy.pyi"), args["force"])
+    process_module("hictkpy._hictkpy", os.path.join(args["output-dir"], "__init__.pyi"), args["force"])
     process_module("hictkpy._hictkpy.cooler", os.path.join(args["output-dir"], "cooler.pyi"), args["force"])
     process_module("hictkpy._hictkpy.hic", os.path.join(args["output-dir"], "hic.pyi"), args["force"])
 

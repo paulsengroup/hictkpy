@@ -85,7 +85,7 @@ jobs:
           echo 'CXX=clang++' >> $GITHUB_ENV
 
       - name: Build and install
-        run: pip install --verbose '.[test]'
+        run: pip install --verbose '.[all,test]'
 
       - name: Save Conan cache
         uses: actions/cache/save@v4
