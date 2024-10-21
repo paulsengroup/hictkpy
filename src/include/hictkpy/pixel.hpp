@@ -113,13 +113,22 @@ inline std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTa
   const auto &reference = bin_table.chromosomes();
   std::vector<hictk::ThinPixel<N>> buffer(start1_np.size());
   for (std::size_t i = 0; i < start1_np.size(); ++i) {
+    if (end1(i) < start1(i) || end2(i) < start2(i)) {
+      throw std::runtime_error(fmt::format(
+          FMT_STRING("Found an invalid pixel {} {} {} {} {} {} {}: bin end position cannot be "
+                     "smaller than its start"),
+          nanobind::cast<nanobind::str>(chrom1[i]).c_str(), start1(i), end1(i),
+          nanobind::cast<nanobind::str>(chrom2[i]).c_str(), start2(i), end2(i), counts(i)));
+    }
+
     auto bin1 =
         bin_table.at(reference.at(nanobind::cast<nanobind::str>(chrom1[i]).c_str()), start1(i));
     auto bin2 =
         bin_table.at(reference.at(nanobind::cast<nanobind::str>(chrom2[i]).c_str()), start2(i));
 
-    if (end1(i) - start1(i) > bin_table.resolution() ||
-        end2(i) - start2(i) > bin_table.resolution()) {
+    if (bin_table.type() == hictk::BinTable::Type::fixed &&
+        (end1(i) - start1(i) > bin_table.resolution() ||
+         end2(i) - start2(i) > bin_table.resolution())) {
       throw std::runtime_error(fmt::format(
           FMT_STRING("Found an invalid pixel {} {} {} {} {} {} {}: pixel spans a "
                      "distance greater than the bin size"),

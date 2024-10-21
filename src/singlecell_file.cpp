@@ -111,11 +111,11 @@ void declare_singlecell_file_class(nb::module_& m) {
   scell_file.def("path", &singlecell_file::get_path, "Get the file path.");
   scell_file.def("resolution", &hictk::cooler::SingleCellFile::resolution,
                  "Get the bin size in bp.");
-  scell_file.def("chromosomes", &get_chromosomes_from_file<hictk::cooler::SingleCellFile>,
-                 nb::arg("include_all") = false,
+  scell_file.def("chromosomes", &get_chromosomes_from_object<hictk::cooler::SingleCellFile>,
+                 nb::arg("include_ALL") = false,
                  "Get chromosomes sizes as a dictionary mapping names to sizes.");
-  scell_file.def("bins", &get_bins_from_file<hictk::cooler::SingleCellFile>,
-                 nb::sig("def bins(self) -> pandas.DataFrame"), "Get bins as a pandas DataFrame.");
+  scell_file.def("bins", &get_bins_from_sc_file<hictk::cooler::SingleCellFile>,
+                 nb::sig("def bins(self) -> hictkpy.BinTable"), "Get table of bins.");
   scell_file.def("attributes", &singlecell_file::get_attrs, "Get file attributes as a dictionary.");
   scell_file.def("cells", &singlecell_file::get_cells, "Get the list of available cells.");
   scell_file.def("__getitem__", &singlecell_file::getitem,

@@ -23,6 +23,7 @@ nanobind_add_module(
         NB_DOMAIN hictkpy
         LTO
         MODULE
+        "${CMAKE_CURRENT_SOURCE_DIR}/bin_table.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/common.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cooler_file_writer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/file.cpp"

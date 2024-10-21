@@ -389,7 +389,7 @@ void PixelSelector::bind(nb::module_& m) {
   sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.");
 
   sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
-          nb::sig("def __iter__(self) -> PixelIterator"),
+          nb::sig("def __iter__(self) -> hictkpy.PixelIterator"),
           "Return an iterator over the selected pixels.");
 
   sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",
