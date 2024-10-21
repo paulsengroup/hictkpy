@@ -360,6 +360,8 @@ nb::object BinTable::to_df(std::optional<std::string_view> range,
                            std::move(bin_ids));
 }
 
+std::shared_ptr<const hictk::BinTable> BinTable::get() const noexcept { return _bins; }
+
 std::vector<std::string> BinTable::chrom_names(bool include_ALL) const {
   std::vector<std::string> chrom_names;
   chrom_names.reserve(_bins->chromosomes().size());

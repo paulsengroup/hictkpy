@@ -56,6 +56,8 @@ class BinTable {
   [[nodiscard]] nanobind::object to_df(std::optional<std::string_view> range,
                                        std::string_view query_type) const;
 
+  [[nodiscard]] std::shared_ptr<const hictk::BinTable> get() const noexcept;
+
   static void bind(nanobind::module_& m);
 
  private:

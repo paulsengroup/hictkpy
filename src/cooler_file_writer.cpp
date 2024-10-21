@@ -21,6 +21,7 @@
 #include <utility>
 #include <variant>
 
+#include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
@@ -30,14 +31,12 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
-CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const ChromosomeDict &chromosomes_,
-                                   std::uint32_t resolution_, std::string_view assembly,
-                                   const std::filesystem::path &tmpdir,
+CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const hictkpy::BinTable &bins_,
+                                   std::string_view assembly, const std::filesystem::path &tmpdir,
                                    std::uint32_t compression_lvl)
     : _path(std::move(path_)),
       _tmpdir(tmpdir, true),
-      _w(create_file(_path.string(), chromosome_dict_to_reference(chromosomes_), resolution_,
-                     assembly, _tmpdir())),
+      _w(create_file(_path.string(), *bins_.get(), assembly, _tmpdir())),
       _compression_lvl(compression_lvl) {
   if (std::filesystem::exists(_path)) {
     throw std::runtime_error(
@@ -46,6 +45,13 @@ CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const Chromosome
 
   SPDLOG_INFO(FMT_STRING("using \"{}\" folder to store temporary file(s)"), _tmpdir());
 }
+
+CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const ChromosomeDict &chromosomes_,
+                                   std::uint32_t resolution_, std::string_view assembly,
+                                   const std::filesystem::path &tmpdir,
+                                   std::uint32_t compression_lvl)
+    : CoolerFileWriter(std::move(path_), BinTable{chromosomes_, resolution_}, assembly, tmpdir,
+                       compression_lvl) {}
 
 const std::filesystem::path &CoolerFileWriter::path() const noexcept { return _path; }
 
@@ -140,14 +146,13 @@ void CoolerFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str,
 }
 
 hictk::cooler::SingleCellFile CoolerFileWriter::create_file(std::string_view path,
-                                                            const hictk::Reference &chromosomes,
-                                                            std::uint32_t resolution,
+                                                            const hictk::BinTable &bins,
                                                             std::string_view assembly,
                                                             const std::filesystem::path &tmpdir) {
-  auto attrs = hictk::cooler::SingleCellAttributes::init(resolution);
+  auto attrs = hictk::cooler::SingleCellAttributes::init(bins.resolution());
   attrs.assembly = assembly;
   return hictk::cooler::SingleCellFile::create(tmpdir / std::filesystem::path{path}.filename(),
-                                               chromosomes, resolution, false, std::move(attrs));
+                                               bins, false, std::move(attrs));
 }
 
 std::string CoolerFileWriter::repr() const {
@@ -169,7 +174,15 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
              nb::arg("assembly") = "unknown",
              nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
-             nb::arg("compression_lvl") = 6, "Open a .cool file for writing.");
+             nb::arg("compression_lvl") = 6,
+             "Open a .cool file for writing given a list of chromosomes with their sizes and a "
+             "resolution.");
+  writer.def(nb::init<std::filesystem::path, const hictkpy::BinTable &, std::string_view,
+                      const std::filesystem::path &, std::uint32_t>(),
+             nb::arg("path"), nb::arg("bins"), nb::arg("assembly") = "unknown",
+             nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
+             nb::arg("compression_lvl") = 6,
+             "Open a .cool file for writing given a table of bins.");
   // NOLINTEND(*-avoid-magic-numbers)
 
   writer.def("__repr__", &hictkpy::CoolerFileWriter::repr);
