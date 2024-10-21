@@ -41,6 +41,54 @@ BinTable::BinTable(hictk::BinTable bins)
 BinTable::BinTable(const ChromosomeDict& chromosomes, std::uint32_t resolution)
     : BinTable(hictk::BinTable{chromosome_dict_to_reference(chromosomes), resolution}) {}
 
+[[noreturn]] static void throw_except_failed_to_parse_bins_df(const std::exception& e) {
+  throw std::runtime_error(fmt::format(
+      FMT_STRING(
+          "Unable to fetch bins from the given object. Please make sure the given object is a "
+          "pandas.DataFrame with columns [\"chrom\", \"start\", \"end\"]. Underlying error: {}"),
+      e.what()));
+}
+
+[[noreturn]] static void throw_except_failed_to_parse_bins_df() {
+  throw_except_failed_to_parse_bins_df(std::runtime_error{"unknown error"});
+}
+
+[[nodiscard]] static hictk::Reference get_reference_from_bins_df(const nb::object& df) {
+  try {
+    return chromosome_dict_to_reference(
+        nb::cast<ChromosomeDict>(df.attr("groupby")("chrom", nb::arg("observed") = true)
+                                     .attr("__getitem__")("end")
+                                     .attr("max")()
+                                     .attr("to_dict")()));
+  } catch (const std::exception& e) {
+    throw_except_failed_to_parse_bins_df(e);
+  } catch (...) {
+    throw_except_failed_to_parse_bins_df();
+  }
+}
+
+template <typename I>
+[[nodiscard]] static std::vector<I> get_std_vect_from_bins_df(const nb::object& df,
+                                                              std::string_view col_name) {
+  static_assert(std::is_arithmetic_v<I>);
+  try {
+    return nb::cast<std::vector<I>>(df.attr("__getitem__")(col_name));
+  } catch (const std::exception& e) {
+    throw_except_failed_to_parse_bins_df(e);
+  } catch (...) {
+    throw_except_failed_to_parse_bins_df();
+  }
+}
+
+BinTable::BinTable(const nanobind::object& df)
+    : BinTable(get_reference_from_bins_df(df),
+               get_std_vect_from_bins_df<std::uint32_t>(df, "start"),
+               get_std_vect_from_bins_df<std::uint32_t>(df, "end")) {}
+
+BinTable::BinTable(hictk::Reference chroms, const std::vector<std::uint32_t>& start_pos,
+                   const std::vector<std::uint32_t>& end_pos)
+    : BinTable(hictk::BinTable{std::move(chroms), start_pos, end_pos}) {}
+
 const hictk::Reference& BinTable::chromosomes() const noexcept { return _bins->chromosomes(); }
 
 std::uint32_t BinTable::resolution() const noexcept { return _bins->resolution(); }
@@ -187,7 +235,7 @@ std::int64_t BinTable::coord_to_bin_id(std::string_view chrom, std::uint32_t pos
 }
 
 auto BinTable::coords_to_bin_ids(const std::vector<std::string>& chroms,
-                                 const std::vector<std::uint32_t>& positions) const -> BinIDsT {
+                                 const std::vector<std::uint32_t>& positions) const -> BinIDsVec {
   auto np = import_module_checked("numpy");
 
   if (chroms.size() != positions.size()) {
@@ -196,7 +244,7 @@ auto BinTable::coords_to_bin_ids(const std::vector<std::string>& chroms,
 
   auto np_array =
       np.attr("empty")(static_cast<std::int64_t>(chroms.size()), nb::arg("dtype") = "int");
-  auto buffer = nb::cast<BinIDsT>(np_array);
+  auto buffer = nb::cast<BinIDsVec>(np_array);
   auto bin_ids = buffer.view();
 
   std::visit(
@@ -401,6 +449,11 @@ void BinTable::bind(nb::module_& m) {
   bt.def(nb::init<ChromosomeDict, std::uint32_t>(), nb::arg("chroms"), nb::arg("resolution"),
          "Construct a table of bins given a dictionary mapping chromosomes to their sizes and a "
          "resolution.");
+
+  bt.def(nb::init<nb::object>(), nb::arg("bins"),
+         "Construct a table of bins from a pandas.DataFrame with columns [\"chrom\", \"start\", "
+         "\"end\"].",
+         nb::sig("def __init__(self, df: pandas.DataFrame) -> hictkpy.BinTable"));
 
   bt.def("__repr__", &BinTable::repr);
 

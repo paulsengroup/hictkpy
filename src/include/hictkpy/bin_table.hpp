@@ -23,12 +23,15 @@ class BinTable {
   std::shared_ptr<const hictk::BinTable> _bins = std::make_shared<const hictk::BinTable>();
 
  public:
-  using BinIDsT = nanobind::ndarray<nanobind::numpy, nanobind::shape<-1>, std::int64_t>;
+  using BinIDsVec = nanobind::ndarray<nanobind::numpy, nanobind::shape<-1>, std::int64_t>;
+
   BinTable() = default;
   explicit BinTable(std::shared_ptr<const hictk::BinTable> bins) noexcept;
   explicit BinTable(hictk::BinTable bins);
   BinTable(const ChromosomeDict& chromosomes, std::uint32_t resolution);
-  // BinTable(nanobind::object bins);
+  explicit BinTable(const nanobind::object& df);
+  BinTable(hictk::Reference chroms, const std::vector<std::uint32_t>& start_pos,
+           const std::vector<std::uint32_t>& end_pos);
 
   [[nodiscard]] const hictk::Reference& chromosomes() const noexcept;
   [[nodiscard]] std::uint32_t resolution() const noexcept;
@@ -47,7 +50,7 @@ class BinTable {
   [[nodiscard]] std::int64_t coord_to_bin_id(std::string_view chrom, std::uint32_t pos) const;
   [[nodiscard]] auto coords_to_bin_ids(const std::vector<std::string>& chroms,
                                        const std::vector<std::uint32_t>& positions) const
-      -> BinIDsT;
+      -> BinIDsVec;
 
   [[nodiscard]] nanobind::object merge_coords(nanobind::object df) const;
 
