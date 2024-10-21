@@ -290,7 +290,7 @@ jobs:
           name: dist
           path: dist.tar
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
 
   test-pypi-publish:
     name: Upload wheels to Test PyPI
