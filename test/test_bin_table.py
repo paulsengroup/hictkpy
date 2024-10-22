@@ -88,6 +88,7 @@ class TestClass:
 
         assert (expected == bins.merge(bin_ids).drop(columns=["bin1_id", "bin2_id"])).all().all()
 
+    @pytest.mark.skipif(not pandas_avail() or not pyarrow_avail(), reason="pandas is not available")
     def test_to_df(self):
         chroms = {"chr1": 1000, "chr2": 500}
         bins = hictkpy.BinTable(chroms, 100)
