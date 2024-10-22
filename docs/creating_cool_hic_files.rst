@@ -7,13 +7,13 @@ Creating .cool and .hic files
 
 hictkpy supports creating .cool and .hic files from pre-binned interactions in COO or BedGraph2 format.
 
-The example use file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_, which can be downloaded from `here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
+The example in this section use file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_, which can be downloaded from `here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
 
 Preparation
 -----------
 
 The first step consists of converting interactions from ``4DNFIOTPSS3L.hic`` to bedGraph2 format.
-This can be achieved using ``hictk dump``
+This can be achieved using ``hictk dump`` (or alternatively with :py:meth:hictkpy.File.fetch()`.
 
 .. code-block:: console
 
@@ -33,7 +33,7 @@ This can be achieved using ``hictk dump``
     2L	0	50000	2L	450000	500000	756
 
 
-Next, we also generate the list of chromosomes.
+Next, we also generate the list of chromosomes to use as reference.
 
 .. code-block:: console
 
