@@ -68,12 +68,6 @@ class BinTable {
   [[nodiscard]] std::vector<std::string> chrom_names(bool include_ALL = false) const;
 };
 
-// TODO remove after merging https://github.com/paulsengroup/hictk/pull/298
-template <typename T>
-inline hictkpy::BinTable get_bins_from_sc_file(const T& obj) {
-  return hictkpy::BinTable(obj.bins());
-}
-
 template <typename T>
 inline hictkpy::BinTable get_bins_from_object(const T& obj) {
   return hictkpy::BinTable(obj.bins_ptr());
