@@ -35,7 +35,13 @@ python_use_unqualified_type_names = True
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "pyarrow": ("https://arrow.apache.org/docs/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
 }
+
+intersphinx_timeout = 30
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = [".templates"]
