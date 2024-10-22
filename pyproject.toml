@@ -117,7 +117,6 @@ test-skip = ["cp314*", "*universal2", "pp*"]
 before-build = [
   "rm -rf '{project}/build'",
 ]
-environment = { PIP_VERBOSE=1 }
 
 # We are using static linking, thus repairing wheels is not necessary.
 repair-wheel-command = ""
