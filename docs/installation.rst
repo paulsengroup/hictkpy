@@ -58,7 +58,7 @@ Conda (bioconda)
 From source
 -----------
 
-Building hictkpy from source should not be necessary for regular users, as we publish pre-built wheels for Linux, MacOS, and Windows for all Python versions we support (currently these include all CPython versions from 3.9 up until 3.13). For a complete and up-to-date list of available wheels refer to the `Download files <https://pypi.org/project/hictkpy/#files>`_ page on hictkpy's `homepage <https://pypi.org/project/hictkpy/>`_ on PyPI.
+Building hictkpy from source should not be necessary for regular users, as we publish pre-built wheels for Linux, MacOS, and Windows for all Python versions we support (currently these include all CPython versions from 3.9 up until 3.12). For a complete and up-to-date list of available wheels refer to the `Download files <https://pypi.org/project/hictkpy/#files>`_ page on hictkpy's `homepage <https://pypi.org/project/hictkpy/>`_ on PyPI.
 
 Building hictkpy's wheels from source requires a compiler toolchain supporting C++17, such as:
 
