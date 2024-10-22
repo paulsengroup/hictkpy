@@ -394,7 +394,7 @@ void PixelSelector::bind(nb::module_& m) {
 
   sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_arrow(self, query_span: str = \"upper_triangle\") -> pyarrow.Table"),
-          "Retrieve interactions as a pandas DataFrame.");
+          "Retrieve interactions as a pyarrow.Table.");
   sel.def("to_pandas", &PixelSelector::to_pandas, nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_pandas(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Retrieve interactions as a pandas DataFrame.");
