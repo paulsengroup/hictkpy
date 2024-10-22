@@ -14,7 +14,6 @@ on:
       - "src/**"
       - "test/**"
       - "utils/devel/stubgen.py"
-      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -29,7 +28,6 @@ on:
       - "src/**"
       - "test/**"
       - "utils/devel/stubgen.py"
-      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -56,6 +54,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -290,7 +290,38 @@ jobs:
           name: dist
           path: dist.tar
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
+
+  pypi-publish:
+    name: Upload release to PyPI
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: [package-artifacts]
+    environment:
+      name: PyPI
+      url: https://pypi.org/p/hictkpy
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+          merge-multiple: true
+
+      - name: Extract dist.tar
+        run: |
+          tar -xf dist.tar
+          rm dist.tar
+
+      - name: Upload wheels to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
+          print-hash: true
+          verbose: true
 
   build-wheels-status-check:
     name: Status Check (Build wheels)
@@ -300,11 +331,16 @@ jobs:
       - build-sdist
       - build-wheels
       - package-artifacts
+      - pypi-publish
 
     steps:
       - name: Collect job results
         if: |
-          needs.build-sdist.result != 'success'  ||
-          needs.build-wheels.result != 'success' ||
-          needs.package-artifacts.result != 'success'
+          needs.build-sdist.result != 'success'        ||
+          needs.build-wheels.result != 'success'       ||
+          needs.package-artifacts.result != 'success'  ||
+          (
+           needs.pypi-publish.result != 'success'      &&
+           needs.pypi-publish.result != 'skipped'
+          )
         run: exit 1
