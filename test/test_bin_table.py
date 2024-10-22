@@ -56,7 +56,10 @@ class TestClass:
         with pytest.raises(Exception):
             bins.get_id("abc", 100)
 
-    @pytest.mark.skipif(not numpy_avail(), reason="numpy is not available")
+    @pytest.mark.skipif(
+        not numpy_avail() or not pandas_avail() or not pyarrow_avail(),
+        reason="numpy, pandas, or pyarrow are not available",
+    )
     def test_vectorized_getters(self):
         import numpy as np
 
