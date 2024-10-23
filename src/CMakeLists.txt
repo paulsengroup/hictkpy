@@ -7,6 +7,7 @@ find_package(
   3.9
   COMPONENTS
     Interpreter
+    Development.Module
     NumPy
   REQUIRED
 )
