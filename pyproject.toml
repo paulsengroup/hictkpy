@@ -107,6 +107,7 @@ testpaths = [
 ]
 
 [tool.cibuildwheel]
+build-frontend = "build"
 skip = ["cp313*", "cp314*", "*musllinux*", "pp*"]
 test-command = "python -m pytest {project}/test"
 test-extras = ["test", "numpy", "pandas", "pyarrow", "scipy"]
