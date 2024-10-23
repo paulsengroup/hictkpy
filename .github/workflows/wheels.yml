@@ -17,8 +17,6 @@ on:
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
-    tags:
-      - "v*.*.*"
 
   pull_request:
     paths:
@@ -70,14 +68,14 @@ jobs:
         run: |
           CIBW_ARCHS_LINUX=x86_64 cibuildwheel \
             --print-build-identifiers \
-            --platform linux |
+            --platform manylinux_2_28 |
           jq -nRc '{"wheel-config": inputs, "os": "ubuntu-latest", "arch": "x86_64"}' |
           tee configs.json
 
           if [ '${{ github.event_name }}' != 'pull_request' ]; then
             CIBW_ARCHS_LINUX=aarch64 cibuildwheel \
               --print-build-identifiers \
-              --platform linux |
+              --platform manylinux_2_28 |
             jq -nRc '{"wheel-config": inputs, "os": "ubuntu-latest", "arch": "aarch64"}' |
             tee -a configs.json
           fi
@@ -309,7 +307,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dist
-          path: dist
           merge-multiple: true
 
       - name: Extract dist.tar
