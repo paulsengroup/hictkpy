@@ -42,16 +42,6 @@ FetchContent_Declare(
   SYSTEM
 )
 
-FetchContent_Declare(
-  nanobind
-  URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.2.0.tar.xz"
-  URL_HASH "SHA256=6f0064c5e94b0bc34637644ddf035cdc7831135949b843adf52bc4bdbe2c6b5d"
-  EXCLUDE_FROM_ALL
-  OVERRIDE_FIND_PACKAGE
-  SYSTEM
-)
-
 # Tweak hictk
 set(HICTK_BUILD_BENCHMARKS OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
