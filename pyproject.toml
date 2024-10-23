@@ -132,8 +132,11 @@ before-build = [
 # We are using static linking, thus repairing wheels should not be necessary.
 # Exception being when building portable Linux wheels.
 # See https://github.com/scikit-build/scikit-build-core/pull/698#issuecomment-2082991257
-repair-wheel-command-macos = ""
-repair-wheel-command-windows = ""
+[tool.cibuildwheel.macos]
+repair-wheel-command = ""
+
+[tool.cibuildwheel.windows]
+repair-wheel-command = ""
 
 [tool.ruff]
 extend-select = [
