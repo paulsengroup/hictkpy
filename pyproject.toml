@@ -68,6 +68,8 @@ optional-dependencies.dev = [
 ]
 
 [tool.scikit-build]
+minimum-version = "0.10"
+build-dir = "build/{wheel_tag}"
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 sdist.include = ["src/_version.py"]
 wheel.expand-macos-universal-tags = true

@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
+find_package(Arrow REQUIRED)
+find_package(FMT REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(Filesystem REQUIRED)
+
 find_package(
   Python
   3.9
@@ -22,11 +27,7 @@ FetchContent_Declare(
   SYSTEM
 )
 
-find_package(Arrow REQUIRED)
-find_package(FMT REQUIRED)
-find_package(nanobind REQUIRED)
-find_package(spdlog REQUIRED)
-find_package(Filesystem REQUIRED)
+FetchContent_MakeAvailable(nanobind)
 
 nanobind_add_module(
         _hictkpy
