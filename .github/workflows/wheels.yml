@@ -68,14 +68,14 @@ jobs:
         run: |
           CIBW_ARCHS_LINUX=x86_64 cibuildwheel \
             --print-build-identifiers \
-            --platform manylinux_2_28 |
+            --platform linux |
           jq -nRc '{"wheel-config": inputs, "os": "ubuntu-latest", "arch": "x86_64"}' |
           tee configs.json
 
           if [ '${{ github.event_name }}' != 'pull_request' ]; then
             CIBW_ARCHS_LINUX=aarch64 cibuildwheel \
               --print-build-identifiers \
-              --platform manylinux_2_28 |
+              --platform linux |
             jq -nRc '{"wheel-config": inputs, "os": "ubuntu-latest", "arch": "aarch64"}' |
             tee -a configs.json
           fi
@@ -248,8 +248,6 @@ jobs:
           CIBW_ENVIRONMENT_PASS_LINUX: >
             CONAN_HOME
             HICTKPY_CONAN_INSTALL_ARGS
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
 
       - name: Verify clean directory
         run: git diff --exit-code
