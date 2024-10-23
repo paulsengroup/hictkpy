@@ -18,7 +18,7 @@ Python bindings for hictk, a blazing fast toolkit to work with .hic and .cool fi
 
 ## Installing hictkpy
 
-hictkpy can be installed in various ways. The simples method is using pip: `pip install hictkpy[all]`.
+hictkpy can be installed in various ways. The simplest method is using pip: `pip install hictkpy[all]`.
 
 Refer to [Installation](https://hictkpy.readthedocs.io/en/stable/installation.html) for alternative methods.
 
@@ -39,7 +39,7 @@ m2 = sel.to_coo()    # Get interactions as a scipy.sparse.coo_matrix
 
 For more detailed examples refer to [Quickstart](https://hictkpy.readthedocs.io/en/stable/quickstart.html).
 
-The complete documentation for hictkpy API is available [here](https://hictkpy.readthedocs.io/en/stable/hictkpy.html).
+The complete documentation for hictkpy API is available [here](https://hictkpy.readthedocs.io/en/stable/api/index.html).
 
 ## Citing
 
