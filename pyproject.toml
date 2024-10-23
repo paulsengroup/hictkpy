@@ -68,6 +68,8 @@ optional-dependencies.dev = [
 ]
 
 [tool.scikit-build]
+minimum-version = "0.10"
+build-dir = "build/{wheel_tag}"
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 sdist.include = ["src/_version.py"]
 wheel.expand-macos-universal-tags = true
@@ -107,6 +109,16 @@ testpaths = [
 ]
 
 [tool.cibuildwheel]
+build-frontend = "build"
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-i686-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+manylinux-ppc64le-image = "manylinux_2_28"
+manylinux-s390x-image = "manylinux_2_28"
+manylinux-pypy_x86_64-image = "manylinux_2_28"
+manylinux-pypy_i686-image = "manylinux_2_28"
+manylinux-pypy_aarch64-image = "manylinux_2_28"
+
 skip = ["cp313*", "cp314*", "*musllinux*", "pp*"]
 test-command = "python -m pytest {project}/test"
 test-extras = ["test", "numpy", "pandas", "pyarrow", "scipy"]
@@ -117,7 +129,13 @@ before-build = [
   "rm -rf '{project}/build'",
 ]
 
-# We are using static linking, thus repairing wheels is not necessary.
+# We are using static linking, thus repairing wheels should not be necessary.
+# Exception being when building portable Linux wheels.
+# See https://github.com/scikit-build/scikit-build-core/pull/698#issuecomment-2082991257
+[tool.cibuildwheel.macos]
+repair-wheel-command = ""
+
+[tool.cibuildwheel.windows]
 repair-wheel-command = ""
 
 [tool.ruff]
