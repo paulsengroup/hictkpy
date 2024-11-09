@@ -462,11 +462,12 @@ void BinTable::bind(nb::module_& m) {
          "\"end\"].",
          nb::sig("def __init__(self, bins: pandas.DataFrame) -> None"));
 
-  bt.def("__repr__", &BinTable::repr);
+  bt.def("__repr__", &BinTable::repr, nb::rv_policy::take_ownership);
 
   bt.def("chromosomes", &get_chromosomes_from_object<hictkpy::BinTable>,
          nb::arg("include_ALL") = false,
-         "Get chromosomes sizes as a dictionary mapping names to sizes.");
+         "Get chromosomes sizes as a dictionary mapping names to sizes.",
+         nb::rv_policy::take_ownership);
 
   bt.def("resolution", &BinTable::resolution,
          "Get the bin size for the bin table. "
@@ -483,29 +484,33 @@ void BinTable::bind(nb::module_& m) {
 
   bt.def("get", &BinTable::bin_id_to_coord, nb::arg("bin_id"),
          "Get the genomic coordinate given a bin ID.",
-         nb::sig("def get(self, bin_id: int) -> hictkpy.Bin"));
+         nb::sig("def get(self, bin_id: int) -> hictkpy.Bin"), nb::rv_policy::take_ownership);
   bt.def("get", &BinTable::bin_ids_to_coords, nb::arg("bin_ids"),
          "Get the genomic coordinates given a sequence of bin IDs. "
          "Genomic coordinates are returned as a pandas.DataFrame with columns [\"chrom\", "
          "\"start\", \"end\"].",
-         nb::sig("def get(self, bin_ids: collections.abc.Sequence[int]) -> pandas.DataFrame"));
+         nb::sig("def get(self, bin_ids: collections.abc.Sequence[int]) -> pandas.DataFrame"),
+         nb::rv_policy::take_ownership);
 
   bt.def("get", &BinTable::coord_to_bin, nb::arg("chrom"), nb::arg("pos"),
          "Get the bin overlapping the given genomic coordinate.",
-         nb::sig("def get(self, chrom: str, pos: int) -> hictkpy.Bin"));
+         nb::sig("def get(self, chrom: str, pos: int) -> hictkpy.Bin"),
+         nb::rv_policy::take_ownership);
   bt.def("get", &BinTable::coords_to_bins, nb::arg("chroms"), nb::arg("pos"),
          "Get the bins overlapping the given genomic coordinates. "
          "Bins are returned as a pandas.DataFrame with columns [\"chrom\", "
          "\"start\", \"end\"].",
          nb::sig("def get(self, chroms: collections.abc.Sequence[str], pos: "
-                 "collections.abc.Sequence[int]) -> pandas.DataFrame"));
+                 "collections.abc.Sequence[int]) -> pandas.DataFrame"),
+         nb::rv_policy::take_ownership);
 
   bt.def("get_id", &BinTable::coord_to_bin_id, nb::arg("chrom"), nb::arg("pos"),
          "Get the ID of the bin overlapping the given genomic coordinate.");
   bt.def("get_ids", &BinTable::coords_to_bin_ids, nb::arg("chroms"), nb::arg("pos"),
          "Get the IDs of the bins overlapping the given genomic coordinates.",
          nb::sig("def get_ids(self, chroms: collections.abc.Sequence[str], pos: "
-                 "collections.abc.Sequence[int]) -> numpy.ndarray[dtype=int64]"));
+                 "collections.abc.Sequence[int]) -> numpy.ndarray[dtype=int64]"),
+         nb::rv_policy::take_ownership);
 
   bt.def("merge", &BinTable::merge_coords, nb::arg("df"),
          "Merge genomic coordinates corresponding to the given bin identifiers. "
@@ -514,13 +519,15 @@ void BinTable::bind(nb::module_& m) {
          "Genomic coordinates are returned as a pandas.DataFrame containing the same data as the "
          "DataFrame given as input, plus columns [\"chrom1\", \"start1\", \"end1\", \"chrom2\", "
          "\"start2\", \"end2\"].",
-         nb::sig("def merge(self, df: pandas.DataFrame) -> pandas.DataFrame"));
+         nb::sig("def merge(self, df: pandas.DataFrame) -> pandas.DataFrame"),
+         nb::rv_policy::take_ownership);
 
   bt.def("to_df", &BinTable::to_df, nb::arg("range") = nb::none(), nb::arg("query_type") = "UCSC",
          "Return the bins in the BinTable as a pandas.DataFrame. The optional \"range\" parameter "
          "can be used to only fetch a subset of the bins in the BinTable.",
          nb::sig("def to_df(self, range: str | None = None, query_type: str = 'UCSC') -> "
-                 "pandas.DataFrame"));
+                 "pandas.DataFrame"),
+         nb::rv_policy::take_ownership);
 }
 
 }  // namespace hictkpy

@@ -185,13 +185,14 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              "Open a .cool file for writing given a table of bins.");
   // NOLINTEND(*-avoid-magic-numbers)
 
-  writer.def("__repr__", &hictkpy::CoolerFileWriter::repr);
+  writer.def("__repr__", &hictkpy::CoolerFileWriter::repr, nb::rv_policy::take_ownership);
 
   writer.def("path", &hictkpy::CoolerFileWriter::path, "Get the file path.");
   writer.def("resolutions", &hictkpy::CoolerFileWriter::resolution, "Get the resolution in bp.");
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::CoolerFileWriter>,
              nb::arg("include_ALL") = false,
-             "Get chromosomes sizes as a dictionary mapping names to sizes.");
+             "Get chromosomes sizes as a dictionary mapping names to sizes.",
+             nb::rv_policy::take_ownership);
 
   writer.def("add_pixels", &hictkpy::CoolerFileWriter::add_pixels,
              nb::sig("def add_pixels(self, pixels: pandas.DataFrame)"), nb::arg("pixels"),

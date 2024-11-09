@@ -208,32 +208,34 @@ void declare_file_class(nb::module_ &m) {
            "resolution.\n"
            "Resolution is ignored when opening single-resolution Cooler files.");
 
-  file.def("__repr__", &file::repr);
+  file.def("__repr__", &file::repr, nb::rv_policy::take_ownership);
 
   file.def("uri", &hictk::File::uri, "Return the file URI.");
-  file.def("path", &file::get_path, "Return the file path.");
+  file.def("path", &file::get_path, "Return the file path.", nb::rv_policy::take_ownership);
 
   file.def("is_hic", &hictk::File::is_hic, "Test whether file is in .hic format.");
   file.def("is_cooler", &hictk::File::is_cooler, "Test whether file is in .cool format.");
 
   file.def("chromosomes", &get_chromosomes_from_object<hictk::File>, nb::arg("include_ALL") = false,
-           "Get chromosomes sizes as a dictionary mapping names to sizes.");
+           "Get chromosomes sizes as a dictionary mapping names to sizes.",
+           nb::rv_policy::take_ownership);
   file.def("bins", &get_bins_from_object<hictk::File>, "Get table of bins.",
-           nb::sig("def bins(self) -> hictkpy.BinTable"));
+           nb::sig("def bins(self) -> hictkpy.BinTable"), nb::rv_policy::take_ownership);
 
   file.def("resolution", &hictk::File::resolution, "Get the bin size in bp.");
   file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
   file.def("nchroms", &hictk::File::nchroms, "Get the total number of chromosomes.");
 
-  file.def("attributes", &file::attributes, "Get file attributes as a dictionary.");
+  file.def("attributes", &file::attributes, "Get file attributes as a dictionary.",
+           nb::rv_policy::take_ownership);
 
   file.def("fetch", &file::fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = "",
            nb::arg("range2") = "", nb::arg("normalization") = "NONE", nb::arg("count_type") = "int",
            nb::arg("join") = false, nb::arg("query_type") = "UCSC",
-           "Fetch interactions overlapping a region of interest.");
+           "Fetch interactions overlapping a region of interest.", nb::rv_policy::take_ownership);
 
   file.def("avail_normalizations", &file::avail_normalizations,
-           "Get the list of available normalizations.");
+           "Get the list of available normalizations.", nb::rv_policy::take_ownership);
   file.def("has_normalization", &hictk::File::has_normalization, nb::arg("normalization"),
            "Check whether a given normalization is available.");
   file.def("weights", &file::weights, nb::arg("name"), nb::arg("divisive") = true,
