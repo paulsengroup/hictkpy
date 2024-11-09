@@ -43,9 +43,34 @@ namespace hictkpy::file {
 static void ctor(hictk::File *fp, const std::filesystem::path &path,
                  std::optional<std::int32_t> resolution, std::string_view matrix_type,
                  std::string_view matrix_unit) {
-  new (fp) hictk::File{path.string(), static_cast<std::uint32_t>(resolution.value_or(0)),
-                       hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
-                       hictk::hic::ParseUnitStr(std::string{matrix_unit})};
+  const auto resolution_ = static_cast<std::uint32_t>(resolution.value_or(0));
+  try {
+    new (fp) hictk::File{path.string(), resolution_,
+                         hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
+                         hictk::hic::ParseUnitStr(std::string{matrix_unit})};
+    // TODO all the exceptions should ideally be handled on the hictk side
+    //      but this will have to do until the next release of hictk
+  } catch (const HighFive::Exception &e) {
+    std::string_view msg{e.what()};
+    if (msg.find("Unable to open the group \"/resolutions/0\"") != std::string_view::npos) {
+      throw std::runtime_error(
+          "resolution is required and cannot be None when opening .mcool files");
+    }
+    throw;
+  } catch (const std::runtime_error &e) {
+    std::string_view msg{e.what()};
+    if (msg.find("resolution cannot be 0 when opening .hic files") != std::string_view::npos) {
+      throw std::runtime_error("resolution is required and cannot be None when opening .hic files");
+    }
+    throw;
+  }
+
+  if (resolution.has_value() && fp->resolution() != resolution_) {
+    // TODO this should also be handled by hictk
+    throw std::runtime_error(
+        fmt::format(FMT_STRING("resolution mismatch for file \"{}\": expected {}, found {}"),
+                    fp->uri(), resolution_, fp->resolution()));
+  }
 }
 
 static std::string repr(const hictk::File &f) {
