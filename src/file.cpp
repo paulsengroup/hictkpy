@@ -189,11 +189,24 @@ static std::vector<std::string> avail_normalizations(const hictk::File &f) {
   return norms;
 }
 
-static std::vector<double> weights(const hictk::File &f, std::string_view normalization,
-                                   bool divisive) {
+static auto weights(const hictk::File &f, std::string_view normalization, bool divisive) {
+  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, double>;
+
+  if (normalization == "NONE") {
+    return WeightVector{};
+  }
+
   const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
                              : hictk::balancing::Weights::Type::MULTIPLICATIVE;
-  return f.normalization(normalization).to_vector(type);
+
+  // NOLINTNEXTLINE
+  auto *weights_ptr = new std::vector<double>(f.normalization(normalization).to_vector(type));
+
+  auto capsule = nb::capsule(weights_ptr, [](void *vect_ptr) noexcept {
+    delete reinterpret_cast<std::vector<double> *>(vect_ptr);  // NOLINT
+  });
+
+  return WeightVector{weights_ptr->data(), {weights_ptr->size()}, capsule};
 }
 
 static std::filesystem::path get_path(const hictk::File &f) { return f.path(); }
@@ -237,7 +250,8 @@ void declare_file_class(nb::module_ &m) {
   file.def("has_normalization", &hictk::File::has_normalization, nb::arg("normalization"),
            "Check whether a given normalization is available.");
   file.def("weights", &file::weights, nb::arg("name"), nb::arg("divisive") = true,
-           "Fetch the balancing weights for the given normalization method.");
+           "Fetch the balancing weights for the given normalization method.",
+           nb::rv_policy::take_ownership);
 }
 
 }  // namespace hictkpy::file
