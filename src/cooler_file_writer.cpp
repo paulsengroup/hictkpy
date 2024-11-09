@@ -185,9 +185,9 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              "Open a .cool file for writing given a table of bins.");
   // NOLINTEND(*-avoid-magic-numbers)
 
-  writer.def("__repr__", &hictkpy::CoolerFileWriter::repr, nb::rv_policy::take_ownership);
+  writer.def("__repr__", &hictkpy::CoolerFileWriter::repr, nb::rv_policy::move);
 
-  writer.def("path", &hictkpy::CoolerFileWriter::path, "Get the file path.");
+  writer.def("path", &hictkpy::CoolerFileWriter::path, "Get the file path.", nb::rv_policy::copy);
   writer.def("resolutions", &hictkpy::CoolerFileWriter::resolution, "Get the resolution in bp.");
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::CoolerFileWriter>,
              nb::arg("include_ALL") = false,

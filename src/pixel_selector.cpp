@@ -383,12 +383,12 @@ void PixelSelector::bind(nb::module_& m) {
   sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool>(),
           nb::arg("selector"), nb::arg("type"), nb::arg("join"));
 
-  sel.def("__repr__", &PixelSelector::repr, nb::rv_policy::take_ownership);
+  sel.def("__repr__", &PixelSelector::repr, nb::rv_policy::move);
 
   sel.def("coord1", &PixelSelector::get_coord1, "Get query coordinates for the first dimension.",
-          nb::rv_policy::take_ownership);
+          nb::rv_policy::move);
   sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.",
-          nb::rv_policy::take_ownership);
+          nb::rv_policy::move);
 
   sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
           nb::sig("def __iter__(self) -> hictkpy.PixelIterator"),
@@ -405,7 +405,7 @@ void PixelSelector::bind(nb::module_& m) {
           "Alias to to_pandas().", nb::rv_policy::take_ownership);
   sel.def("to_numpy", &PixelSelector::to_numpy, nb::arg("query_span") = "full",
           nb::sig("def to_numpy(self, query_span: str = \"full\") -> numpy.ndarray"),
-          "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::take_ownership);
+          "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::move);
   sel.def(
       "to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
@@ -413,7 +413,7 @@ void PixelSelector::bind(nb::module_& m) {
   sel.def(
       "to_csr", &PixelSelector::to_csr, nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
-      "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::take_ownership);
+      "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::move);
 
   sel.def("nnz", &PixelSelector::nnz,
           "Get the number of non-zero entries for the current pixel selection.");

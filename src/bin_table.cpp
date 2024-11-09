@@ -462,7 +462,7 @@ void BinTable::bind(nb::module_& m) {
          "\"end\"].",
          nb::sig("def __init__(self, bins: pandas.DataFrame) -> None"));
 
-  bt.def("__repr__", &BinTable::repr, nb::rv_policy::take_ownership);
+  bt.def("__repr__", &BinTable::repr, nb::rv_policy::move);
 
   bt.def("chromosomes", &get_chromosomes_from_object<hictkpy::BinTable>,
          nb::arg("include_ALL") = false,
@@ -474,17 +474,18 @@ void BinTable::bind(nb::module_& m) {
          "Return 0 in case the bin table has a variable bin size.");
 
   bt.def("type", &BinTable::type,
-         "Get the type of table underlying the BinTable object (i.e. fixed or variable).");
+         "Get the type of table underlying the BinTable object (i.e. fixed or variable).",
+         nb::rv_policy::move);
 
   bt.def("__len__", &BinTable::size, "Get the number of bins in the bin table.");
 
   bt.def("__iter__", &BinTable::make_iterable, nb::keep_alive<0, 1>(),
          nb::sig("def __iter__(self) -> hictkpy.BinTableIterator"),
-         "Return an iterator over the bins in the table.");
+         "Return an iterator over the bins in the table.", nb::rv_policy::take_ownership);
 
   bt.def("get", &BinTable::bin_id_to_coord, nb::arg("bin_id"),
          "Get the genomic coordinate given a bin ID.",
-         nb::sig("def get(self, bin_id: int) -> hictkpy.Bin"), nb::rv_policy::take_ownership);
+         nb::sig("def get(self, bin_id: int) -> hictkpy.Bin"), nb::rv_policy::move);
   bt.def("get", &BinTable::bin_ids_to_coords, nb::arg("bin_ids"),
          "Get the genomic coordinates given a sequence of bin IDs. "
          "Genomic coordinates are returned as a pandas.DataFrame with columns [\"chrom\", "
@@ -494,8 +495,7 @@ void BinTable::bind(nb::module_& m) {
 
   bt.def("get", &BinTable::coord_to_bin, nb::arg("chrom"), nb::arg("pos"),
          "Get the bin overlapping the given genomic coordinate.",
-         nb::sig("def get(self, chrom: str, pos: int) -> hictkpy.Bin"),
-         nb::rv_policy::take_ownership);
+         nb::sig("def get(self, chrom: str, pos: int) -> hictkpy.Bin"), nb::rv_policy::move);
   bt.def("get", &BinTable::coords_to_bins, nb::arg("chroms"), nb::arg("pos"),
          "Get the bins overlapping the given genomic coordinates. "
          "Bins are returned as a pandas.DataFrame with columns [\"chrom\", "
