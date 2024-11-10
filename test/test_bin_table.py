@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 
+import itertools
+
 import pytest
 
 import hictkpy
@@ -41,6 +43,8 @@ class TestClass:
         assert bins.resolution() == 100
         assert bins.type() == "fixed"
         assert len(bins) == 15
+
+        assert str(bins).startswith("BinTable(")
 
     def test_getters(self):
         chroms = {"chr1": 1000, "chr2": 500}
@@ -102,3 +106,24 @@ class TestClass:
         assert len(bins.to_df("chr2\t0\t200", "BED")) == 2
         with pytest.raises(RuntimeError):
             bins.to_df("chr0")
+
+    def test_iters(self):
+        chroms = {"chr1": 1000, "chr2": 500}
+        bins = hictkpy.BinTable(chroms, 100)
+
+        expected_chroms = []
+        expected_starts = []
+        expected_ends = []
+
+        for chrom, size in chroms.items():
+            num_bins = (size + bins.resolution() - 1) // bins.resolution()
+            expected_chroms.extend([chrom] * num_bins)
+            starts = list(range(0, size, bins.resolution()))
+            ends = [min(pos + bins.resolution(), size) for pos in starts]
+            expected_starts.extend(starts)
+            expected_ends.extend(ends)
+
+        for chrom, start, end, bin in itertools.zip_longest(expected_chroms, expected_starts, expected_ends, bins):
+            assert bin.chrom == chrom
+            assert bin.start == start
+            assert bin.end == end
