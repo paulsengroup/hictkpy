@@ -163,14 +163,15 @@ void HiCFileWriter::bind(nb::module_ &m) {
       "supported.");
   // NOLINTEND(*-avoid-magic-numbers)
 
-  writer.def("__repr__", &hictkpy::HiCFileWriter::repr);
+  writer.def("__repr__", &hictkpy::HiCFileWriter::repr, nb::rv_policy::move);
 
-  writer.def("path", &hictkpy::HiCFileWriter::path, "Get the file path.");
+  writer.def("path", &hictkpy::HiCFileWriter::path, "Get the file path.", nb::rv_policy::move);
   writer.def("resolutions", &hictkpy::HiCFileWriter::resolutions,
-             "Get the list of resolutions in bp.");
+             "Get the list of resolutions in bp.", nb::rv_policy::move);
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::HiCFileWriter>,
              nb::arg("include_ALL") = false,
-             "Get chromosomes sizes as a dictionary mapping names to sizes.");
+             "Get chromosomes sizes as a dictionary mapping names to sizes.",
+             nb::rv_policy::take_ownership);
 
   writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,
              nb::sig("def add_pixels(self, pixels: pd.DataFrame) -> None"), nb::arg("pixels"),

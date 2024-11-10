@@ -128,7 +128,8 @@ nb::object export_pyarrow_table(std::shared_ptr<arrow::Table> arrow_table) {
     columns_py[i] = pa.attr("chunked_array")(export_arrow_array_stream(std::move(columns[i])));
   }
 
-  return pa.attr("Table").attr("from_arrays")(columns_py, nb::arg("schema") = schema);
+  return nb::cast(pa.attr("Table").attr("from_arrays")(columns_py, nb::arg("schema") = schema),
+                  nb::rv_policy::take_ownership);
 }
 // NOLINTEND(*-owning-memory,*-no-malloc)
 

@@ -37,16 +37,18 @@ void declare_multires_file_class(nb::module_& m) {
   mres_file.def("__init__", &multires_file::ctor, nb::arg("path"),
                 "Open a multi-resolution Cooler file (.mcool) or .hic file.");
 
-  mres_file.def("__repr__", &multires_file::repr);
+  mres_file.def("__repr__", &multires_file::repr, nb::rv_policy::move);
 
-  mres_file.def("path", &multires_file::get_path, "Get the file path.");
+  mres_file.def("path", &multires_file::get_path, "Get the file path.", nb::rv_policy::move);
   mres_file.def("chromosomes", &get_chromosomes_from_object<hictk::MultiResFile>,
                 nb::arg("include_ALL") = false,
-                "Get chromosomes sizes as a dictionary mapping names to sizes.");
+                "Get chromosomes sizes as a dictionary mapping names to sizes.",
+                nb::rv_policy::take_ownership);
   mres_file.def("resolutions", &hictk::MultiResFile::resolutions,
-                "Get the list of available resolutions.");
+                "Get the list of available resolutions.", nb::rv_policy::copy);
   mres_file.def("__getitem__", &hictk::MultiResFile::open,
-                "Open the Cooler or .hic file corresponding to the resolution given as input.");
+                "Open the Cooler or .hic file corresponding to the resolution given as input.",
+                nb::rv_policy::move);
 }
 
 }  // namespace hictkpy::multires_file
