@@ -45,7 +45,7 @@ jobs:
 
     env:
       CONAN_HOME: "${{ github.workspace }}/.conan2"
-      IMAGE: quay.io/pypa/manylinux_2_28_${{ inputs.arch }}
+      IMAGE: quay.io/pypa/manylinux_2_28_${{ inputs.arch }}:2024.11.09-1
 
     outputs:
       conan-key: ${{ steps.generate-cache-key.outputs.conan-key }}
