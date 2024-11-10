@@ -36,6 +36,7 @@
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/to_pyarrow.hpp"
 
 namespace nb = nanobind;
 
@@ -209,6 +210,44 @@ static auto weights(const hictk::File &f, std::string_view normalization, bool d
   return WeightVector{weights_ptr->data(), {weights_ptr->size()}, capsule};
 }
 
+static nb::object weights_df(const hictk::File &f, const std::vector<std::string> &normalizations,
+                             bool divisive) {
+  phmap::flat_hash_set<std::string_view> names(normalizations.size());
+  arrow::FieldVector fields(normalizations.size());
+  std::vector<std::shared_ptr<arrow::Array>> columns(normalizations.size());
+
+  fields.clear();
+  columns.clear();
+
+  const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
+                             : hictk::balancing::Weights::Type::MULTIPLICATIVE;
+
+  for (const auto &normalization : normalizations) {
+    if (normalization == "NONE") {
+      fields.resize(fields.size() - 1);
+      columns.resize(columns.size() - 1);
+      continue;
+    }
+
+    if (names.contains(normalization)) {
+      throw std::runtime_error(fmt::format(
+          FMT_STRING("found duplicated value \"{}\" in the provided normalization name list"),
+          normalization));
+    }
+
+    names.emplace(normalization);
+    fields.emplace_back(arrow::field(normalization, arrow::float64(), false));
+    columns.emplace_back(std::make_shared<arrow::DoubleArray>(
+        f.nbins(), arrow::Buffer::FromVector(f.normalization(normalization).to_vector(type)),
+        nullptr, 0, 0));
+  }
+
+  auto schema = std::make_shared<arrow::Schema>(std::move(fields));
+
+  return export_pyarrow_table(arrow::Table::Make(std::move(schema), columns))
+      .attr("to_pandas")(nb::arg("self_destruct") = true);
+}
+
 static std::filesystem::path get_path(const hictk::File &f) { return f.path(); }
 
 void declare_file_class(nb::module_ &m) {
@@ -252,6 +291,13 @@ void declare_file_class(nb::module_ &m) {
   file.def("weights", &file::weights, nb::arg("name"), nb::arg("divisive") = true,
            "Fetch the balancing weights for the given normalization method.",
            nb::rv_policy::take_ownership);
+  file.def(
+      "weights", &file::weights_df, nb::arg("names"), nb::arg("divisive") = true,
+      "Fetch the balancing weights for the given normalization methods."
+      "Weights are returned as a pandas.DataFrame.",
+      nb::sig("def weights(self, names: collections.abc.Sequence[str], divisive: bool = True) -> "
+              "pandas.DataFrame"),
+      nb::rv_policy::take_ownership);
 }
 
 }  // namespace hictkpy::file
