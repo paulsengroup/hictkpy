@@ -301,7 +301,8 @@ void declare_file_class(nb::module_ &m) {
 
   file.def("resolution", &hictk::File::resolution, "Get the bin size in bp.");
   file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
-  file.def("nchroms", &hictk::File::nchroms, "Get the total number of chromosomes.");
+  file.def("nchroms", &hictk::File::nchroms, nb::arg("include_ALL") = false,
+           "Get the total number of chromosomes.");
 
   file.def("attributes", &file::attributes, "Get file attributes as a dictionary.",
            nb::rv_policy::take_ownership);
