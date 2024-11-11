@@ -84,8 +84,9 @@ bool is_cooler(const std::filesystem::path &uri) {
 
 bool is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
 
-static hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range1,
-                                    std::string_view range2, std::string_view normalization,
+static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::string_view> range1,
+                                    std::optional<std::string_view> range2,
+                                    std::optional<std::string_view> normalization,
                                     std::string_view count_type, bool join,
                                     std::string_view query_type) {
   if (count_type != "float" && count_type != "int") {
@@ -96,15 +97,17 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range
     throw std::runtime_error("query_type should be either UCSC or BED");
   }
 
-  if (normalization != "NONE") {
+  const hictk::balancing::Method normalization_method{normalization.value_or("NONE")};
+
+  if (normalization_method != hictk::balancing::Method::NONE()) {
     count_type = "float";
   }
 
-  if (range1.empty()) {
-    assert(range2.empty());
+  if (!range1.has_value()) {
+    assert(!range2.has_value());
     return std::visit(
         [&](const auto &ff) {
-          auto sel = ff.fetch(hictk::balancing::Method{normalization});
+          auto sel = ff.fetch(normalization_method);
           using SelT = decltype(sel);
           return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
                                         join);
@@ -112,20 +115,21 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::string_view range
         f.get());
   }
 
-  if (range2.empty()) {
+  if (!range2.has_value()) {
     range2 = range1;
   }
 
   const auto query_type_ =
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
-  const auto gi1 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range1}, query_type_);
-  const auto gi2 = hictk::GenomicInterval::parse(f.chromosomes(), std::string{range2}, query_type_);
+  const auto gi1 =
+      hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range1}, query_type_);
+  const auto gi2 =
+      hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range2}, query_type_);
 
   return std::visit(
       [&](const auto &ff) {
-        // Workaround bug fixed in https://github.com/paulsengroup/hictk/pull/158
-        auto sel = ff.fetch(fmt::format(FMT_STRING("{}"), gi1), fmt::format(FMT_STRING("{}"), gi2),
-                            hictk::balancing::Method(normalization));
+        auto sel = ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
+                            gi2.start(), gi2.end(), normalization_method);
 
         using SelT = decltype(sel);
         return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
@@ -306,9 +310,9 @@ void declare_file_class(nb::module_ &m) {
   file.def("attributes", &file::attributes, "Get file attributes as a dictionary.",
            nb::rv_policy::take_ownership);
 
-  file.def("fetch", &file::fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = "",
-           nb::arg("range2") = "", nb::arg("normalization") = "NONE", nb::arg("count_type") = "int",
-           nb::arg("join") = false, nb::arg("query_type") = "UCSC",
+  file.def("fetch", &file::fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = nb::none(),
+           nb::arg("range2") = nb::none(), nb::arg("normalization") = nb::none(),
+           nb::arg("count_type") = "int", nb::arg("join") = false, nb::arg("query_type") = "UCSC",
            "Fetch interactions overlapping a region of interest.", nb::rv_policy::move);
 
   file.def("avail_normalizations", &file::avail_normalizations,
