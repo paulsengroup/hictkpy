@@ -31,6 +31,21 @@ class TestClass:
         logging.basicConfig(level="INFO", force=True)
         logging.getLogger().setLevel("INFO")
 
+    def test_accessors(self, file, resolution, tmpdir):
+        bins = hictkpy.File(file, resolution).bins()
+
+        path = tmpdir / "test.cool"
+        w = hictkpy.cooler.FileWriter(path, bins)
+
+        assert str(w).startswith("CoolFileWriter(")
+        assert w.path() == path
+        if resolution is None:
+            assert w.resolution() == 0
+        else:
+            assert w.resolution() == resolution
+        assert w.chromosomes() == bins.chromosomes()
+        assert len(w.bins().to_df().compare(bins.to_df())) == 0
+
     def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
         f = hictkpy.File(file, resolution)
         if f.bins().type() != "fixed":
