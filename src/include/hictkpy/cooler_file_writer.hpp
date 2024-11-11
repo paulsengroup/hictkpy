@@ -39,6 +39,7 @@ class CoolerFileWriter {
   [[nodiscard]] std::uint32_t resolution() const noexcept;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
+  [[nodiscard]] std::shared_ptr<const hictk::BinTable> bins_ptr() const noexcept;
 
   void add_pixels(const nanobind::object& df);
 

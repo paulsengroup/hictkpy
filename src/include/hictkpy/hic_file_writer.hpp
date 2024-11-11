@@ -43,6 +43,7 @@ class HiCFileWriter {
   [[nodiscard]] const std::vector<std::uint32_t>& resolutions() const noexcept;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
+  [[nodiscard]] hictkpy::BinTable bins(std::uint32_t resolution) const;
 
   void add_pixels(const nanobind::object& df);
 

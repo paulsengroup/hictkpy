@@ -105,6 +105,10 @@ const std::vector<std::uint32_t> &HiCFileWriter::resolutions() const noexcept {
 
 const hictk::Reference &HiCFileWriter::chromosomes() const { return _w.chromosomes(); }
 
+hictkpy::BinTable HiCFileWriter::bins(std::uint32_t resolution) const {
+  return hictkpy::BinTable{_w.bins(resolution)};
+}
+
 void HiCFileWriter::add_pixels(const nb::object &df) {
   if (_finalized) {
     throw std::runtime_error(
@@ -172,6 +176,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
              nb::arg("include_ALL") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.",
              nb::rv_policy::take_ownership);
+  writer.def("bins", &hictkpy::HiCFileWriter::bins, "Get table of bins for the given resolution.",
+             nb::sig("def bins(self, resolution: int) -> hictkpy.BinTable"), nb::rv_policy::move);
 
   writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,
              nb::sig("def add_pixels(self, pixels: pd.DataFrame) -> None"), nb::arg("pixels"),
