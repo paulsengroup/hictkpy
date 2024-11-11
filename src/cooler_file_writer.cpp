@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <hictk/cooler/cooler.hpp>
+#include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
 #include <hictk/type_traits.hpp>
@@ -105,8 +106,8 @@ void CoolerFileWriter::add_pixels(const nb::object &df) {
       var);
 }
 
-void CoolerFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str,
-                                std::size_t chunk_size, std::size_t update_freq) {
+hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+                                       std::size_t update_freq) {
   if (_finalized) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
@@ -143,6 +144,8 @@ void CoolerFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str,
   _w.reset();
   std::filesystem::remove(sclr_path);  // NOLINT
   // NOLINTEND(*-unchecked-optional-access)
+
+  return hictk::File{_path.string()};
 }
 
 hictk::cooler::SingleCellFile CoolerFileWriter::create_file(std::string_view path,
@@ -202,7 +205,7 @@ void CoolerFileWriter::bind(nb::module_ &m) {
   // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def("finalize", &hictkpy::CoolerFileWriter::finalize, nb::arg("log_lvl") = "WARN",
              nb::arg("chunk_size") = 500'000, nb::arg("update_frequency") = 10'000'000,
-             "Write interactions to file.");
+             "Write interactions to file.", nb::rv_policy::move);
   // NOLINTEND(*-avoid-magic-numbers)
 }
 }  // namespace hictkpy
