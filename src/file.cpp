@@ -317,6 +317,8 @@ void declare_file_class(nb::module_ &m) {
            "Check whether a given normalization is available.");
   file.def("weights", &file::weights, nb::arg("name"), nb::arg("divisive") = true,
            "Fetch the balancing weights for the given normalization method.",
+           nb::sig("def weights(self, name: str, divisive: bool = True) -> "
+                   "numpy.ndarray[float]"),
            nb::rv_policy::take_ownership);
   file.def(
       "weights", &file::weights_df, nb::arg("names"), nb::arg("divisive") = true,
