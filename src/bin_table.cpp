@@ -360,7 +360,7 @@ nb::object BinTable::merge_coords(nb::object df) const {
 nb::iterator BinTable::make_iterable() const {
   return std::visit(
       [](const auto& bins) {
-        return nb::make_iterator(nb::type<hictk::BinTable>(), "BinTableIterator", bins.begin(),
+        return nb::make_iterator(nb::type<hictkpy::BinTable>(), "BinTableIterator", bins.begin(),
                                  bins.end());
       },
       _bins->get());
