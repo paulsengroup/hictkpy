@@ -47,7 +47,7 @@ class TestClass:
             end = start + chunk_size
             w.add_pixels(df[start:end])
 
-        w.finalize("info", 100_000, 100_000)
+        f = w.finalize("info", 100_000, 100_000)
         with pytest.raises(Exception):
             w.add_pixels(df)
         with pytest.raises(Exception):
@@ -56,7 +56,6 @@ class TestClass:
         del w
         gc.collect()
 
-        f = hictkpy.File(path, resolution)
         assert f.fetch().sum() == expected_sum
 
     def test_file_creation(self, file, resolution, tmpdir):
@@ -75,7 +74,7 @@ class TestClass:
             end = start + chunk_size
             w.add_pixels(df[start:end])
 
-        w.finalize("info", 100_000, 100_000)
+        f = w.finalize("info", 100_000, 100_000)
         with pytest.raises(Exception):
             w.add_pixels(df)
         with pytest.raises(Exception):
@@ -84,7 +83,6 @@ class TestClass:
         del w
         gc.collect()
 
-        f = hictkpy.File(path, resolution)
         assert f.fetch().sum() == expected_sum
 
     def test_file_creation_bin_table(self, file, resolution, tmpdir):
@@ -101,7 +99,7 @@ class TestClass:
             end = start + chunk_size
             w.add_pixels(df[start:end])
 
-        w.finalize("info", 100_000, 100_000)
+        f = w.finalize("info", 100_000, 100_000)
         with pytest.raises(Exception):
             w.add_pixels(df)
         with pytest.raises(Exception):
@@ -110,7 +108,6 @@ class TestClass:
         del w
         gc.collect()
 
-        f = hictkpy.File(path, resolution)
         assert f.fetch().sum() == expected_sum
 
     def test_file_creation_float_counts(self, file, resolution, tmpdir):
@@ -130,7 +127,7 @@ class TestClass:
             end = start + chunk_size
             w.add_pixels(df[start:end])
 
-        w.finalize("info", 100_000, 100_000)
+        f = w.finalize("info", 100_000, 100_000)
         with pytest.raises(Exception):
             w.add_pixels(df)
         with pytest.raises(Exception):
@@ -139,5 +136,4 @@ class TestClass:
         del w
         gc.collect()
 
-        f = hictkpy.File(path, resolution)
         assert pytest.approx(f.fetch(count_type="float").sum()) == expected_sum
