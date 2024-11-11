@@ -190,7 +190,7 @@ static nb::dict get_hic_attrs(const hictk::hic::File &hf) {
 
   py_attrs["bin_size"] = hf.resolution();
   py_attrs["format"] = "HIC";
-  py_attrs["format_version"] = hf.version();
+  py_attrs["format-version"] = hf.version();
   py_attrs["assembly"] = hf.assembly();
   py_attrs["format-url"] = "https://github.com/aidenlab/hic-format";
   py_attrs["nbins"] = hf.bins().size();
