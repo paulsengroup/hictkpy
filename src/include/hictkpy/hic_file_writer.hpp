@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <hictk/file.hpp>
 #include <hictk/hic/file_writer.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
@@ -46,7 +47,7 @@ class HiCFileWriter {
 
   void add_pixels(const nanobind::object& df);
 
-  void finalize(std::string_view log_lvl_str);
+  [[nodiscard]] hictk::File finalize(std::string_view log_lvl_str);
 
   [[nodiscard]] std::string repr() const;
 
