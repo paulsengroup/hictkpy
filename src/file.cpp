@@ -190,7 +190,7 @@ static nb::dict get_hic_attrs(const hictk::hic::File &hf) {
 
   py_attrs["bin_size"] = hf.resolution();
   py_attrs["format"] = "HIC";
-  py_attrs["format_version"] = hf.version();
+  py_attrs["format-version"] = hf.version();
   py_attrs["assembly"] = hf.assembly();
   py_attrs["format-url"] = "https://github.com/aidenlab/hic-format";
   py_attrs["nbins"] = hf.bins().size();
@@ -301,7 +301,8 @@ void declare_file_class(nb::module_ &m) {
 
   file.def("resolution", &hictk::File::resolution, "Get the bin size in bp.");
   file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
-  file.def("nchroms", &hictk::File::nchroms, "Get the total number of chromosomes.");
+  file.def("nchroms", &hictk::File::nchroms, nb::arg("include_ALL") = false,
+           "Get the total number of chromosomes.");
 
   file.def("attributes", &file::attributes, "Get file attributes as a dictionary.",
            nb::rv_policy::take_ownership);
