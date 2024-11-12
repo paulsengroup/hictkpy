@@ -103,8 +103,8 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::str
     count_type = "float";
   }
 
-  if (!range1.has_value()) {
-    assert(!range2.has_value());
+  if (!range1.has_value() || range1->empty()) {
+    assert(!range2.has_value() || range2->empty());
     return std::visit(
         [&](const auto &ff) {
           auto sel = ff.fetch(normalization_method);
@@ -115,7 +115,7 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::str
         f.get());
   }
 
-  if (!range2.has_value()) {
+  if (!range2.has_value() || range2->empty()) {
     range2 = range1;
   }
 
