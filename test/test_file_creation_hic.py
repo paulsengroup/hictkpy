@@ -31,6 +31,20 @@ class TestClass:
         logging.basicConfig(level="INFO", force=True)
         logging.getLogger().setLevel("INFO")
 
+    def test_accessors(self, file, resolution, tmpdir):
+        bins = hictkpy.File(file, resolution).bins()
+        if bins.type() != "fixed":
+            pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
+
+        path = tmpdir / "test.hic"
+        w = hictkpy.hic.FileWriter(path, bins)
+
+        assert str(w).startswith("HiCFileWriter(")
+        assert w.path() == path
+        assert w.resolutions() == [resolution]
+        assert w.chromosomes() == bins.chromosomes()
+        assert len(w.bins(resolution).to_df().compare(bins.to_df())) == 0
+
     def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
         f = hictkpy.File(file, resolution)
         if f.bins().type() != "fixed":
@@ -39,7 +53,7 @@ class TestClass:
         df = f.fetch(join=False).to_df()
         expected_sum = df["count"].sum()
 
-        path = tmpdir / "test1.hic"
+        path = tmpdir / "test.hic"
         w = hictkpy.hic.FileWriter(path, f.chromosomes(), f.resolution())
 
         chunk_size = 1000
@@ -67,7 +81,7 @@ class TestClass:
         df = f.fetch(join=True).to_df()
         expected_sum = df["count"].sum()
 
-        path = tmpdir / "test2.hic"
+        path = tmpdir / "test.hic"
         w = hictkpy.hic.FileWriter(path, f.chromosomes(), f.resolution())
 
         chunk_size = 1000
@@ -93,7 +107,7 @@ class TestClass:
         df = f.fetch(join=True).to_df()
         expected_sum = df["count"].sum()
 
-        path = tmpdir / "test2.hic"
+        path = tmpdir / "test.hic"
         if f.bins().type() != "fixed":
             with pytest.raises(Exception):
                 hictkpy.hic.FileWriter(path, f.bins())

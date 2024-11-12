@@ -44,6 +44,7 @@ class TestClass:
         else:
             assert w.resolution() == resolution
         assert w.chromosomes() == bins.chromosomes()
+        assert len(w.bins().to_df().compare(bins.to_df())) == 0
 
     def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
         f = hictkpy.File(file, resolution)
