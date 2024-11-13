@@ -28,6 +28,19 @@ static std::string repr(const hictk::MultiResFile& mrf) {
 
 static std::filesystem::path get_path(const hictk::MultiResFile& mrf) { return mrf.path(); }
 
+[[nodiscard]] static auto get_resolutions(const hictk::MultiResFile& f) {
+  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
+
+  // NOLINTNEXTLINE
+  auto* resolutions_ptr = new std::vector<std::uint32_t>(f.resolutions());
+
+  auto capsule = nb::capsule(resolutions_ptr, [](void* vect_ptr) noexcept {
+    delete reinterpret_cast<std::vector<std::uint32_t>*>(vect_ptr);  // NOLINT
+  });
+
+  return WeightVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
+}
+
 static nb::dict get_attrs(const hictk::hic::File& hf) {
   nb::dict py_attrs;
 
@@ -60,26 +73,13 @@ static nb::dict get_attrs(const hictk::cooler::MultiResFile& mclr) {
 static nb::dict attributes(const hictk::MultiResFile& f) {
   auto attrs = f.is_hic() ? get_attrs(f.open(f.resolutions().front()).get<hictk::hic::File>())
                           : get_attrs(hictk::cooler::MultiResFile{f.path()});
-  attrs["resolutions"] = f.resolutions();
+  attrs["resolutions"] = get_resolutions(f);
 
   return attrs;
 }
 
 bool is_mcool_file(const std::filesystem::path& path) {
   return bool(hictk::cooler::utils::is_multires_file(path.string()));
-}
-
-[[nodiscard]] static auto get_resolutions(const hictk::MultiResFile& f) {
-  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
-
-  // NOLINTNEXTLINE
-  auto* resolutions_ptr = new std::vector<std::uint32_t>(f.resolutions());
-
-  auto capsule = nb::capsule(resolutions_ptr, [](void* vect_ptr) noexcept {
-    delete reinterpret_cast<std::vector<std::uint32_t>*>(vect_ptr);  // NOLINT
-  });
-
-  return WeightVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
 }
 
 void declare_multires_file_class(nb::module_& m) {
