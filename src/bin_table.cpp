@@ -395,6 +395,8 @@ nb::object BinTable::to_df(std::optional<std::string_view> range,
   std::vector<std::uint32_t> starts(n);
   std::vector<std::uint32_t> ends(n);
 
+  const auto chrom_id_offset = static_cast<std::uint32_t>(_bins->chromosomes().at(0).is_all());
+
   std::visit(
       [&](const auto& bins) {
         const auto [first_bin, last_bin] = !range.has_value()
@@ -403,7 +405,7 @@ nb::object BinTable::to_df(std::optional<std::string_view> range,
         std::size_t i = 0;
         std::for_each(first_bin, last_bin, [&](const auto& bin) {
           bin_ids[i] = bin.id();
-          chrom_ids[i] = static_cast<std::int32_t>(bin.chrom().id());
+          chrom_ids[i] = static_cast<std::int32_t>(bin.chrom().id() - chrom_id_offset);
           starts[i] = bin.start();
           ends[i] = bin.end();
           ++i;
@@ -411,8 +413,8 @@ nb::object BinTable::to_df(std::optional<std::string_view> range,
       },
       _bins->get());
 
-  return make_bin_table_df(chrom_names(), std::move(chrom_ids), std::move(starts), std::move(ends),
-                           std::move(bin_ids));
+  return make_bin_table_df(chrom_names(false), std::move(chrom_ids), std::move(starts),
+                           std::move(ends), std::move(bin_ids));
 }
 
 std::shared_ptr<const hictk::BinTable> BinTable::get() const noexcept { return _bins; }

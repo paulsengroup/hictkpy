@@ -72,6 +72,14 @@ const hictk::Reference &CoolerFileWriter::chromosomes() const {
   return ref;
 }
 
+std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const noexcept {
+  if (!_w) {
+    return {};
+  }
+
+  return _w->bins_ptr();
+}
+
 void CoolerFileWriter::add_pixels(const nb::object &df) {
   if (!_w.has_value()) {
     throw std::runtime_error(
@@ -196,6 +204,8 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              nb::arg("include_ALL") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.",
              nb::rv_policy::take_ownership);
+  writer.def("bins", &get_bins_from_object<hictkpy::CoolerFileWriter>, "Get table of bins.",
+             nb::sig("def bins(self) -> hictkpy.BinTable"), nb::rv_policy::move);
 
   writer.def("add_pixels", &hictkpy::CoolerFileWriter::add_pixels,
              nb::sig("def add_pixels(self, pixels: pandas.DataFrame)"), nb::arg("pixels"),
