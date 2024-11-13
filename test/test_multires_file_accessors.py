@@ -23,7 +23,7 @@ class TestClass:
         f = hictkpy.MultiResFile(file)
 
         assert f.path() == file
-        assert f.resolutions() == [100_000, 1_000_000]
+        assert (f.resolutions() == [100_000, 1_000_000]).all()
         assert len(f.chromosomes()) == 8
 
         assert f[100_000].resolution() == 100_000
