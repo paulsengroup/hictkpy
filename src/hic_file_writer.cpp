@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
 #include <stdexcept>
@@ -73,7 +74,7 @@ HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const hictkpy::
                     assembly, n_threads, chunk_size, tmpdir, compression_lvl,
                     skip_all_vs_all_matrix) {}
 
-void HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
+hictk::File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
   if (_finalized) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _w.path()));
@@ -93,14 +94,25 @@ void HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
   }
   SPDLOG_INFO(FMT_STRING("successfully finalized \"{}\"!"), _w.path());
   spdlog::default_logger()->set_level(previous_lvl);
+
+  return hictk::File{std::string{_w.path()}, _w.resolutions().front()};
 }
 
 std::filesystem::path HiCFileWriter::path() const noexcept {
   return std::filesystem::path{_w.path()};
 }
 
-const std::vector<std::uint32_t> &HiCFileWriter::resolutions() const noexcept {
-  return _w.resolutions();
+auto HiCFileWriter::resolutions() const {
+  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
+
+  // NOLINTNEXTLINE
+  auto *resolutions_ptr = new std::vector<std::uint32_t>(_w.resolutions());
+
+  auto capsule = nb::capsule(resolutions_ptr, [](void *vect_ptr) noexcept {
+    delete reinterpret_cast<std::vector<std::uint32_t> *>(vect_ptr);  // NOLINT
+  });
+
+  return WeightVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
 }
 
 const hictk::Reference &HiCFileWriter::chromosomes() const { return _w.chromosomes(); }
@@ -171,7 +183,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
 
   writer.def("path", &hictkpy::HiCFileWriter::path, "Get the file path.", nb::rv_policy::move);
   writer.def("resolutions", &hictkpy::HiCFileWriter::resolutions,
-             "Get the list of resolutions in bp.", nb::rv_policy::move);
+             "Get the list of resolutions in bp.", nb::rv_policy::take_ownership);
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::HiCFileWriter>,
              nb::arg("include_ALL") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.",
@@ -185,7 +197,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");
   writer.def("finalize", &hictkpy::HiCFileWriter::finalize, nb::arg("log_lvl") = "WARN",
-             "Write interactions to file.");
+             "Write interactions to file.", nb::rv_policy::move);
 }
 
 }  // namespace hictkpy

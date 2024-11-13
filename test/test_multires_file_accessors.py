@@ -32,16 +32,16 @@ class TestClass:
 
         if f.is_hic():
             resolutions = [100_000]
-            assert f.resolutions() == resolutions
+            assert (f.resolutions() == resolutions).all()
             assert f.attributes()["format"] == "HIC"
             assert f.attributes()["format-version"] == 9
-            assert f.attributes()["resolutions"] == resolutions
+            assert (f.attributes()["resolutions"] == resolutions).all()
         else:
             resolutions = [100_000, 1_000_000]
-            assert f.resolutions() == resolutions
+            assert (f.resolutions() == resolutions).all()
             assert f.attributes()["format"] == "HDF5::MCOOL"
             assert f.attributes()["format-version"] == 2
-            assert f.attributes()["resolutions"] == resolutions
+            assert (f.attributes()["resolutions"] == resolutions).all()
 
         assert f[100_000].resolution() == 100_000
 

@@ -9,6 +9,7 @@
 #include <hictk/cooler/validation.hpp>
 #include <hictk/multires_file.hpp>
 #include <string>
+#include <vector>
 
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/reference.hpp"
@@ -26,6 +27,19 @@ static std::string repr(const hictk::MultiResFile& mrf) {
 }
 
 static std::filesystem::path get_path(const hictk::MultiResFile& mrf) { return mrf.path(); }
+
+[[nodiscard]] static auto get_resolutions(const hictk::MultiResFile& f) {
+  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
+
+  // NOLINTNEXTLINE
+  auto* resolutions_ptr = new std::vector<std::uint32_t>(f.resolutions());
+
+  auto capsule = nb::capsule(resolutions_ptr, [](void* vect_ptr) noexcept {
+    delete reinterpret_cast<std::vector<std::uint32_t>*>(vect_ptr);  // NOLINT
+  });
+
+  return WeightVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
+}
 
 static nb::dict get_attrs(const hictk::hic::File& hf) {
   nb::dict py_attrs;
@@ -59,7 +73,7 @@ static nb::dict get_attrs(const hictk::cooler::MultiResFile& mclr) {
 static nb::dict attributes(const hictk::MultiResFile& f) {
   auto attrs = f.is_hic() ? get_attrs(f.open(f.resolutions().front()).get<hictk::hic::File>())
                           : get_attrs(hictk::cooler::MultiResFile{f.path()});
-  attrs["resolutions"] = f.resolutions();
+  attrs["resolutions"] = get_resolutions(f);
 
   return attrs;
 }
@@ -84,8 +98,8 @@ void declare_multires_file_class(nb::module_& m) {
                 nb::arg("include_ALL") = false,
                 "Get chromosomes sizes as a dictionary mapping names to sizes.",
                 nb::rv_policy::take_ownership);
-  mres_file.def("resolutions", &hictk::MultiResFile::resolutions,
-                "Get the list of available resolutions.", nb::rv_policy::copy);
+  mres_file.def("resolutions", &get_resolutions, "Get the list of available resolutions.",
+                nb::rv_policy::take_ownership);
   mres_file.def("attributes", &multires_file::attributes, "Get file attributes as a dictionary.",
                 nb::rv_policy::take_ownership);
   mres_file.def("__getitem__", &hictk::MultiResFile::open,
