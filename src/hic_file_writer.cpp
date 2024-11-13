@@ -174,7 +174,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
              nb::rv_policy::take_ownership);
 
   writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,
-             nb::sig("def add_pixels(self, pixels: pd.DataFrame) -> None"), nb::arg("pixels"),
+             nb::sig("def add_pixels(self, pixels: pandas.DataFrame) -> None"), nb::arg("pixels"),
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");
