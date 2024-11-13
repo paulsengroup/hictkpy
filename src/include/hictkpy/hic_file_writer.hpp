@@ -41,7 +41,7 @@ class HiCFileWriter {
                 bool skip_all_vs_all_matrix);
 
   [[nodiscard]] std::filesystem::path path() const noexcept;
-  [[nodiscard]] const std::vector<std::uint32_t>& resolutions() const noexcept;
+  [[nodiscard]] auto resolutions() const;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
 
