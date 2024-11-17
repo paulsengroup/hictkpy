@@ -313,88 +313,37 @@ inline Stats PixelAggregator::extract(const phmap::flat_hash_set<std::string>& m
   Stats stats{};
 
   std::visit(
-      [&](auto& accumulator) {
+      [&](const auto& accumulator) {
         if (metrics.contains("nnz")) {
-          stats.nnz = boost::accumulators::count(accumulator);
+          stats.nnz = extract_nnz(accumulator);
         }
 
         if (metrics.contains("sum")) {
-          if constexpr (std::is_floating_point_v<N>) {
-            if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
-              stats.sum = std::numeric_limits<N>::quiet_NaN();
-            } else if (_pos_inf_found) {
-              stats.sum = std::numeric_limits<N>::infinity();
-            } else if (_neg_inf_found) {
-              stats.sum = -std::numeric_limits<N>::infinity();
-            }
-          }
-          if (!stats.sum.has_value()) {
-            stats.sum = boost::accumulators::sum(accumulator);
-          }
+          stats.sum = extract_sum(accumulator);
         }
 
         if (metrics.contains("min")) {
-          if constexpr (std::is_floating_point_v<N>) {
-            if (_nan_found) {
-              stats.min = std::numeric_limits<N>::quiet_NaN();
-            } else if (_neg_inf_found) {
-              stats.min = -std::numeric_limits<N>::infinity();
-            }
-          }
-          if (!stats.min.has_value()) {
-            stats.min = boost::accumulators::min(accumulator);
-          }
+          stats.min = extract_min(accumulator);
         }
 
         if (metrics.contains("max")) {
-          if constexpr (std::is_floating_point_v<N>) {
-            if (_nan_found) {
-              stats.max = std::numeric_limits<N>::quiet_NaN();
-            } else if (_pos_inf_found) {
-              stats.max = std::numeric_limits<N>::infinity();
-            }
-          }
-          if (!stats.max.has_value()) {
-            stats.max = boost::accumulators::max(accumulator);
-          }
+          stats.max = extract_max(accumulator);
         }
 
         if (metrics.contains("mean")) {
-          if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
-            stats.mean = std::numeric_limits<double>::quiet_NaN();
-          } else if (_pos_inf_found) {
-            stats.mean = std::numeric_limits<double>::infinity();
-          } else if (_neg_inf_found) {
-            stats.mean = -std::numeric_limits<double>::infinity();
-          } else {
-            stats.mean = boost::accumulators::mean(accumulator);
-          }
+          stats.mean = extract_mean(accumulator);
         }
 
         if (metrics.contains("variance")) {
-          if (_nan_found || _pos_inf_found || _neg_inf_found) {
-            stats.variance = std::numeric_limits<double>::quiet_NaN();
-          } else {
-            stats.variance = boost::accumulators::variance(accumulator);
-          }
+          stats.variance = extract_variance(accumulator);
         }
 
         if (metrics.contains("skewness")) {
-          if (_nan_found || _pos_inf_found || _neg_inf_found) {
-            stats.skewness = std::numeric_limits<double>::quiet_NaN();
-          } else {
-            stats.skewness = boost::accumulators::skewness(accumulator);
-          }
+          stats.skewness = extract_skewness(accumulator);
         }
 
         if (metrics.contains("kurtosis")) {
-          if (_nan_found || _pos_inf_found || _neg_inf_found) {
-            stats.kurtosis = std::numeric_limits<double>::quiet_NaN();
-          } else if (_kurtosis_accumulator.has_value()) {
-            stats.kurtosis = boost::accumulators::kurtosis(*_kurtosis_accumulator);
-          } else {
-            stats.kurtosis = boost::accumulators::kurtosis(accumulator);
-          }
+          stats.kurtosis = extract_kurtosis(accumulator);
         }
       },
       _accumulator);
@@ -402,4 +351,92 @@ inline Stats PixelAggregator::extract(const phmap::flat_hash_set<std::string>& m
   return stats;
 }
 
-};  // namespace hictkpy
+template <typename N>
+inline std::int64_t PixelAggregator::extract_nnz(const Accumulator<N>& accumulator) {
+  return static_cast<std::int64_t>(boost::accumulators::count(accumulator));
+}
+
+template <typename N>
+inline N PixelAggregator::extract_sum(const Accumulator<N>& accumulator) const {
+  if constexpr (std::is_floating_point_v<N>) {
+    if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
+      return std::numeric_limits<N>::quiet_NaN();
+    }
+    if (_pos_inf_found) {
+      return std::numeric_limits<N>::infinity();
+    }
+    if (_neg_inf_found) {
+      return -std::numeric_limits<N>::infinity();
+    }
+  }
+  return boost::accumulators::sum(accumulator);
+}
+
+template <typename N>
+inline N PixelAggregator::extract_min(const Accumulator<N>& accumulator) const {
+  if constexpr (std::is_floating_point_v<N>) {
+    if (_nan_found) {
+      return std::numeric_limits<N>::quiet_NaN();
+    }
+    if (_neg_inf_found) {
+      return -std::numeric_limits<N>::infinity();
+    }
+  }
+  return boost::accumulators::min(accumulator);
+}
+
+template <typename N>
+inline N PixelAggregator::extract_max(const Accumulator<N>& accumulator) const {
+  if constexpr (std::is_floating_point_v<N>) {
+    if (_nan_found) {
+      return std::numeric_limits<N>::quiet_NaN();
+    }
+    if (_pos_inf_found) {
+      return std::numeric_limits<N>::infinity();
+    }
+  }
+  return boost::accumulators::max(accumulator);
+}
+
+template <typename N>
+inline double PixelAggregator::extract_mean(const Accumulator<N>& accumulator) const {
+  if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  if (_pos_inf_found) {
+    return std::numeric_limits<double>::infinity();
+  }
+  if (_neg_inf_found) {
+    return -std::numeric_limits<double>::infinity();
+  }
+  return boost::accumulators::mean(accumulator);
+}
+
+template <typename N>
+inline double PixelAggregator::extract_variance(const Accumulator<N>& accumulator) const {
+  if (_nan_found || _pos_inf_found || _neg_inf_found) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  return boost::accumulators::variance(accumulator);
+}
+
+template <typename N>
+inline double PixelAggregator::extract_skewness(const Accumulator<N>& accumulator) const {
+  if (_nan_found || _pos_inf_found || _neg_inf_found) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  return boost::accumulators::skewness(accumulator);
+}
+
+template <typename N>
+inline double PixelAggregator::extract_kurtosis(const Accumulator<N>& accumulator) const {
+  if (_nan_found || _pos_inf_found || _neg_inf_found) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  if (_kurtosis_accumulator.has_value()) {
+    return boost::accumulators::kurtosis(*_kurtosis_accumulator);
+  }
+  return boost::accumulators::kurtosis(accumulator);
+}
+
+}  // namespace hictkpy

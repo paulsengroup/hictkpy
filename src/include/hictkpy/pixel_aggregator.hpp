@@ -107,6 +107,23 @@ class PixelAggregator {
 
   template <typename N>
   [[nodiscard]] Stats extract(const phmap::flat_hash_set<std::string>& metrics);
+
+  template <typename N>
+  [[nodiscard]] static std::int64_t extract_nnz(const Accumulator<N>& accumulator);
+  template <typename N>
+  [[nodiscard]] N extract_sum(const Accumulator<N>& accumulator) const;
+  template <typename N>
+  [[nodiscard]] N extract_min(const Accumulator<N>& accumulator) const;
+  template <typename N>
+  [[nodiscard]] N extract_max(const Accumulator<N>& accumulator) const;
+  template <typename N>
+  [[nodiscard]] double extract_mean(const Accumulator<N>& accumulator) const;
+  template <typename N>
+  [[nodiscard]] double extract_variance(const Accumulator<N>& accumulator) const;
+  template <typename N>
+  [[nodiscard]] double extract_skewness(const Accumulator<N>& accumulator) const;
+  template <typename N>
+  [[nodiscard]] double extract_kurtosis(const Accumulator<N>& accumulator) const;
 };
 
 }  // namespace hictkpy
