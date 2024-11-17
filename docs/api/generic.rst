@@ -45,14 +45,46 @@ Generic API
 
    .. automethod:: coord1
    .. automethod:: coord2
-   .. automethod:: nnz
-   .. automethod:: sum
    .. automethod:: to_arrow
    .. automethod:: to_coo
    .. automethod:: to_csr
    .. automethod:: to_df
    .. automethod:: to_numpy
    .. automethod:: to_pandas
+
+   **Statistics**
+
+   :py:class:`hictkpy.PixelSelector` exposes several methods to compute or estimate several statistics efficiently.
+
+   The main features of these methods are:
+
+   * All statistics are computed by traversing the data only once and without caching interactions.
+   * All methods can be tweaked to include or exclude non-finite values.
+   * All functions implemented using short-circuiting to detect scenarios where the required statistics can be computed without traversing all pixels.
+
+   The following statistics are guaranteed to be exact:
+
+   * nnz
+   * sum
+   * min
+   * max
+   * mean
+
+   The rest of the supported statistics (currently variance, skewness, and kurtosis) are estimated and are thus not guaranteed to be exact.
+   However, in practice, the estimation is usually very accurate (based on my tests, the rel. error is always < 1.0e-4, and typically < 1.0e-6).
+   The only case where the estimates are likely to be inaccurate is when the sample size (i.e. the number of non-zero pixels overlapping a query) is very small.
+
+   .. automethod:: describe
+   .. automethod:: kurtosis
+   .. automethod:: max
+   .. automethod:: mean
+   .. automethod:: min
+   .. automethod:: nnz
+   .. automethod:: skewness
+   .. automethod:: sum
+   .. automethod:: variance
+
+   **Iteration**
 
    .. automethod:: __iter__
 
