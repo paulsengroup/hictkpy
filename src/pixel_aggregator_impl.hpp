@@ -93,23 +93,21 @@ inline void PixelAggregator::validate_metrics(const phmap::flat_hash_set<std::st
 template <bool keep_nans, bool keep_infs, typename N>
 inline void PixelAggregator::process_non_finite(N n) noexcept {
   static_assert(std::is_arithmetic_v<N>);
-  if constexpr (std::is_integral_v<N>) {
-    return;
-  }
-
-  if constexpr (keep_nans) {
-    if (HICTKPY_UNLIKELY(std::isnan(n))) {
-      _nan_found = true;
-      return;
+  if constexpr (std::is_floating_point_v<N>) {
+    if constexpr (keep_nans) {
+      if (HICTKPY_UNLIKELY(std::isnan(n))) {
+        _nan_found = true;
+        return;
+      }
     }
-  }
 
-  if constexpr (keep_infs) {
-    if (HICTKPY_UNLIKELY(std::isinf(n))) {
-      if (n > 0) {
-        _pos_inf_found = true;
-      } else {
-        _neg_inf_found = true;
+    if constexpr (keep_infs) {
+      if (HICTKPY_UNLIKELY(std::isinf(n))) {
+        if (n > 0) {
+          _pos_inf_found = true;
+        } else {
+          _neg_inf_found = true;
+        }
       }
     }
   }
@@ -214,16 +212,17 @@ inline bool PixelAggregator::drop_value([[maybe_unused]] N n) noexcept {
   static_assert(std::is_arithmetic_v<N>);
   if constexpr (!std::is_floating_point_v<N>) {
     return false;
-  }
-
-  if constexpr (!keep_nans && !keep_infs) {
-    return !std::isfinite(n);
-  }
-  if constexpr (!keep_nans) {
-    return std::isnan(n);
-  }
-  if constexpr (!keep_infs) {
-    return std::isinf(n);
+  } else {
+    // MSVC gets confused if this chunk of code is not in an else branch...
+    if constexpr (!keep_nans && !keep_infs) {
+      return !std::isfinite(n);
+    }
+    if constexpr (!keep_nans) {
+      return std::isnan(n);
+    }
+    if constexpr (!keep_infs) {
+      return std::isinf(n);
+    }
   }
 
   return false;
