@@ -13,6 +13,7 @@
 #include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -127,10 +128,12 @@ void HiCFileWriter::add_pixels(const nb::object &df) {
         "caught attempt to add_pixels to a .hic file that has already been finalized!");
   }
 
+  auto lck = std::make_optional<nb::gil_scoped_acquire>();
   const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
   const auto pixels =
       coo_format ? coo_df_to_thin_pixels<float>(df, false)
                  : bg2_df_to_thin_pixels<float>(_w.bins(_w.resolutions().front()), df, false);
+  lck.reset();
   SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), _w.path());
   _w.add_pixels(_w.resolutions().front(), pixels.begin(), pixels.end());
 }
@@ -192,6 +195,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
              nb::sig("def bins(self, resolution: int) -> hictkpy.BinTable"), nb::rv_policy::move);
 
   writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,
+             nb::call_guard<nb::gil_scoped_release>(),
              nb::sig("def add_pixels(self, pixels: pd.DataFrame) -> None"), nb::arg("pixels"),
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
