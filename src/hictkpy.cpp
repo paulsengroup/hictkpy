@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <hictk/version.hpp>
-#include <stdexcept>
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/cooler_file_writer.hpp"

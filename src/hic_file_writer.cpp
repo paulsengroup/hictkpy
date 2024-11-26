@@ -196,7 +196,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");
-  writer.def("finalize", &hictkpy::HiCFileWriter::finalize, nb::arg("log_lvl") = "WARN",
+  writer.def("finalize", &hictkpy::HiCFileWriter::finalize,
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
              "Write interactions to file.", nb::rv_policy::move);
 }
 

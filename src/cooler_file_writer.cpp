@@ -213,7 +213,8 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");
   // NOLINTBEGIN(*-avoid-magic-numbers)
-  writer.def("finalize", &hictkpy::CoolerFileWriter::finalize, nb::arg("log_lvl") = "WARN",
+  writer.def("finalize", &hictkpy::CoolerFileWriter::finalize,
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
              nb::arg("chunk_size") = 500'000, nb::arg("update_frequency") = 10'000'000,
              "Write interactions to file.", nb::rv_policy::move);
   // NOLINTEND(*-avoid-magic-numbers)
