@@ -399,16 +399,20 @@ def compute_stats(df: pd.DataFrame, keep_nans: bool, keep_infs: bool) -> Dict:
         }
 
 
-def compare_metric(worker_id: int, q1: str, q2: str, metric: str, expected, found) -> bool:
+def compare_metric(
+    worker_id: int, q1: str, q2: str, metric: str, expected, found, keep_nans: bool, keep_infs: bool
+) -> bool:
     do_numeric_comparison = expected is not None and found is not None
     if do_numeric_comparison:
         if not np.isclose(expected, found, equal_nan=True):
             logging.warning(
-                "[%d] %s, %s (%s): FAIL! Expected %.16g, found %.16g",
+                "[%d] %s, %s (%s; keep_nans=%s; keep_infs=%s): FAIL! Expected %.16g, found %.16g",
                 worker_id,
                 q1,
                 q2,
                 metric,
+                keep_nans,
+                keep_infs,
                 expected,
                 found,
             )
@@ -419,11 +423,13 @@ def compare_metric(worker_id: int, q1: str, q2: str, metric: str, expected, foun
         return True
 
     logging.warning(
-        "[%d] %s, %s (%s): FAIL! Expected %s, found %s",
+        "[%d] %s, %s (%s; keep_nans=%s; keep_infs=%s): FAIL! Expected %s, found %s",
         worker_id,
         q1,
         q2,
         metric,
+        keep_nans,
+        keep_infs,
         expected,
         found,
     )
@@ -442,13 +448,13 @@ def compare_query_stats(worker_id: int, q1: str, q2: str, expected, sel: hictkpy
             for metric in exact_metrics:
                 n1 = stats_expected[metric]
                 n2 = stats_found[metric]
-                if not compare_metric(worker_id, q1, q2, metric, n1, n2):
+                if not compare_metric(worker_id, q1, q2, metric, n1, n2, keep_nans, keep_infs):
                     num_failures += 1
 
             for metric in approx_metrics:
                 n1 = stats_expected[metric]
                 n2 = stats_found[metric]
-                if not compare_metric(worker_id, q1, q2, metric, n1, n2):
+                if not compare_metric(worker_id, q1, q2, metric, n1, n2, keep_nans, keep_infs):
                     num_failures += 1
 
     return int(num_failures != 0)
