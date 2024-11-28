@@ -547,7 +547,7 @@ def worker(
             expected = cooler_dump(sel, q1, q2)
 
             if query_type == "describe":
-                num_failures += compare_query_stats(worker_id, q1, q2, expected, f.fetch(q1, q2))
+                num_failures += compare_query_stats(worker_id, q1, q2, expected, f.fetch(q1, q2, normalization=balance))
             else:
                 found = hictk_dump(f, q1, q2, balance, query_type)
                 num_failures += compare_query_results(worker_id, q1, q2, expected, found)
