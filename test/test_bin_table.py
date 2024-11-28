@@ -61,17 +61,16 @@ class TestClass:
             bins.get_id("abc", 100)
 
     @pytest.mark.skipif(
-        not numpy_avail() or not pandas_avail() or not pyarrow_avail(),
-        reason="numpy, pandas, or pyarrow are not available",
+        not pandas_avail() or not pyarrow_avail(),
+        reason="pandas or pyarrow are not available",
     )
     def test_vectorized_getters(self):
-        import numpy as np
 
         chroms = {"chr1": 1000, "chr2": 500}
         bins = hictkpy.BinTable(chroms, 100)
 
-        assert len(bins.get(np.array([1, 1]))) == 2
-        assert len(bins.get_ids(np.array(["chr1", "chr1"]), np.array([1, 1]))) == 2
+        assert len(bins.get([1, 1])) == 2
+        assert len(bins.get_ids(["chr1", "chr1"], [1, 1])) == 2
 
     @pytest.mark.skipif(not pandas_avail() or not pyarrow_avail(), reason="pandas is not available")
     def test_merge(self):

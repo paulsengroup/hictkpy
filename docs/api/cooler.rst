@@ -23,6 +23,7 @@ Cooler API
 
    .. automethod:: __init__
    .. automethod:: add_pixels
+   .. automethod:: bins
    .. automethod:: chromosomes
    .. automethod:: finalize
    .. automethod:: path

@@ -49,11 +49,10 @@ struct PixelSelector {
 
   [[nodiscard]] std::string repr() const;
 
-  using PixelCoordTuple =
-      std::tuple<std::string, std::int32_t, std::int32_t, std::string, std::int32_t, std::int32_t>;
+  using GenomicCoordTuple = std::tuple<std::string, std::int64_t, std::int64_t>;
 
-  [[nodiscard]] auto get_coord1() const -> PixelCoordTuple;
-  [[nodiscard]] auto get_coord2() const -> PixelCoordTuple;
+  [[nodiscard]] auto get_coord1() const -> GenomicCoordTuple;
+  [[nodiscard]] auto get_coord2() const -> GenomicCoordTuple;
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
   [[nodiscard]] nanobind::object to_arrow(std::string_view span) const;

@@ -12,8 +12,11 @@
 #include <cstdint>
 #include <filesystem>
 #include <hictk/cooler/cooler.hpp>
+#include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
+#include <hictk/type_traits.hpp>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -70,17 +73,26 @@ const hictk::Reference &CoolerFileWriter::chromosomes() const {
   return ref;
 }
 
+std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const noexcept {
+  if (!_w) {
+    return {};
+  }
+
+  return _w->bins_ptr();
+}
+
 void CoolerFileWriter::add_pixels(const nb::object &df) {
   if (!_w.has_value()) {
     throw std::runtime_error(
         "caught attempt to add_pixels to a .cool file that has already been finalized!");
   }
 
-  const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
-
   const auto cell_id = fmt::to_string(_w->cells().size());
   auto attrs = hictk::cooler::Attributes::init(_w->resolution());
   attrs.assembly = _w->attributes().assembly;
+
+  auto lck = std::make_optional<nb::gil_scoped_acquire>();
+  const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
 
   const auto dtype = df.attr("__getitem__")("count").attr("dtype");
   const auto dtype_str = nb::cast<std::string>(dtype.attr("__str__")());
@@ -91,6 +103,7 @@ void CoolerFileWriter::add_pixels(const nb::object &df) {
         using N = remove_cvref_t<decltype(n)>;
         const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, true)
                                        : bg2_df_to_thin_pixels<N>(_w->bins(), df, true);
+        lck.reset();
 
         auto clr = _w->create_cell<N>(cell_id, std::move(attrs),
                                       hictk::cooler::DEFAULT_HDF5_CACHE_SIZE * 4, 1);
@@ -104,8 +117,8 @@ void CoolerFileWriter::add_pixels(const nb::object &df) {
       var);
 }
 
-void CoolerFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str,
-                                std::size_t chunk_size, std::size_t update_freq) {
+hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+                                       std::size_t update_freq) {
   if (_finalized) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
@@ -142,6 +155,8 @@ void CoolerFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str,
   _w.reset();
   std::filesystem::remove(sclr_path);  // NOLINT
   // NOLINTEND(*-unchecked-optional-access)
+
+  return hictk::File{_path.string()};
 }
 
 hictk::cooler::SingleCellFile CoolerFileWriter::create_file(std::string_view path,
@@ -192,16 +207,20 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              nb::arg("include_ALL") = false,
              "Get chromosomes sizes as a dictionary mapping names to sizes.",
              nb::rv_policy::take_ownership);
+  writer.def("bins", &get_bins_from_object<hictkpy::CoolerFileWriter>, "Get table of bins.",
+             nb::sig("def bins(self) -> hictkpy.BinTable"), nb::rv_policy::move);
 
   writer.def("add_pixels", &hictkpy::CoolerFileWriter::add_pixels,
+             nb::call_guard<nb::gil_scoped_release>(),
              nb::sig("def add_pixels(self, pixels: pandas.DataFrame)"), nb::arg("pixels"),
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].");
   // NOLINTBEGIN(*-avoid-magic-numbers)
-  writer.def("finalize", &hictkpy::CoolerFileWriter::finalize, nb::arg("log_lvl") = "WARN",
+  writer.def("finalize", &hictkpy::CoolerFileWriter::finalize,
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
              nb::arg("chunk_size") = 500'000, nb::arg("update_frequency") = 10'000'000,
-             "Write interactions to file.");
+             "Write interactions to file.", nb::rv_policy::move);
   // NOLINTEND(*-avoid-magic-numbers)
 }
 }  // namespace hictkpy

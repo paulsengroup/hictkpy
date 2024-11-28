@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <hictk/cooler/singlecell_cooler.hpp>
+#include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
 #include <optional>
@@ -39,10 +40,12 @@ class CoolerFileWriter {
   [[nodiscard]] std::uint32_t resolution() const noexcept;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
+  [[nodiscard]] std::shared_ptr<const hictk::BinTable> bins_ptr() const noexcept;
 
   void add_pixels(const nanobind::object& df);
 
-  void finalize(std::string_view log_lvl_str, std::size_t chunk_size, std::size_t update_frequency);
+  [[nodiscard]] hictk::File finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+                                     std::size_t update_frequency);
 
   [[nodiscard]] std::string repr() const;
   static void bind(nanobind::module_& m);

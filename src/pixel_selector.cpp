@@ -71,7 +71,9 @@ std::string PixelSelector::repr() const {
                        count_type_to_str(pixel_count));
   }
 
-  return fmt::format(FMT_STRING("PixelSelector({}, {}; {}; {})"), coord1(), coord2(),
+  return fmt::format(FMT_STRING("PixelSelector({}:{}-{}; {}:{}-{}; {}; {})"),
+                     coord1().bin1.chrom().name(), coord1().bin1.start(), coord1().bin2.end(),
+                     coord2().bin1.chrom().name(), coord2().bin1.start(), coord2().bin2.end(),
                      pixel_format == PixelFormat::COO ? "COO" : "BG2",
                      count_type_to_str(pixel_count));
 }
@@ -110,16 +112,24 @@ const hictk::BinTable& PixelSelector::bins() const noexcept {
   return std::visit([](const auto& s) -> const hictk::BinTable& { return s->bins(); }, selector);
 }
 
-auto PixelSelector::get_coord1() const -> PixelCoordTuple {
-  const auto c = coord1();
-  return PixelCoordTuple{std::make_tuple(c.bin1.chrom().name(), c.bin1.start(), c.bin1.end(),
-                                         c.bin2.chrom().name(), c.bin2.start(), c.bin2.end())};
+[[nodiscard]] static PixelSelector::GenomicCoordTuple coords_to_tuple(
+    const hictk::PixelCoordinates& coords, const hictk::BinTable& bins) {
+  if (!coords) {
+    return {"ALL", 0, static_cast<std::int64_t>(bins.size())};
+  }
+
+  assert(coords.bin1.chrom() == coords.bin2.chrom());
+
+  return {std::string{coords.bin1.chrom().name()}, static_cast<std::int64_t>(coords.bin1.start()),
+          static_cast<std::int64_t>(coords.bin2.end())};
 }
 
-auto PixelSelector::get_coord2() const -> PixelCoordTuple {
-  const auto c = coord2();
-  return PixelCoordTuple{std::make_tuple(c.bin1.chrom().name(), c.bin1.start(), c.bin1.end(),
-                                         c.bin2.chrom().name(), c.bin2.start(), c.bin2.end())};
+auto PixelSelector::get_coord1() const -> GenomicCoordTuple {
+  return coords_to_tuple(coord1(), bins());
+}
+
+auto PixelSelector::get_coord2() const -> GenomicCoordTuple {
+  return coords_to_tuple(coord2(), bins());
 }
 
 template <typename N, typename PixelSelector>

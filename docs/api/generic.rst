@@ -19,7 +19,10 @@ Generic API
 
    .. automethod:: __init__
    .. automethod:: __getitem__
+   .. automethod:: attributes
    .. automethod:: chromosomes
+   .. automethod:: is_hic
+   .. automethod:: is_mcool
    .. automethod:: path
    .. automethod:: resolutions
 

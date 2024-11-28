@@ -60,7 +60,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Add requirements
-        run: python -m pip install --upgrade wheel setuptools
+        run: python -m pip install --upgrade conan wheel setuptools
 
       - name: Generate cache key
         id: cache-key
@@ -68,6 +68,9 @@ jobs:
           hash="${{ hashFiles('conanfile.py') }}"
 
           echo "conan-key=pip-${{ matrix.os }}-$hash" >> $GITHUB_OUTPUT
+
+      - name: Configure Conan
+        run: conan remote update conancenter --url https://center2.conan.io
 
       - name: Restore Conan cache
         id: cache-conan
