@@ -322,6 +322,10 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
 
   StatsDict stats_py{};
 
+  for (const auto& metric : metrics) {
+    stats_py[nb::cast(metric)] = nb::none();
+  }
+
   if (stats.nnz) {
     stats_py["nnz"] = *stats.nnz;
   }
@@ -506,31 +510,49 @@ void PixelSelector::bind(nb::module_& m) {
   sel.def("sum", &PixelSelector::sum, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
           nb::sig("def sum(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float"),
           "Get the total number of interactions for the current pixel selection.");
-  sel.def("min", &PixelSelector::min, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-          nb::sig("def min(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float"),
-          "Get the minimum number of interactions for the current pixel selection (excluding "
-          "pixels with no interactions).");
-  sel.def("max", &PixelSelector::max, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-          nb::sig("def max(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float"),
-          "Get the maximum number of interactions for the current pixel selection.");
-  sel.def("mean", &PixelSelector::mean, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-          "Get the average number of interactions for the current pixel selection (excluding "
-          "pixels with no interactions.");
+  sel.def(
+      "min", &PixelSelector::min, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
+      nb::sig(
+          "def min(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float | None"),
+      "Get the minimum number of interactions for the current pixel selection (excluding "
+      "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
+      "region.");
+  sel.def(
+      "max", &PixelSelector::max, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
+      nb::sig(
+          "def max(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float | None"),
+      "Get the maximum number of interactions for the current pixel selection. Return None in case "
+      "the pixel selector overlaps with an empty region.");
+  sel.def(
+      "mean", &PixelSelector::mean, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
+      nb::sig("def mean(self, keep_nans: bool = False, keep_infs: bool = False) -> float | None"),
+      "Get the average number of interactions for the current pixel selection (excluding "
+      "pixels with no interactions. Return None in case the pixel selector overlaps with an empty "
+      "region.");
   sel.def(
       "variance", &PixelSelector::variance, nb::arg("keep_nans") = false,
       nb::arg("keep_infs") = false,
+      nb::sig(
+          "def variance(self, keep_nans: bool = False, keep_infs: bool = False) -> float | None"),
       "Get the variance of the number of interactions for the current pixel selection (excluding "
-      "pixels with no interactions).");
+      "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
+      "region.");
   sel.def(
       "skewness", &PixelSelector::skewness, nb::arg("keep_nans") = false,
       nb::arg("keep_infs") = false,
+      nb::sig(
+          "def skewness(self, keep_nans: bool = False, keep_infs: bool = False) -> float | None"),
       "Get the skewness of the number of interactions for the current pixel selection (excluding "
-      "pixels with no interactions).");
+      "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
+      "region.");
   sel.def(
       "kurtosis", &PixelSelector::kurtosis, nb::arg("keep_nans") = false,
       nb::arg("keep_infs") = false,
+      nb::sig(
+          "def kurtosis(self, keep_nans: bool = False, keep_infs: bool = False) -> float | None"),
       "Get the kurtosis of the number of interactions for the current pixel selection (excluding "
-      "pixels with no interactions).");
+      "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
+      "region.");
 }
 
 }  // namespace hictkpy

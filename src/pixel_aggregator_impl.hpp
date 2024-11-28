@@ -34,6 +34,19 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
   auto first = sel.template begin<N>();
   auto last = sel.template end<N>();
 
+  if (HICTK_UNLIKELY(first == last)) {
+    if (metrics.contains("nnz") && metrics.contains("sum")) {
+      return Stats{0, N{0}};
+    }
+    if (metrics.contains("nnz")) {
+      return Stats{0};
+    }
+    if (metrics.contains("sum")) {
+      return Stats{std::nullopt, N{0}};
+    }
+    return {};
+  }
+
   auto break_on_non_finite = [this]() constexpr noexcept {
     return _nan_found || _neg_inf_found || _pos_inf_found;
   };
