@@ -14,14 +14,39 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <vector>
+
+#include "hictkpy/common.hpp"
 
 namespace hictkpy {
+
+template <typename It>
+[[nodiscard]] inline double compute_variance_exact(It first, It last, std::size_t size) {
+  assert(size != 0);
+  if (HICTKPY_UNLIKELY(size == 1)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+
+  using N = remove_cvref_t<decltype(first->count)>;
+  std::vector<N> counts(size);
+  std::transform(first, last, counts.begin(), [](const auto& p) { return p.count; });
+
+  const auto mean =
+      conditional_static_cast<double>(std::accumulate(counts.begin(), counts.end(), N{0})) /
+      static_cast<double>(size);
+  return std::accumulate(
+      counts.begin(), counts.end(), 0.0, [&](const auto accumulator, const auto n) {
+        const auto nd = conditional_static_cast<double>(n);
+        return accumulator + (((nd - mean) * (nd - mean)) / static_cast<double>(size - 1));
+      });
+}
 
 template <typename N, bool keep_nans, bool keep_infs, typename PixelSelector>
 inline Stats PixelAggregator::compute(const PixelSelector& sel,
@@ -52,19 +77,24 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
   };
   auto break_on_nans = [this]() constexpr noexcept { return _nan_found; };
 
-  std::visit(
-      [&](auto& accumulator) {
+  const auto nnz = std::visit(
+      [&](auto& accumulator) -> std::optional<std::size_t> {
+        std::size_t nnz_ = 0;
         if (_compute_kurtosis) {
           constexpr bool skip_kurtosis = false;
-          first = process_pixels_until_true<keep_nans, keep_infs, skip_kurtosis>(
+          auto result = process_pixels_until_true<keep_nans, keep_infs, skip_kurtosis>(
               accumulator, std::move(first), last, break_on_non_finite);
+          first = std::move(result.first);
+          nnz_ = result.second;
         } else {
           constexpr bool skip_kurtosis = true;
-          first = process_pixels_until_true<keep_nans, keep_infs, skip_kurtosis>(
+          auto result = process_pixels_until_true<keep_nans, keep_infs, skip_kurtosis>(
               accumulator, std::move(first), last, break_on_non_finite);
+          first = std::move(result.first);
+          nnz_ = result.second;
         }
         if (first == last) {
-          return;
+          return nnz_;
         }
 
         const auto skip_sum = sum_can_be_skipped(accumulator);
@@ -77,20 +107,27 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
           // if we need to compute the nnz, then we have no tricks up our sleeves
           process_all_remaining_pixels<keep_nans, keep_infs>(accumulator, std::move(first),
                                                              std::move(last));
-          return;
+          return {};
         }
 
         if (skip_sum && skip_min && skip_max && skip_mean) {
-          return;
+          return {};
         }
 
         constexpr bool skip_kurtosis = true;
         std::ignore = process_pixels_until_true<keep_nans, keep_infs, skip_kurtosis>(
             accumulator, std::move(first), std::move(last), break_on_nans);
+
+        return {};
       },
       _accumulator);
 
-  return extract<N>(metrics);
+  auto stats = extract<N>(metrics);
+  const auto variance_may_be_inaccurate = nnz.value_or(1'000) < 1'000;
+  if (variance_may_be_inaccurate && stats.variance.has_value()) {
+    stats.variance = compute_variance_exact(sel.template begin<N>(), sel.template end<N>(), *nnz);
+  }
+  return stats;
 }
 
 inline void PixelAggregator::validate_metrics(const phmap::flat_hash_set<std::string>& metrics) {
@@ -128,12 +165,13 @@ inline void PixelAggregator::process_non_finite(N n) noexcept {
 
 template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typename It,
           typename StopCondition>
-inline It PixelAggregator::process_pixels_until_true(Accumulator<N>& accumulator, It first, It last,
-                                                     StopCondition break_loop) {
+inline std::pair<It, std::size_t> PixelAggregator::process_pixels_until_true(
+    Accumulator<N>& accumulator, It first, It last, StopCondition break_loop) {
   // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_UNLIKELY
   auto drop_pixel = [this](const auto n) noexcept { return drop_value<keep_nans, keep_infs>(n); };
 
-  while (first != last) {
+  std::size_t i = 0;
+  for (; first != last; ++i) {
     const auto n = first->count;
     if (HICTKPY_UNLIKELY(drop_pixel(n))) {
       std::ignore = ++first;
@@ -151,7 +189,7 @@ inline It PixelAggregator::process_pixels_until_true(Accumulator<N>& accumulator
     }
     std::ignore = ++first;
   }
-  return first;
+  return std::make_pair(first, i);
 }
 
 template <typename N>

@@ -9,10 +9,12 @@
 #include <array>
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 
 namespace hictkpy {
@@ -82,8 +84,9 @@ class PixelAggregator {
   void process_non_finite(N n) noexcept;
   template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typename It,
             typename StopCondition>
-  [[nodiscard]] It process_pixels_until_true(Accumulator<N>& accumulator, It first, It last,
-                                             StopCondition break_loop);
+  [[nodiscard]] std::pair<It, std::size_t> process_pixels_until_true(Accumulator<N>& accumulator,
+                                                                     It first, It last,
+                                                                     StopCondition break_loop);
 
   template <typename N>
   [[nodiscard]] bool sum_can_be_skipped(Accumulator<N>& accumulator) const;

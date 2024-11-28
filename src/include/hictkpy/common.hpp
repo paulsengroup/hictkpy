@@ -19,6 +19,11 @@ namespace hictkpy {
 
 [[noreturn]] inline void unreachable_code() { hictk::unreachable_code(); }
 
+template <typename T, typename U>
+[[maybe_unused]] [[nodiscard]] constexpr T conditional_static_cast(U value) {
+  return hictk::conditional_static_cast<T>(value);
+}
+
 template <typename T>
 using remove_cvref = hictk::remove_cvref<T>;
 
