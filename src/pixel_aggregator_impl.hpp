@@ -21,30 +21,23 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
-#include <vector>
 
 #include "hictkpy/common.hpp"
 
 namespace hictkpy {
 
 template <typename It>
-[[nodiscard]] inline double compute_variance_exact(It first, It last, std::size_t size) {
+[[nodiscard]] inline double compute_variance_exact(It first, It last, double mean,
+                                                   std::size_t size) {
   assert(size != 0);
   if (HICTKPY_UNLIKELY(size == 1)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
 
-  using N = remove_cvref_t<decltype(first->count)>;
-  std::vector<N> counts(size);
-  std::transform(first, last, counts.begin(), [](const auto& p) { return p.count; });
-
-  const auto mean =
-      conditional_static_cast<double>(std::accumulate(counts.begin(), counts.end(), N{0})) /
-      static_cast<double>(size);
   return std::accumulate(
-      counts.begin(), counts.end(), 0.0, [&](const auto accumulator, const auto n) {
-        const auto nd = conditional_static_cast<double>(n);
-        return accumulator + (((nd - mean) * (nd - mean)) / static_cast<double>(size - 1));
+      std::move(first), std::move(last), 0.0, [&](const auto accumulator, const auto& pixel) {
+        const auto n = conditional_static_cast<double>(pixel.count);
+        return accumulator + (((n - mean) * (n - mean)) / static_cast<double>(size - 1));
       });
 }
 
@@ -125,7 +118,10 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
   auto stats = extract<N>(metrics);
   const auto variance_may_be_inaccurate = nnz.value_or(1'000) < 1'000;
   if (variance_may_be_inaccurate && stats.variance.has_value()) {
-    stats.variance = compute_variance_exact(sel.template begin<N>(), sel.template end<N>(), *nnz);
+    const auto mean = std::visit([&](const auto& accumulator) { return extract_mean(accumulator); },
+                                 _accumulator);
+    stats.variance =
+        compute_variance_exact(sel.template begin<N>(), sel.template end<N>(), mean, *nnz);
   }
   return stats;
 }
