@@ -107,6 +107,30 @@ jobs:
           path: ${{ env.CONAN_HOME }}/p
           lookup-only: true
 
+      - name: Configure Conan
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          cat << 'EOF' | tee script.sh > /dev/null
+          #!usr/bin/env bash
+          set -u
+          set -e
+
+          conan_version="$1"
+
+          PATH="/opt/python/cp312-cp312/bin:$PATH"
+          pip install "conan==$conan_version"
+
+          conan remote update conancenter --url https://center2.conan.io
+          EOF
+
+          chmod 755 script.sh
+
+          docker run \
+            -e "CONAN_HOME=$CONAN_HOME" \
+            -v "$PWD/script.sh:/tmp/script.sh:ro" \
+            -v "$CONAN_HOME:$CONAN_HOME" \
+            "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
+
       - name: Clean Conan cache (pre-build)
         if: steps.cache-conan.outputs.cache-hit != 'true'
         run: |
@@ -269,7 +293,9 @@ jobs:
 
       - name: Configure Conan
         if: steps.cache-conan.outputs.cache-hit != 'true'
-        run: conan profile detect --force
+        run: |
+          conan profile detect --force
+          conan remote update conancenter --url https://center2.conan.io
 
       - name: Clean Conan cache (pre-build)
         if: steps.cache-conan.outputs.cache-hit != 'true'
@@ -379,6 +405,8 @@ jobs:
           conan_profile="$(conan profile path default)"
 
           sed -i 's/compiler\.cppstd=.*/compiler.cppstd=${{ inputs.cppstd }}/' "$conan_profile"
+
+          conan remote update conancenter --url https://center2.conan.io
 
       - name: Clean Conan cache (pre-build)
         if: steps.cache-conan.outputs.cache-hit != 'true'
