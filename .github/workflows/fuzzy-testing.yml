@@ -262,6 +262,17 @@ jobs:
             *".${{ matrix.format }}" \
             *.cool
 
+      - name: Run test (describe)
+        run: |
+          test/scripts/fuzzer.py \
+            --resolution ${{ steps.test-params.outputs.resolution }} \
+            --duration '${{ steps.test-params.outputs.duration }}' \
+            --normalization ${{ matrix.normalization }} \
+            --nproc $(nproc) \
+            --format describe \
+            *".${{ matrix.format }}" \
+            *.cool
+
   fuzzy-testing-status-check:
     name: Status Check (fuzzy-testing)
     if: ${{ always() }}
