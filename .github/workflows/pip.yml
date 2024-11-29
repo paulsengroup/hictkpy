@@ -13,7 +13,6 @@ on:
       - "src/**"
       - "test/**"
       - "utils/devel/stubgen.py"
-      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -25,7 +24,6 @@ on:
       - "src/**"
       - "test/**"
       - "utils/devel/stubgen.py"
-      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -49,7 +47,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022, macos-latest, ubuntu-latest]
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.9", "3.13"]
 
     runs-on: ${{ matrix.os }}
 
@@ -62,7 +60,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Add requirements
-        run: python -m pip install --upgrade wheel setuptools
+        run: python -m pip install --upgrade conan wheel setuptools
 
       - name: Generate cache key
         id: cache-key
@@ -70,6 +68,9 @@ jobs:
           hash="${{ hashFiles('conanfile.py') }}"
 
           echo "conan-key=pip-${{ matrix.os }}-$hash" >> $GITHUB_OUTPUT
+
+      - name: Configure Conan
+        run: conan remote update conancenter --url https://center2.conan.io
 
       - name: Restore Conan cache
         id: cache-conan

@@ -2,14 +2,12 @@
 //
 // SPDX-License-Identifier: MIT
 
-#include <arrow/config.h>
-#include <arrow/python/pyarrow.h>
 #include <spdlog/spdlog.h>
 
 #include <cstdint>
 #include <hictk/version.hpp>
-#include <stdexcept>
 
+#include "hictkpy/bin_table.hpp"
 #include "hictkpy/cooler_file_writer.hpp"
 #include "hictkpy/file.hpp"
 #include "hictkpy/hic_file_writer.hpp"
@@ -34,12 +32,6 @@ namespace hictkpy {
 NB_MODULE(_hictkpy, m) {
   [[maybe_unused]] const auto logger = init_logger();
 
-  if (arrow::py::import_pyarrow() == -1) {
-    throw std::runtime_error("failed to initialize pyarrow runtime");
-  }
-
-  m.attr("__hictkpy_arrow_version__") =
-      std::make_tuple(ARROW_VERSION_MAJOR, ARROW_VERSION_MINOR, ARROW_VERSION_PATCH);
   m.attr("__hictk_version__") = hictk::config::version::str();
 
   m.doc() = "Blazing fast toolkit to work with .hic and .cool files.";
@@ -56,6 +48,8 @@ NB_MODULE(_hictkpy, m) {
   declare_thin_pixel_class<double>(m, "FP");
   declare_pixel_class<std::int64_t>(m, "Int");
   declare_pixel_class<double>(m, "FP");
+
+  BinTable::bind(m);
 
   PixelSelector::bind(m);
 

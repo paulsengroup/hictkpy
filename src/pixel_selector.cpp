@@ -7,7 +7,6 @@
 #include <winsock2.h>
 #endif
 
-#include <arrow/python/pyarrow.h>
 #include <arrow/table.h>
 #include <fmt/format.h>
 
@@ -36,6 +35,7 @@
 
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
+#include "hictkpy/to_pyarrow.hpp"
 
 namespace nb = nanobind;
 
@@ -66,7 +66,9 @@ std::string PixelSelector::repr() const {
                        count_type_to_str(pixel_count));
   }
 
-  return fmt::format(FMT_STRING("PixelSelector({}, {}; {}; {})"), coord1(), coord2(),
+  return fmt::format(FMT_STRING("PixelSelector({}:{}-{}; {}:{}-{}; {}; {})"),
+                     coord1().bin1.chrom().name(), coord1().bin1.start(), coord1().bin2.end(),
+                     coord2().bin1.chrom().name(), coord2().bin1.start(), coord2().bin2.end(),
                      pixel_format == PixelFormat::COO ? "COO" : "BG2",
                      count_type_to_str(pixel_count));
 }
@@ -105,16 +107,24 @@ const hictk::BinTable& PixelSelector::bins() const noexcept {
   return std::visit([](const auto& s) -> const hictk::BinTable& { return s->bins(); }, selector);
 }
 
-auto PixelSelector::get_coord1() const -> PixelCoordTuple {
-  const auto c = coord1();
-  return PixelCoordTuple{std::make_tuple(c.bin1.chrom().name(), c.bin1.start(), c.bin1.end(),
-                                         c.bin2.chrom().name(), c.bin2.start(), c.bin2.end())};
+[[nodiscard]] static PixelSelector::GenomicCoordTuple coords_to_tuple(
+    const hictk::PixelCoordinates& coords, const hictk::BinTable& bins) {
+  if (!coords) {
+    return {"ALL", 0, static_cast<std::int64_t>(bins.size())};
+  }
+
+  assert(coords.bin1.chrom() == coords.bin2.chrom());
+
+  return {std::string{coords.bin1.chrom().name()}, static_cast<std::int64_t>(coords.bin1.start()),
+          static_cast<std::int64_t>(coords.bin2.end())};
 }
 
-auto PixelSelector::get_coord2() const -> PixelCoordTuple {
-  const auto c = coord2();
-  return PixelCoordTuple{std::make_tuple(c.bin1.chrom().name(), c.bin1.start(), c.bin1.end(),
-                                         c.bin2.chrom().name(), c.bin2.start(), c.bin2.end())};
+auto PixelSelector::get_coord1() const -> GenomicCoordTuple {
+  return coords_to_tuple(coord1(), bins());
+}
+
+auto PixelSelector::get_coord2() const -> GenomicCoordTuple {
+  return coords_to_tuple(coord2(), bins());
 }
 
 template <typename N, typename PixelSelector>
@@ -185,8 +195,10 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_arrow(std::string_view span) const {
+  std::ignore = import_pyarrow_checked();
+
   const auto query_span = parse_span(span);
-  const auto table = std::visit(
+  auto table = std::visit(
       [&](const auto& sel_ptr) -> std::shared_ptr<arrow::Table> {
         assert(!!sel_ptr);
         return std::visit(
@@ -202,12 +214,12 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
       },
       selector);
 
-  return nb::steal(arrow::py::wrap_table(table));
+  return export_pyarrow_table(std::move(table));
 }
 
 nb::object PixelSelector::to_pandas(std::string_view span) const {
   import_module_checked("pandas");
-  return to_arrow(span).attr("to_pandas")();
+  return to_arrow(span).attr("to_pandas")(nb::arg("self_destruct") = true);
 }
 
 nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(span); }
@@ -254,6 +266,8 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_numpy(std::string_view span) const {
+  std::ignore = import_module_checked("numpy");
+
   const auto query_span = parse_span(span);
 
   return std::visit(
@@ -379,35 +393,37 @@ void PixelSelector::bind(nb::module_& m) {
   sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool>(),
           nb::arg("selector"), nb::arg("type"), nb::arg("join"));
 
-  sel.def("__repr__", &PixelSelector::repr);
+  sel.def("__repr__", &PixelSelector::repr, nb::rv_policy::move);
 
-  sel.def("coord1", &PixelSelector::get_coord1, "Get query coordinates for the first dimension.");
-  sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.");
+  sel.def("coord1", &PixelSelector::get_coord1, "Get query coordinates for the first dimension.",
+          nb::rv_policy::move);
+  sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.",
+          nb::rv_policy::move);
 
   sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
-          nb::sig("def __iter__(self) -> PixelIterator"),
-          "Return an iterator over the selected pixels.");
+          nb::sig("def __iter__(self) -> hictkpy.PixelIterator"),
+          "Return an iterator over the selected pixels.", nb::rv_policy::take_ownership);
 
   sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_arrow(self, query_span: str = \"upper_triangle\") -> pyarrow.Table"),
-          "Retrieve interactions as a pandas DataFrame.");
+          "Retrieve interactions as a pyarrow.Table.", nb::rv_policy::take_ownership);
   sel.def("to_pandas", &PixelSelector::to_pandas, nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_pandas(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
-          "Retrieve interactions as a pandas DataFrame.");
+          "Retrieve interactions as a pandas DataFrame.", nb::rv_policy::take_ownership);
   sel.def("to_df", &PixelSelector::to_df, nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_df(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
-          "Alias to to_pandas().");
+          "Alias to to_pandas().", nb::rv_policy::take_ownership);
   sel.def("to_numpy", &PixelSelector::to_numpy, nb::arg("query_span") = "full",
           nb::sig("def to_numpy(self, query_span: str = \"full\") -> numpy.ndarray"),
-          "Retrieve interactions as a numpy 2D matrix.");
+          "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::move);
   sel.def(
       "to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
-      "Retrieve interactions as a SciPy COO matrix.");
+      "Retrieve interactions as a SciPy COO matrix.", nb::rv_policy::take_ownership);
   sel.def(
       "to_csr", &PixelSelector::to_csr, nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
-      "Retrieve interactions as a SciPy CSR matrix.");
+      "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::move);
 
   sel.def("nnz", &PixelSelector::nnz,
           "Get the number of non-zero entries for the current pixel selection.");

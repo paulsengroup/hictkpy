@@ -11,6 +11,7 @@ Cooler API
 .. autoclass:: SingleCellFile
 
    .. automethod:: __init__
+   .. automethod:: __getitem__
    .. automethod:: attributes
    .. automethod:: bins
    .. automethod:: cells
@@ -22,6 +23,7 @@ Cooler API
 
    .. automethod:: __init__
    .. automethod:: add_pixels
+   .. automethod:: bins
    .. automethod:: chromosomes
    .. automethod:: finalize
    .. automethod:: path

@@ -7,6 +7,11 @@
 #include <spdlog/sinks/callback_sink.h>
 #include <spdlog/spdlog.h>
 
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
 
@@ -38,12 +43,11 @@ namespace hictkpy {
   // NOLINTEND(*-avoid-magic-numbers)
 }
 
-Logger::Logger(spdlog::level::level_enum level_)
-    : _py_logger(init_py_logger()), _logger(init_cpp_logger(level_, _py_logger)) {}
+Logger::Logger(spdlog::level::level_enum level) : _logger(init_cpp_logger(level)) {}
 
-Logger::Logger(std::string_view level_) : Logger(spdlog::level::from_str(std::string{level_})) {}
+Logger::Logger(std::string_view level) : Logger(spdlog::level::from_str(std::string{level})) {}
 
-nb::object Logger::init_py_logger() {
+[[nodiscard]] static nb::object get_py_logger() {
   const auto logging = nb::module_::import_("logging");
   return logging.attr("getLogger")("hictkpy");
 }
@@ -51,13 +55,13 @@ nb::object Logger::init_py_logger() {
 std::shared_ptr<spdlog::logger> Logger::get_logger() { return _logger; }
 
 std::shared_ptr<spdlog::logger> Logger::init_cpp_logger(
-    [[maybe_unused]] spdlog::level::level_enum level_, [[maybe_unused]] nb::object py_logger) {
+    [[maybe_unused]] spdlog::level::level_enum level_) {
 #ifndef _WIN32
   auto sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
-      // NOLINTNEXTLINE(*-unnecessary-value-param)
-      [logger = py_logger](const spdlog::details::log_msg& msg) {
-        logger.attr("log")(to_py_lvl(msg.level),
-                           std::string_view{msg.payload.data(), msg.payload.size()});
+      [logger = get_py_logger()](const spdlog::details::log_msg& msg) mutable {
+        [[maybe_unused]] const nb::gil_scoped_acquire gil{};
+        auto msg_py = nb::str(msg.payload.data(), msg.payload.size());
+        logger.attr("log")(to_py_lvl(msg.level), msg_py);
       });
 
   sink->set_pattern("%v");

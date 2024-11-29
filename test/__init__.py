@@ -1,7 +1,3 @@
 # Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
+#
 # SPDX-License-Identifier: MIT
-
-furo==2024.8.6
-ipython==8.28.0
-sphinx==8.1.3
-sphinx-copybutton==0.5.2

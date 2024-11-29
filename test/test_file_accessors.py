@@ -8,6 +8,8 @@ import pytest
 
 import hictkpy
 
+from .helpers import pandas_avail
+
 testdir = pathlib.Path(__file__).resolve().parent
 
 pytestmark = pytest.mark.parametrize(
@@ -20,21 +22,12 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-def pandas_avail() -> bool:
-    try:
-        import pandas
-    except ModuleNotFoundError:
-        return False
-
-    return True
-
-
 class TestClass:
     @pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
     def test_attributes(self, file, resolution):
         f = hictkpy.File(file, resolution)
         assert f.resolution() == 100_000
-        # assert f.nchroms() == 8  # TODO enable after merging https://github.com/paulsengroup/hictk/pull/294
+        assert f.nchroms() == 8
         assert f.nbins() == 1380
 
         assert "chr2L" in f.chromosomes()
@@ -50,13 +43,24 @@ class TestClass:
     def test_normalizations(self, file, resolution):
         f = hictkpy.File(file, resolution)
 
+        cooler_weights = ["KR", "SCALE", "VC", "VC_SQRT", "weight"]
+        hic_weights = ["ICE"]
+
         if f.is_cooler():
-            assert f.avail_normalizations() == ["KR", "SCALE", "VC", "VC_SQRT", "weight"]
+            assert f.avail_normalizations() == cooler_weights
         else:
-            assert f.avail_normalizations() == ["ICE"]
+            assert f.avail_normalizations() == hic_weights
 
         assert not f.has_normalization("foo")
 
         name = "weight" if f.is_cooler() else "ICE"
         weights = f.weights(name)
         assert len(weights) == f.nbins()
+
+        if f.is_cooler():
+            df = f.weights(cooler_weights)
+            assert len(df.columns) == len(cooler_weights)
+        else:
+            df = f.weights(hic_weights)
+            assert len(df.columns) == len(hic_weights)
+        assert len(df) == f.nbins()

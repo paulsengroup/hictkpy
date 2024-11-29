@@ -14,12 +14,9 @@ on:
       - "src/**"
       - "test/**"
       - "utils/devel/stubgen.py"
-      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
-    tags:
-      - "v*.*.*"
 
   pull_request:
     paths:
@@ -29,7 +26,6 @@ on:
       - "src/**"
       - "test/**"
       - "utils/devel/stubgen.py"
-      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -56,11 +52,13 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install cibuildwheel
         run: pip install 'cibuildwheel>=2.21'
@@ -177,6 +175,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up QEMU
         if: startsWith(matrix.os, 'ubuntu')
@@ -228,10 +228,11 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21
+        uses: pypa/cibuildwheel@v2.22
         with:
           only: ${{ matrix.wheel-config }}
         env:
+          CIBW_BUILD_VERBOSITY: 1
           CIBW_ENVIRONMENT_LINUX: >
             PIP_VERBOSE=1
             HICTK_CI=1
@@ -249,8 +250,6 @@ jobs:
           CIBW_ENVIRONMENT_PASS_LINUX: >
             CONAN_HOME
             HICTKPY_CONAN_INSTALL_ARGS
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
-          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
 
       - name: Verify clean directory
         run: git diff --exit-code
@@ -290,7 +289,37 @@ jobs:
           name: dist
           path: dist.tar
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
+
+  pypi-publish:
+    name: Upload release to PyPI
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: [package-artifacts]
+    environment:
+      name: PyPI
+      url: https://pypi.org/p/hictkpy
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          merge-multiple: true
+
+      - name: Extract dist.tar
+        run: |
+          tar -xf dist.tar
+          rm dist.tar
+
+      - name: Upload wheels to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
+          print-hash: true
+          verbose: true
 
   build-wheels-status-check:
     name: Status Check (Build wheels)
@@ -300,11 +329,16 @@ jobs:
       - build-sdist
       - build-wheels
       - package-artifacts
+      - pypi-publish
 
     steps:
       - name: Collect job results
         if: |
-          needs.build-sdist.result != 'success'  ||
-          needs.build-wheels.result != 'success' ||
-          needs.package-artifacts.result != 'success'
+          needs.build-sdist.result != 'success'        ||
+          needs.build-wheels.result != 'success'       ||
+          needs.package-artifacts.result != 'success'  ||
+          (
+           needs.pypi-publish.result != 'success'      &&
+           needs.pypi-publish.result != 'skipped'
+          )
         run: exit 1

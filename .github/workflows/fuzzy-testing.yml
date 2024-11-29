@@ -11,8 +11,6 @@ on:
       - "cmake/**"
       - "src/**"
       - "test/scripts/fuzzer.py"
-      - "utils/devel/stubgen.py"
-      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -22,8 +20,6 @@ on:
       - "cmake/**"
       - "src/**"
       - "test/scripts/fuzzer.py"
-      - "utils/devel/stubgen.py"
-      - "utils/devel/symlink_pyarrow_libs.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -146,6 +142,10 @@ jobs:
         with:
           key: conan-${{ steps.cache-key.outputs.key }}
           path: ${{ env.CONAN_HOME }}/p
+
+      - name: Configure Conan
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: conan remote update conancenter --url https://center2.conan.io
 
       - name: Clean Conan cache (pre-build)
         if: steps.cache-conan.outputs.cache-hit != 'true'
