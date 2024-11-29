@@ -52,17 +52,9 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
   auto first = sel.template begin<N>();
   auto last = sel.template end<N>();
 
-  if (HICTK_UNLIKELY(first == last)) {
-    if (metrics.contains("nnz") && metrics.contains("sum")) {
-      return Stats{0, N{0}};
-    }
-    if (metrics.contains("nnz")) {
-      return Stats{0};
-    }
-    if (metrics.contains("sum")) {
-      return Stats{std::nullopt, N{0}};
-    }
-    return {};
+  if (auto stats = handle_edge_cases<N, keep_nans, keep_infs>(first, last, metrics);
+      stats.has_value()) {
+    return *stats;
   }
 
   auto break_on_non_finite = [this]() constexpr noexcept {
@@ -395,6 +387,50 @@ inline Stats PixelAggregator::extract(const phmap::flat_hash_set<std::string>& m
       _accumulator);
 
   return stats;
+}
+
+template <typename N, std::size_t keep_nans, std::size_t keep_infs, typename It>
+inline std::optional<Stats> PixelAggregator::handle_edge_cases(
+    It first, It last, const phmap::flat_hash_set<std::string>& metrics) {
+  // Handle selectors with zero or one (valid) pixels
+  std::size_t nnz = 0;
+  N value{};
+  while (first != last && nnz < 2) {
+    if (!drop_value<keep_nans, keep_infs>(first->count)) {
+      ++nnz;
+      value = first->count;
+    }
+    ++first;
+  }
+
+  if (HICTKPY_UNLIKELY(nnz == 0)) {
+    Stats stats{};
+    if (metrics.contains("nnz")) {
+      stats.nnz = 0;
+    }
+    if (metrics.contains("sum")) {
+      stats.sum = 0;
+    }
+    return stats;
+  }
+
+  if (HICTKPY_UNLIKELY(nnz == 1)) {
+    std::visit([&](auto& accumulator) { accumulator(value); }, _accumulator);
+    auto stats = extract<N>(metrics);
+    if (stats.variance.has_value()) {
+      stats.variance = std::numeric_limits<double>::quiet_NaN();
+    }
+    if (stats.skewness.has_value()) {
+      stats.skewness = std::numeric_limits<double>::quiet_NaN();
+    }
+    if (stats.kurtosis.has_value()) {
+      stats.kurtosis = std::numeric_limits<double>::quiet_NaN();
+    }
+
+    return stats;
+  }
+
+  return {};
 }
 
 template <typename N>

@@ -110,6 +110,9 @@ class PixelAggregator {
 
   template <typename N>
   [[nodiscard]] Stats extract(const phmap::flat_hash_set<std::string>& metrics);
+  template <typename N, std::size_t keep_nans, std::size_t keep_infs, typename It>
+  [[nodiscard]] std::optional<Stats> handle_edge_cases(
+      It first, It last, const phmap::flat_hash_set<std::string>& metrics);
 
   template <typename N>
   [[nodiscard]] static std::int64_t extract_nnz(const Accumulator<N>& accumulator);
