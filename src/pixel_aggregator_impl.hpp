@@ -43,7 +43,8 @@ template <typename It>
 
 template <typename N, bool keep_nans, bool keep_infs, typename PixelSelector>
 inline Stats PixelAggregator::compute(const PixelSelector& sel,
-                                      const phmap::flat_hash_set<std::string>& metrics) {
+                                      const phmap::flat_hash_set<std::string>& metrics,
+                                      bool exact) {
   static_assert(std::is_same_v<N, std::int64_t> || std::is_same_v<N, double>);
 
   validate_metrics(metrics);
@@ -108,8 +109,8 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
       _accumulator);
 
   auto stats = extract<N>(metrics);
-  const auto variance_may_be_inaccurate = nnz.value_or(1'000) < 1'000;
-  if (variance_may_be_inaccurate && stats.variance.has_value()) {
+  const auto variance_may_be_inaccurate = nnz.value_or(10'000) < 10'000;
+  if ((variance_may_be_inaccurate || exact) && stats.variance.has_value()) {
     const auto mean = std::visit([&](const auto& accumulator) { return extract_mean(accumulator); },
                                  _accumulator);
     stats.variance =

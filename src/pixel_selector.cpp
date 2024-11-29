@@ -289,24 +289,24 @@ nb::object PixelSelector::to_numpy(std::string_view span) const {
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static Stats aggregate_pixels(const PixelSelector& sel, bool keep_nans,
-                                            bool keep_infs,
+                                            bool keep_infs, bool exact,
                                             const phmap::flat_hash_set<std::string>& metrics) {
   static_assert(!std::is_same_v<PixelSelector, hictk::PixelSelector>);
   if (keep_nans && keep_infs) {
-    return PixelAggregator{}.compute<N, true, true>(sel, metrics);
+    return PixelAggregator{}.compute<N, true, true>(sel, metrics, exact);
   }
   if (keep_nans) {
-    return PixelAggregator{}.compute<N, true, false>(sel, metrics);
+    return PixelAggregator{}.compute<N, true, false>(sel, metrics, exact);
   }
   if (keep_infs) {
-    return PixelAggregator{}.compute<N, false, true>(sel, metrics);
+    return PixelAggregator{}.compute<N, false, true>(sel, metrics, exact);
   }
-  return PixelAggregator{}.compute<N, false, false>(sel, metrics);
+  return PixelAggregator{}.compute<N, false, false>(sel, metrics, exact);
 }
 
 [[nodiscard]] static Stats aggregate_pixels(const PixelSelector::SelectorVar& sel,
                                             const PixelSelector::PixelVar& count, bool keep_nans,
-                                            bool keep_infs,
+                                            bool keep_infs, bool exact,
                                             const phmap::flat_hash_set<std::string>& metrics) {
   return std::visit(
       [&](const auto& sel_ptr) {
@@ -315,7 +315,7 @@ template <typename N, typename PixelSelector>
             [&]([[maybe_unused]] const auto& count_) {
               using CountT = remove_cvref_t<decltype(count_)>;
               using N = std::conditional_t<std::is_floating_point_v<CountT>, double, std::int64_t>;
-              return aggregate_pixels<N>(*sel_ptr, keep_nans, keep_infs, metrics);
+              return aggregate_pixels<N>(*sel_ptr, keep_nans, keep_infs, exact, metrics);
             },
             count);
       },
@@ -323,8 +323,8 @@ template <typename N, typename PixelSelector>
 }
 
 nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool keep_nans,
-                                 bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs,
+                                 bool keep_infs, bool exact) const {
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact,
                                       {metrics.begin(), metrics.end()});
 
   using StatsDict =
@@ -368,38 +368,41 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
 }
 
 std::int64_t PixelSelector::nnz(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, {"nnz"}).nnz;
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"nnz"}).nnz;
 }
 
 nb::object PixelSelector::sum(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, {"sum"});
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"sum"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
 }
 
 nb::object PixelSelector::min(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, {"min"});
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"min"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
 }
 
 nb::object PixelSelector::max(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, {"max"});
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"max"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
 }
 
 double PixelSelector::mean(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, {"mean"}).mean;
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"mean"}).mean;
 }
 
-double PixelSelector::variance(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, {"variance"}).variance;
+double PixelSelector::variance(bool keep_nans, bool keep_infs, bool exact) const {
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"variance"})
+              .variance;
 }
 
 double PixelSelector::skewness(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, {"skewness"}).skewness;
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"skewness"})
+              .skewness;
 }
 
 double PixelSelector::kurtosis(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, {"kurtosis"}).kurtosis;
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"kurtosis"})
+              .kurtosis;
 }
 
 auto PixelSelector::parse_span(std::string_view span) -> QuerySpan {
@@ -514,7 +517,8 @@ void PixelSelector::bind(nb::module_& m) {
                              "way possible. Known metrics: {}."),
                   fmt::join(known_metrics, ", "));
   sel.def("describe", &PixelSelector::describe, nb::arg("metrics") = known_metrics,
-          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, describe_cmd_help.c_str());
+          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("exact") = false,
+          describe_cmd_help.c_str());
   sel.def("nnz", &PixelSelector::nnz, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
           "Get the number of non-zero entries for the current pixel selection.");
   sel.def("sum", &PixelSelector::sum, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
@@ -541,9 +545,9 @@ void PixelSelector::bind(nb::module_& m) {
       "region.");
   sel.def(
       "variance", &PixelSelector::variance, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false,
-      nb::sig(
-          "def variance(self, keep_nans: bool = False, keep_infs: bool = False) -> float | None"),
+      nb::arg("keep_infs") = false, nb::arg("exact") = false,
+      nb::sig("def variance(self, keep_nans: bool = False, keep_infs: bool = False, exact: bool = "
+              "False) -> float | None"),
       "Get the variance of the number of interactions for the current pixel selection (excluding "
       "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
       "region.");

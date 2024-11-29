@@ -75,7 +75,7 @@ class PixelAggregator {
 
   template <typename N, bool keep_nans, bool keep_infs, typename PixelSelector>
   [[nodiscard]] Stats compute(const PixelSelector& sel,
-                              const phmap::flat_hash_set<std::string>& metrics);
+                              const phmap::flat_hash_set<std::string>& metrics, bool exact);
 
  private:
   static void validate_metrics(const phmap::flat_hash_set<std::string>& metrics);

@@ -63,15 +63,15 @@ struct PixelSelector {
   [[nodiscard]] nanobind::object to_numpy(std::string_view span) const;
 
   [[nodiscard]] nanobind::dict describe(const std::vector<std::string>& metrics, bool keep_nans,
-                                        bool keep_infs) const;
+                                        bool keep_infs, bool exact) const;
   [[nodiscard]] std::int64_t nnz(bool keep_nans, bool keep_infs) const;
   [[nodiscard]] nanobind::object sum(bool keep_nans, bool keep_infs) const;
-  [[nodiscard]] nanobind::object min(bool keep_nans = false, bool keep_infs = false) const;
-  [[nodiscard]] nanobind::object max(bool keep_nans = false, bool keep_infs = false) const;
-  [[nodiscard]] double mean(bool keep_nans = false, bool keep_infs = false) const;
-  [[nodiscard]] double variance(bool keep_nans = false, bool keep_infs = false) const;
-  [[nodiscard]] double skewness(bool keep_nans = false, bool keep_infs = false) const;
-  [[nodiscard]] double kurtosis(bool keep_nans = false, bool keep_infs = false) const;
+  [[nodiscard]] nanobind::object min(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] nanobind::object max(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] double mean(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] double variance(bool keep_nans, bool keep_infs, bool exact) const;
+  [[nodiscard]] double skewness(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] double kurtosis(bool keep_nans, bool keep_infs) const;
 
   [[nodiscard]] static auto parse_span(std::string_view span) -> QuerySpan;
   [[nodiscard]] static auto parse_count_type(std::string_view type) -> PixelVar;
