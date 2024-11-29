@@ -16,7 +16,7 @@ from .helpers import numpy_avail, pandas_avail
 def isclose(n1, n2) -> bool:
     import math
 
-    return math.isclose(n1, n2, rel_tol=1.0e-3, abs_tol=1.0e-3)
+    return math.isclose(n1, n2, rel_tol=1.0e-5, abs_tol=1.0e-8)
 
 
 @pytest.mark.skipif(not numpy_avail() or not pandas_avail(), reason="either numpy or pandas are not available")
