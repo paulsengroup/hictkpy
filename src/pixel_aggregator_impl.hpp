@@ -410,7 +410,7 @@ inline std::optional<Stats> PixelAggregator::handle_edge_cases(
       stats.nnz = 0;
     }
     if (metrics.contains("sum")) {
-      stats.sum = 0;
+      stats.sum = N{0};
     }
     return stats;
   }
