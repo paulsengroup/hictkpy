@@ -389,7 +389,7 @@ def compute_stats(df: pd.DataFrame, keep_nans: bool, keep_infs: bool) -> Dict:
         stats = describe(df["count"], nan_policy="propagate")
         return {
             "nnz": stats.nobs,
-            "sum": df["count"].sum(),
+            "sum": df["count"].sum(skipna=False),
             "min": stats.minmax[0],
             "max": stats.minmax[1],
             "mean": stats.mean,
