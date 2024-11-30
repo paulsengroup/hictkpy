@@ -12,6 +12,7 @@ import pathlib
 import random
 import sys
 import time
+import warnings
 from typing import Any, Dict, List, Tuple
 
 import cooler
@@ -19,6 +20,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import scipy.sparse as ss
+from scipy.stats import describe
 
 import hictkpy
 
@@ -84,7 +86,7 @@ def make_cli() -> argparse.ArgumentParser:
     cli.add_argument(
         "--format",
         type=str,
-        choices={"df", "numpy", "csr"},
+        choices={"df", "numpy", "csr", "describe"},
         default="df",
         help="Format used to fetch pixels.",
     )
@@ -129,6 +131,9 @@ def make_cli() -> argparse.ArgumentParser:
 def postproc_df(df: pd.DataFrame) -> pd.DataFrame:
     if "balanced" in df:
         df["count"] = df["balanced"]
+
+    if "bin1_id" in df:
+        return df[["bin1_id", "bin2_id", "count"]]
 
     df["chrom1"] = df["chrom1"].astype(str)
     df["chrom2"] = df["chrom2"].astype(str)
@@ -349,17 +354,119 @@ def compare_csr(
     return True
 
 
-def results_are_identical(worker_id: int, q1: str, q2: str, expected, found) -> bool:
+def compare_query_results(worker_id: int, q1: str, q2: str, expected, found) -> int:
     if isinstance(found, pd.DataFrame):
         assert isinstance(expected, type(found))
-        return compare_dfs(worker_id, q1, q2, expected, found)
+        return int(not compare_dfs(worker_id, q1, q2, expected, found))
     if isinstance(found, (np.ndarray, np.generic)):
         assert isinstance(expected, type(found))
-        return compare_numpy(worker_id, q1, q2, expected, found)
+        return int(not compare_numpy(worker_id, q1, q2, expected, found))
     if isinstance(found, ss.csr_matrix):
-        return compare_csr(worker_id, q1, q2, expected.tocsr(), found)
+        return int(not compare_csr(worker_id, q1, q2, expected.tocsr(), found))
 
     raise NotImplementedError
+
+
+def compute_stats(df: pd.DataFrame, keep_nans: bool, keep_infs: bool) -> Dict:
+    if not keep_nans:
+        df = df[~np.isnan(df["count"])]
+    if not keep_infs:
+        df = df[~np.isinf(df["count"])]
+
+    if len(df) == 0:
+        return {
+            "nnz": 0,
+            "sum": 0.0 if np.issubdtype(df["count"].dtype, np.floating) else 0,
+            "min": None,
+            "max": None,
+            "mean": None,
+            "variance": None,
+            "skewness": None,
+            "kurtosis": None,
+        }
+
+    with warnings.catch_warnings(action="ignore"):
+        stats = describe(df["count"], nan_policy="propagate")
+        return {
+            "nnz": stats.nobs,
+            "sum": df["count"].sum(skipna=False),
+            "min": stats.minmax[0],
+            "max": stats.minmax[1],
+            "mean": stats.mean,
+            "variance": stats.variance,
+            "skewness": stats.skewness,
+            "kurtosis": stats.kurtosis,
+        }
+
+
+def compare_metric(
+    worker_id: int,
+    q1: str,
+    q2: str,
+    metric: str,
+    expected,
+    found,
+    keep_nans: bool,
+    keep_infs: bool,
+    rtol: float = 1.0e-5,
+    atol: float = 1.0e-8,
+) -> bool:
+    do_numeric_comparison = expected is not None and found is not None
+    if do_numeric_comparison:
+        if not np.isclose(expected, found, rtol=rtol, atol=atol, equal_nan=True):
+            logging.warning(
+                "[%d] %s, %s (%s; keep_nans=%s; keep_infs=%s): FAIL! Expected %.16g, found %.16g",
+                worker_id,
+                q1,
+                q2,
+                metric,
+                keep_nans,
+                keep_infs,
+                expected,
+                found,
+            )
+            return False
+        return True
+
+    if expected is None and found is None:
+        return True
+
+    logging.warning(
+        "[%d] %s, %s (%s; keep_nans=%s; keep_infs=%s): FAIL! Expected %s, found %s",
+        worker_id,
+        q1,
+        q2,
+        metric,
+        keep_nans,
+        keep_infs,
+        expected,
+        found,
+    )
+    return False
+
+
+def compare_query_stats(worker_id: int, q1: str, q2: str, expected, sel: hictkpy.PixelSelector) -> int:
+    exact_metrics = ["nnz", "sum", "min", "max", "min"]
+    approx_metrics = ["variance", "skewness", "kurtosis"]
+    num_failures = 0
+    for keep_nans in [True, False]:
+        for keep_infs in [True, False]:
+            stats_expected = compute_stats(expected, keep_nans, keep_infs)
+            stats_found = sel.describe(keep_nans=keep_nans, keep_infs=keep_infs)
+
+            for metric in exact_metrics:
+                n1 = stats_expected[metric]
+                n2 = stats_found[metric]
+                if not compare_metric(worker_id, q1, q2, metric, n1, n2, keep_nans, keep_infs):
+                    num_failures += 1
+
+            for metric in approx_metrics:
+                n1 = stats_expected[metric]
+                n2 = stats_found[metric]
+                if not compare_metric(worker_id, q1, q2, metric, n1, n2, keep_nans, keep_infs, 1.0e-4, 1.0e-6):
+                    num_failures += 1
+
+    return int(num_failures != 0)
 
 
 def seed_prng(worker_id: int, seed):
@@ -404,6 +511,8 @@ def worker(
             clr_matrix_args["sparse"] = True
         elif query_type == "numpy":
             pass
+        elif query_type == "describe":
+            clr_matrix_args["as_pixels"] = True
         else:
             raise NotImplementedError
 
@@ -445,10 +554,12 @@ def worker(
             num_queries += 1
 
             expected = cooler_dump(sel, q1, q2)
-            found = hictk_dump(f, q1, q2, balance, query_type)
 
-            if not results_are_identical(worker_id, q1, q2, expected, found):
-                num_failures += 1
+            if query_type == "describe":
+                num_failures += compare_query_stats(worker_id, q1, q2, expected, f.fetch(q1, q2, normalization=balance))
+            else:
+                found = hictk_dump(f, q1, q2, balance, query_type)
+                num_failures += compare_query_results(worker_id, q1, q2, expected, found)
 
     except:  # noqa
         logging.debug(
