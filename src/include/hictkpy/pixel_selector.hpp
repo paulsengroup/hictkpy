@@ -17,6 +17,7 @@
 #include <string_view>
 #include <tuple>
 #include <variant>
+#include <vector>
 
 #include "hictkpy/nanobind.hpp"
 
@@ -54,14 +55,23 @@ struct PixelSelector {
   [[nodiscard]] auto get_coord2() const -> GenomicCoordTuple;
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
-  [[nodiscard]] nanobind::object to_arrow(std::string_view span = "upper_triangle") const;
-  [[nodiscard]] nanobind::object to_df(std::string_view span = "upper_triangle") const;
-  [[nodiscard]] nanobind::object to_pandas(std::string_view span = "upper_triangle") const;
-  [[nodiscard]] nanobind::object to_coo(std::string_view span = "upper_triangle") const;
-  [[nodiscard]] nanobind::object to_csr(std::string_view span = "upper_triangle") const;
-  [[nodiscard]] nanobind::object to_numpy(std::string_view span = "full") const;
-  [[nodiscard]] nanobind::object sum() const;
-  [[nodiscard]] std::int64_t nnz() const;
+  [[nodiscard]] nanobind::object to_arrow(std::string_view span) const;
+  [[nodiscard]] nanobind::object to_df(std::string_view span) const;
+  [[nodiscard]] nanobind::object to_pandas(std::string_view span) const;
+  [[nodiscard]] nanobind::object to_coo(std::string_view span) const;
+  [[nodiscard]] nanobind::object to_csr(std::string_view span) const;
+  [[nodiscard]] nanobind::object to_numpy(std::string_view span) const;
+
+  [[nodiscard]] nanobind::dict describe(const std::vector<std::string>& metrics, bool keep_nans,
+                                        bool keep_infs, bool exact) const;
+  [[nodiscard]] std::int64_t nnz(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] nanobind::object sum(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] nanobind::object min(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] nanobind::object max(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] double mean(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] double variance(bool keep_nans, bool keep_infs, bool exact) const;
+  [[nodiscard]] double skewness(bool keep_nans, bool keep_infs, bool exact) const;
+  [[nodiscard]] double kurtosis(bool keep_nans, bool keep_infs, bool exact) const;
 
   [[nodiscard]] static auto parse_span(std::string_view span) -> QuerySpan;
   [[nodiscard]] static auto parse_count_type(std::string_view type) -> PixelVar;

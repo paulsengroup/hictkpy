@@ -100,7 +100,7 @@ void CoolerFileWriter::add_pixels(const nb::object &df) {
 
   std::visit(
       [&](const auto &n) {
-        using N = hictk::remove_cvref_t<decltype(n)>;
+        using N = remove_cvref_t<decltype(n)>;
         const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, true)
                                        : bg2_df_to_thin_pixels<N>(_w->bins(), df, true);
         lck.reset();
@@ -138,7 +138,7 @@ hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t
   try {
     std::visit(
         [&](const auto &num) {
-          using N = hictk::remove_cvref_t<decltype(num)>;
+          using N = remove_cvref_t<decltype(num)>;
           _w->aggregate<N>(_path.string(), false, _compression_lvl, chunk_size, update_freq);
         },
         _w->open("0").pixel_variant());
