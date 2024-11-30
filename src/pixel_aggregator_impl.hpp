@@ -25,9 +25,9 @@
 #include "hictkpy/common.hpp"
 
 namespace hictkpy {
-
+namespace internal {
 template <bool keep_nans, bool keep_infs, typename N>
-inline bool drop_value([[maybe_unused]] N n) noexcept {
+[[nodiscard]] inline bool drop_value([[maybe_unused]] N n) noexcept {
   static_assert(std::is_arithmetic_v<N>);
   if constexpr (!std::is_floating_point_v<N>) {
     return false;
@@ -47,25 +47,67 @@ inline bool drop_value([[maybe_unused]] N n) noexcept {
   return false;
 }
 
-template <bool keep_nans, bool keep_infs, typename It>
-[[nodiscard]] inline double compute_variance_exact(It first, It last, double mean,
-                                                   std::size_t size) {
-  assert(size != 0);
-  if (HICTKPY_UNLIKELY(size == 1)) {
+template <typename N>
+[[nodiscard]] inline double compute_variance_exact(const std::vector<N>& values, double mean) {
+  if (HICTKPY_UNLIKELY(values.size() < 2 || std::isnan(mean))) {
     return std::numeric_limits<double>::quiet_NaN();
   }
 
-  double acumulator = 0;
-  while (first != last) {
-    if (!drop_value<keep_nans, keep_infs>(first->count)) {
-      const auto n = conditional_static_cast<double>(first->count);
-      acumulator += ((n - mean) * (n - mean)) / static_cast<double>(size - 1);
-    }
-    std::ignore = ++first;
+  return std::accumulate(values.begin(), values.end(), 0.0, [&](double accumulator, const auto n) {
+    const auto nn = conditional_static_cast<double>(n);
+    return accumulator + (((nn - mean) * (nn - mean)) / static_cast<double>(values.size() - 1));
+  });
+}
+
+template <typename N>
+[[nodiscard]] inline std::tuple<double, double, double> compute_central_moments(
+    const std::vector<N>& values, double mean) {
+  assert(!values.empty());
+
+  double m2 = 0.0;
+  double m3 = 0.0;
+  double m4 = 0.0;
+
+  for (const auto n : values) {
+    const auto delta = conditional_static_cast<double>(n) - mean;
+    m2 += delta * delta;
+    m3 += delta * delta * delta;
+    m4 += delta * delta * delta * delta;
   }
 
-  return acumulator;
+  const auto size_fp = static_cast<double>(values.size());
+  return {m2 / size_fp, m3 / size_fp, m4 / size_fp};
 }
+
+template <typename N>
+[[nodiscard]] inline double compute_skewness_exact(const std::vector<N>& values, double mean) {
+  if (HICTKPY_UNLIKELY(values.size() < 2 || std::isnan(mean))) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+
+  const auto [m2, m3, _] = compute_central_moments(values, mean);
+  if (HICTKPY_UNLIKELY(m2 == 0)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+
+  return m3 / std::pow(m2, 1.5);  // NOLINT(*-avoid-magic-numbers)
+}
+
+template <typename N>
+[[nodiscard]] inline double compute_kurtosis_exact(const std::vector<N>& values, double mean) {
+  if (HICTKPY_UNLIKELY(values.size() < 2 || std::isnan(mean))) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+
+  const auto [m2, _, m4] = compute_central_moments(values, mean);
+  if (HICTKPY_UNLIKELY(m2 == 0)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+
+  return (m4 / (m2 * m2)) - 3.0;  // NOLINT(*-avoid-magic-numbers)
+}
+
+}  // namespace internal
 
 template <typename N, bool keep_nans, bool keep_infs, typename PixelSelector>
 inline Stats PixelAggregator::compute(const PixelSelector& sel,
@@ -135,13 +177,39 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
       _accumulator);
 
   auto stats = extract<N>(metrics);
-  const auto variance_may_be_inaccurate = nnz.value_or(10'000) < 10'000;
-  if ((variance_may_be_inaccurate || exact) && stats.variance.has_value()) {
-    const auto mean = std::visit([&](const auto& accumulator) { return extract_mean(accumulator); },
-                                 _accumulator);
-    stats.variance =
-        compute_variance_exact(sel.template begin<N>(), sel.template end<N>(), mean, *nnz);
+  if (!exact && nnz.value_or(10'000) >= 10'000) {  // NOLINT(*-avoid-magic-numbers)
+    // exact computation is not required and sample size is big enough
+    return stats;
   }
+
+  if (!stats.variance.has_value() && !stats.skewness.has_value() && !stats.kurtosis.has_value()) {
+    // all requested metrics have already been computed exactly
+    return stats;
+  }
+
+  std::vector<N> values;
+  values.reserve(*nnz);
+  std::for_each(sel.template begin<N>(), sel.template end<N>(), [&](const auto& pixel) {
+    if (!internal::drop_value<keep_nans, keep_infs>(pixel.count)) {
+      values.push_back(pixel.count);
+    }
+  });
+
+  const auto mean =
+      std::visit([&](const auto& accumulator) { return extract_mean(accumulator); }, _accumulator);
+
+  if (stats.variance.has_value()) {
+    stats.variance = internal::compute_variance_exact(values, mean);
+  }
+
+  if (stats.skewness.has_value()) {
+    stats.skewness = internal::compute_skewness_exact(values, mean);
+  }
+
+  if (stats.kurtosis.has_value()) {
+    stats.kurtosis = internal::compute_kurtosis_exact(values, mean);
+  }
+
   return stats;
 }
 
@@ -183,7 +251,9 @@ template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typena
 inline std::pair<It, std::size_t> PixelAggregator::process_pixels_until_true(
     Accumulator<N>& accumulator, It first, It last, StopCondition break_loop) {
   // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_UNLIKELY
-  auto drop_pixel = [](const auto n) noexcept { return drop_value<keep_nans, keep_infs>(n); };
+  auto drop_pixel = [](const auto n) noexcept {
+    return internal::drop_value<keep_nans, keep_infs>(n);
+  };
 
   std::size_t nnz = 0;
   while (first != last) {
@@ -263,7 +333,9 @@ inline void PixelAggregator::process_all_remaining_pixels(Accumulator<N>& accumu
                                                           It&& last) {
   assert(_compute_count);
   // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_UNLIKELY
-  auto drop_pixel = [this](const auto n) noexcept { return drop_value<keep_nans, keep_infs>(n); };
+  auto drop_pixel = [this](const auto n) noexcept {
+    return internal::drop_value<keep_nans, keep_infs>(n);
+  };
 
   std::for_each(std::forward<It>(first), std::forward<It>(last), [&](const auto& pixel) {
     if (HICTKPY_UNLIKELY(drop_pixel(pixel.count))) {
@@ -403,7 +475,7 @@ inline std::optional<Stats> PixelAggregator::handle_edge_cases(
   std::size_t nnz = 0;
   N value{};
   while (first != last && nnz < 2) {
-    if (!drop_value<keep_nans, keep_infs>(first->count)) {
+    if (!internal::drop_value<keep_nans, keep_infs>(first->count)) {
       ++nnz;
       value = first->count;
     }

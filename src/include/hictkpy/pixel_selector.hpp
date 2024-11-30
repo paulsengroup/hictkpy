@@ -70,8 +70,8 @@ struct PixelSelector {
   [[nodiscard]] nanobind::object max(bool keep_nans, bool keep_infs) const;
   [[nodiscard]] double mean(bool keep_nans, bool keep_infs) const;
   [[nodiscard]] double variance(bool keep_nans, bool keep_infs, bool exact) const;
-  [[nodiscard]] double skewness(bool keep_nans, bool keep_infs) const;
-  [[nodiscard]] double kurtosis(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] double skewness(bool keep_nans, bool keep_infs, bool exact) const;
+  [[nodiscard]] double kurtosis(bool keep_nans, bool keep_infs, bool exact) const;
 
   [[nodiscard]] static auto parse_span(std::string_view span) -> QuerySpan;
   [[nodiscard]] static auto parse_count_type(std::string_view type) -> PixelVar;

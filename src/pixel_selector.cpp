@@ -395,13 +395,13 @@ double PixelSelector::variance(bool keep_nans, bool keep_infs, bool exact) const
               .variance;
 }
 
-double PixelSelector::skewness(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"skewness"})
+double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool exact) const {
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"skewness"})
               .skewness;
 }
 
-double PixelSelector::kurtosis(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"kurtosis"})
+double PixelSelector::kurtosis(bool keep_nans, bool keep_infs, bool exact) const {
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"kurtosis"})
               .kurtosis;
 }
 
@@ -553,17 +553,17 @@ void PixelSelector::bind(nb::module_& m) {
       "region.");
   sel.def(
       "skewness", &PixelSelector::skewness, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false,
-      nb::sig(
-          "def skewness(self, keep_nans: bool = False, keep_infs: bool = False) -> float | None"),
+      nb::arg("keep_infs") = false, nb::arg("exact") = false,
+      nb::sig("def skewness(self, keep_nans: bool = False, keep_infs: bool = False, exact: bool = "
+              "False) -> float | None"),
       "Get the skewness of the number of interactions for the current pixel selection (excluding "
       "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
       "region.");
   sel.def(
       "kurtosis", &PixelSelector::kurtosis, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false,
-      nb::sig(
-          "def kurtosis(self, keep_nans: bool = False, keep_infs: bool = False) -> float | None"),
+      nb::arg("keep_infs") = false, nb::arg("exact") = false,
+      nb::sig("def kurtosis(self, keep_nans: bool = False, keep_infs: bool = False, exact: bool = "
+              "False) -> float | None"),
       "Get the kurtosis of the number of interactions for the current pixel selection (excluding "
       "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
       "region.");
