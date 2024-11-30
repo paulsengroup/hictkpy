@@ -196,3 +196,25 @@ Fetching balancing weights:
   13757       NaN  0.069841  0.111556
 
   [13758 rows x 3 columns]
+
+Efficiently compute descriptive statistics
+------------------------------------------
+
+hictkpy supports computing common descriptive statistics without reading interactions into memory (and without traversing the data more than once).
+
+Compute all supported statistics at once:
+
+.. code-block:: ipythonconsole
+
+  In [26]: f.fetch().describe()
+  Out[26]:
+  {'nnz': 18122793,
+   'sum': 114355295,
+   'min': 1,
+   'max': 53908,
+   'mean': 6.310025998751958,
+   'variance': 9918.666837525623,
+   'skewness': 83.28386530442891,
+   'kurtosis': 20043.612488253475}
+
+For more details, please refer to the **Statistics** section of the API docs for the :py:class:`hictkpy.PixelSelector` class.
