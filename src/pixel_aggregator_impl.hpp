@@ -49,7 +49,7 @@ template <bool keep_nans, bool keep_infs, typename N>
 
 template <typename N>
 [[nodiscard]] inline double compute_variance_exact(const std::vector<N>& values, double mean) {
-  if (HICTKPY_UNLIKELY(values.size() < 2 || std::isnan(mean))) {
+  if (values.size() < 2 || std::isnan(mean)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
 
@@ -81,12 +81,12 @@ template <typename N>
 
 template <typename N>
 [[nodiscard]] inline double compute_skewness_exact(const std::vector<N>& values, double mean) {
-  if (HICTKPY_UNLIKELY(values.size() < 2 || std::isnan(mean))) {
+  if (values.size() < 2 || std::isnan(mean)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
 
   const auto [m2, m3, _] = compute_central_moments(values, mean);
-  if (HICTKPY_UNLIKELY(m2 == 0)) {
+  if (m2 == 0) {
     return std::numeric_limits<double>::quiet_NaN();
   }
 
@@ -95,12 +95,12 @@ template <typename N>
 
 template <typename N>
 [[nodiscard]] inline double compute_kurtosis_exact(const std::vector<N>& values, double mean) {
-  if (HICTKPY_UNLIKELY(values.size() < 2 || std::isnan(mean))) {
+  if (values.size() < 2 || std::isnan(mean)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
 
   const auto [m2, _, m4] = compute_central_moments(values, mean);
-  if (HICTKPY_UNLIKELY(m2 == 0)) {
+  if (m2 == 0) {
     return std::numeric_limits<double>::quiet_NaN();
   }
 
@@ -177,6 +177,9 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
       _accumulator);
 
   auto stats = extract<N>(metrics);
+  if (_neg_inf_found || _pos_inf_found || _nan_found) {
+    return stats;
+  }
   if (!exact && nnz.value_or(10'000) >= 10'000) {  // NOLINT(*-avoid-magic-numbers)
     // exact computation is not required and sample size is big enough
     return stats;
@@ -224,7 +227,7 @@ inline void PixelAggregator::validate_metrics(const phmap::flat_hash_set<std::st
 }
 
 template <bool keep_nans, bool keep_infs, typename N>
-inline void PixelAggregator::process_non_finite(N n) noexcept {
+inline void PixelAggregator::update_finiteness_counters(N n) noexcept {
   static_assert(std::is_arithmetic_v<N>);
   if constexpr (std::is_floating_point_v<N>) {
     if constexpr (keep_nans) {
@@ -241,9 +244,11 @@ inline void PixelAggregator::process_non_finite(N n) noexcept {
         } else {
           _neg_inf_found = true;
         }
+        return;
       }
     }
   }
+  _finite_found = true;
 }
 
 template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typename It,
@@ -262,7 +267,7 @@ inline std::pair<It, std::size_t> PixelAggregator::process_pixels_until_true(
       std::ignore = ++first;
       continue;
     }
-    process_non_finite<keep_nans, keep_infs>(n);
+    update_finiteness_counters<keep_nans, keep_infs>(n);
     if (HICTKPY_UNLIKELY(break_loop())) {
       break;
     }
@@ -341,7 +346,7 @@ inline void PixelAggregator::process_all_remaining_pixels(Accumulator<N>& accumu
     if (HICTKPY_UNLIKELY(drop_pixel(pixel.count))) {
       return;
     }
-    process_non_finite<keep_nans, keep_infs>(pixel.count);
+    update_finiteness_counters<keep_nans, keep_infs>(pixel.count);
     accumulator(pixel.count);
   });
 }
@@ -361,6 +366,7 @@ inline void PixelAggregator::reset(const phmap::flat_hash_set<std::string>& metr
   _compute_skewness = true;
   _compute_kurtosis = true;
 
+  _finite_found = false;
   _nan_found = false;
   _neg_inf_found = false;
   _pos_inf_found = false;
@@ -494,7 +500,7 @@ inline std::optional<Stats> PixelAggregator::handle_edge_cases(
   }
 
   if (HICTKPY_UNLIKELY(nnz == 1)) {
-    process_non_finite<keep_nans, keep_infs>(value);
+    update_finiteness_counters<keep_nans, keep_infs>(value);
     std::visit([&](auto& accumulator) { accumulator(value); }, _accumulator);
     auto stats = extract<N>(metrics);
     if (stats.variance.has_value()) {
@@ -543,6 +549,9 @@ inline N PixelAggregator::extract_min(const Accumulator<N>& accumulator) const {
     if (_neg_inf_found) {
       return -std::numeric_limits<N>::infinity();
     }
+    if (!_finite_found && _pos_inf_found) {
+      return std::numeric_limits<N>::infinity();
+    }
   }
   return boost::accumulators::min(accumulator);
 }
@@ -555,6 +564,9 @@ inline N PixelAggregator::extract_max(const Accumulator<N>& accumulator) const {
     }
     if (_pos_inf_found) {
       return std::numeric_limits<N>::infinity();
+    }
+    if (!_finite_found && _neg_inf_found) {
+      return !std::numeric_limits<N>::infinity();
     }
   }
   return boost::accumulators::max(accumulator);

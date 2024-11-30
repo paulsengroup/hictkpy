@@ -63,6 +63,7 @@ class PixelAggregator {
   bool _compute_skewness{true};
   bool _compute_kurtosis{true};
 
+  bool _finite_found{false};
   bool _nan_found{false};
   bool _neg_inf_found{false};
   bool _pos_inf_found{false};
@@ -81,7 +82,7 @@ class PixelAggregator {
   static void validate_metrics(const phmap::flat_hash_set<std::string>& metrics);
 
   template <bool keep_nans, bool keep_infs, typename N>
-  void process_non_finite(N n) noexcept;
+  void update_finiteness_counters(N n) noexcept;
   template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typename It,
             typename StopCondition>
   [[nodiscard]] std::pair<It, std::size_t> process_pixels_until_true(Accumulator<N>& accumulator,
