@@ -65,7 +65,19 @@ Generic API
    * All methods can be tweaked to include or exclude non-finite values.
    * All functions implemented using short-circuiting to detect scenarios where the required statistics can be computed without traversing all pixels.
 
-   All statistics except the variance are guaranteed to be exact. This is because by default, the variance is estimated. The default behavior can be changed by passing ``exact=False`` to :py:meth:`hictkpy.PixelSelector.describe()` or :py:meth:`hictkpy.PixelSelector.variance()`.
+   The following statistics are guaranteed to be exact:
+
+   * nnz
+   * sum
+   * min
+   * max
+   * mean
+
+   The rest of the supported statistics (currently variance, skewness, and kurtosis) are estimated and are thus not guaranteed to be exact.
+   However, in practice, the estimation is usually very accurate (relative error < 1.0e-6).
+
+   You can instruct hictkpy to compute the exact statistics by passing ``exact=True`` to :py:meth:`hictkpy.PixelSelector.describe()` and related methods.
+   It should be noted that for large queries this will result in slower computations and higher memory usage.
 
    .. automethod:: describe
    .. automethod:: kurtosis
