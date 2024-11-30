@@ -122,7 +122,7 @@ void declare_singlecell_file_class(nb::module_& m) {
                  nb::rv_policy::take_ownership);
   scell_file.def("cells", &singlecell_file::get_cells, "Get the list of available cells.",
                  nb::rv_policy::move);
-  scell_file.def("__getitem__", &singlecell_file::getitem,
+  scell_file.def("__getitem__", &singlecell_file::getitem, nb::arg("cell_id"),
                  "Open the Cooler file corresponding to the cell ID given as input.",
                  nb::rv_policy::move);
 }

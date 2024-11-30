@@ -27,4 +27,4 @@ Cooler API
    .. automethod:: chromosomes
    .. automethod:: finalize
    .. automethod:: path
-   .. automethod:: resolutions
+   .. automethod:: resolution
