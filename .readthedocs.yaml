@@ -10,6 +10,15 @@ build:
     python: "3.12"
 
   commands:
+    - sudo apt-get update
+    - sudo apt-get install -y ca-certificates lsb-release curl
+    - curl -LO "https://apache.jfrog.io/artifactory/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-apt-source-latest-$(lsb_release --codename --short).deb"
+    - sudo apt-get install -y *.deb
+    - rm *.deb
+    - sudo apt-get update
+    - sudo apt-get install -y libarrow-dev libboost-dev libdeflate-dev libhdf5-dev libzstd-dev
+    - pip install 'conan>=2'
+    - docs/update_conan_config_rtd.py conanfile.py
     - pip install -r docs/requirements.txt
     - pip install . -v
     - docs/update_index_links.py --root-dir "$PWD" --inplace
