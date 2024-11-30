@@ -399,7 +399,7 @@ inline Stats PixelAggregator::extract(const phmap::flat_hash_set<std::string>& m
 template <typename N, std::size_t keep_nans, std::size_t keep_infs, typename It>
 inline std::optional<Stats> PixelAggregator::handle_edge_cases(
     It first, It last, const phmap::flat_hash_set<std::string>& metrics) {
-  // Handle selectors with zero or one (valid) pixels
+  // Handle selectors with zero or one (valid) pixel
   std::size_t nnz = 0;
   N value{};
   while (first != last && nnz < 2) {
@@ -422,6 +422,7 @@ inline std::optional<Stats> PixelAggregator::handle_edge_cases(
   }
 
   if (HICTKPY_UNLIKELY(nnz == 1)) {
+    process_non_finite<keep_nans, keep_infs>(value);
     std::visit([&](auto& accumulator) { accumulator(value); }, _accumulator);
     auto stats = extract<N>(metrics);
     if (stats.variance.has_value()) {
