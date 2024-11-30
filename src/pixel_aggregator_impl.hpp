@@ -159,8 +159,8 @@ inline std::pair<It, std::size_t> PixelAggregator::process_pixels_until_true(
   // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_UNLIKELY
   auto drop_pixel = [this](const auto n) noexcept { return drop_value<keep_nans, keep_infs>(n); };
 
-  std::size_t i = 0;
-  for (; first != last; ++i) {
+  std::size_t nnz = 0;
+  while (first != last) {
     const auto n = first->count;
     if (HICTKPY_UNLIKELY(drop_pixel(n))) {
       std::ignore = ++first;
@@ -171,6 +171,7 @@ inline std::pair<It, std::size_t> PixelAggregator::process_pixels_until_true(
       break;
     }
     accumulator(n);
+    ++nnz;
 
     if constexpr (!skip_kurtosis && std::is_integral_v<N>) {
       assert(_kurtosis_accumulator.has_value());
@@ -178,7 +179,7 @@ inline std::pair<It, std::size_t> PixelAggregator::process_pixels_until_true(
     }
     std::ignore = ++first;
   }
-  return std::make_pair(first, i);
+  return std::make_pair(first, nnz);
 }
 
 template <typename N>
