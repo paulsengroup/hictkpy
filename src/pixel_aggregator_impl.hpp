@@ -183,7 +183,7 @@ template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typena
 inline std::pair<It, std::size_t> PixelAggregator::process_pixels_until_true(
     Accumulator<N>& accumulator, It first, It last, StopCondition break_loop) {
   // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_UNLIKELY
-  auto drop_pixel = [this](const auto n) noexcept { return drop_value<keep_nans, keep_infs>(n); };
+  auto drop_pixel = [](const auto n) noexcept { return drop_value<keep_nans, keep_infs>(n); };
 
   std::size_t nnz = 0;
   while (first != last) {
