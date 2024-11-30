@@ -192,7 +192,7 @@ static nb::dict get_cooler_attrs(const hictk::cooler::File &clr) {
 static nb::dict get_hic_attrs(const hictk::hic::File &hf) {
   nb::dict py_attrs;
 
-  py_attrs["bin_size"] = hf.resolution();
+  py_attrs["bin-size"] = hf.resolution();
   py_attrs["format"] = "HIC";
   py_attrs["format-version"] = hf.version();
   py_attrs["assembly"] = hf.assembly();
