@@ -26,7 +26,28 @@
 
 namespace hictkpy {
 
-template <typename It>
+template <bool keep_nans, bool keep_infs, typename N>
+inline bool drop_value([[maybe_unused]] N n) noexcept {
+  static_assert(std::is_arithmetic_v<N>);
+  if constexpr (!std::is_floating_point_v<N>) {
+    return false;
+  } else {
+    // MSVC gets confused if this chunk of code is not in an else branch...
+    if constexpr (!keep_nans && !keep_infs) {
+      return !std::isfinite(n);
+    }
+    if constexpr (!keep_nans) {
+      return std::isnan(n);
+    }
+    if constexpr (!keep_infs) {
+      return std::isinf(n);
+    }
+  }
+
+  return false;
+}
+
+template <bool keep_nans, bool keep_infs, typename It>
 [[nodiscard]] inline double compute_variance_exact(It first, It last, double mean,
                                                    std::size_t size) {
   assert(size != 0);
@@ -34,11 +55,16 @@ template <typename It>
     return std::numeric_limits<double>::quiet_NaN();
   }
 
-  return std::accumulate(
-      std::move(first), std::move(last), 0.0, [&](const auto accumulator, const auto& pixel) {
-        const auto n = conditional_static_cast<double>(pixel.count);
-        return accumulator + (((n - mean) * (n - mean)) / static_cast<double>(size - 1));
-      });
+  double acumulator = 0;
+  while (first != last) {
+    if (!drop_value<keep_nans, keep_infs>(first->count)) {
+      const auto n = conditional_static_cast<double>(first->count);
+      acumulator += ((n - mean) * (n - mean)) / static_cast<double>(size - 1);
+    }
+    std::ignore = ++first;
+  }
+
+  return acumulator;
 }
 
 template <typename N, bool keep_nans, bool keep_infs, typename PixelSelector>
@@ -246,27 +272,6 @@ inline void PixelAggregator::process_all_remaining_pixels(Accumulator<N>& accumu
     process_non_finite<keep_nans, keep_infs>(pixel.count);
     accumulator(pixel.count);
   });
-}
-
-template <bool keep_nans, bool keep_infs, typename N>
-inline bool PixelAggregator::drop_value([[maybe_unused]] N n) noexcept {
-  static_assert(std::is_arithmetic_v<N>);
-  if constexpr (!std::is_floating_point_v<N>) {
-    return false;
-  } else {
-    // MSVC gets confused if this chunk of code is not in an else branch...
-    if constexpr (!keep_nans && !keep_infs) {
-      return !std::isfinite(n);
-    }
-    if constexpr (!keep_nans) {
-      return std::isnan(n);
-    }
-    if constexpr (!keep_infs) {
-      return std::isinf(n);
-    }
-  }
-
-  return false;
 }
 
 template <typename N>

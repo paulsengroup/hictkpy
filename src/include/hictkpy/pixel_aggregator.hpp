@@ -102,9 +102,6 @@ class PixelAggregator {
   template <bool keep_nans, bool keep_infs, typename N, typename It>
   void process_all_remaining_pixels(Accumulator<N>& accumulator, It&& first, It&& last);
 
-  template <bool keep_nans, bool keep_infs, typename N>
-  static bool drop_value(N n) noexcept;
-
   template <typename N>
   void reset(const phmap::flat_hash_set<std::string>& metrics);
 
