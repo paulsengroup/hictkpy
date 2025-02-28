@@ -84,9 +84,11 @@ jobs:
           set -u
           set -e
 
+          dnf install -y clang &> /dev/null
+
           hash="${{ hashFiles('.github/workflows/build-conan-deps.yml', 'conanfile.py') }}"
 
-          compiler="$(cc --version | head -n 1 | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g' | sed 's/-$//')"
+          compiler="$(clang --version | head -n 1 | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g' | sed 's/-$//')"
 
           suffix="${{ inputs.os }}-${{ inputs.arch }}-$compiler-c++${{ inputs.cppstd }}-$hash"
 
@@ -117,6 +119,11 @@ jobs:
 
           conan_version="$1"
 
+          dnf install -y clang
+
+          export CC=clang
+          export CXX=clang++
+
           PATH="/opt/python/cp312-cp312/bin:$PATH"
           pip install "conan==$conan_version"
 
@@ -140,6 +147,11 @@ jobs:
           set -e
 
           conan_version="$1"
+
+          dnf install -y clang
+
+          export CC=clang
+          export CXX=clang++
 
           PATH="/opt/python/cp312-cp312/bin:$PATH"
           pip install "conan==$conan_version"
@@ -168,6 +180,12 @@ jobs:
           set -e
 
           conan_version="$1"
+
+          dnf install -y clang
+
+          export CC=clang
+          export CXX=clang++
+
           cppstd="$2"
 
           PATH="/opt/python/cp312-cp312/bin:$PATH"
@@ -199,6 +217,11 @@ jobs:
           set -e
 
           conan_version="$1"
+
+          dnf install -y clang
+
+          export CC=clang
+          export CXX=clang++
 
           PATH="/opt/python/cp312-cp312/bin:$PATH"
           pip install "conan==$conan_version"
