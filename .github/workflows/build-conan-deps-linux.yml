@@ -43,7 +43,7 @@ defaults:
 
 jobs:
   build-deps:
-    name: Build dependencies with Conan (${{ inputs.os }}; ${{ inputs.arch }})
+    name: Build dependencies with Conan (manylinux_2_28; ${{ inputs.arch }})
     runs-on: ${{ inputs.os }}
 
     env:
