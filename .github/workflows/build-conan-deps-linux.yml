@@ -1,0 +1,232 @@
+# Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
+# SPDX-License-Identifier: MIT
+
+name: Build dependencies with Conan
+
+on:
+  workflow_call:
+    outputs:
+      conan-key:
+        description: "Conan packages"
+        value: ${{ jobs.build-deps.outputs.conan-key }}
+      conan-home:
+        description: "Conan home folder"
+        value: ${{ jobs.build-deps.outputs.conan-home }}
+
+    inputs:
+      conan-version:
+        default: "2.12.*"
+        type: string
+        required: false
+        description: "Conan version to be installed with pip."
+      cppstd:
+        default: "17"
+        type: string
+        required: false
+        description: "Value to pass to compiler.cppstd."
+      os:
+        type: string
+        required: true
+        description: "OS to use as runner."
+      arch:
+        type: string
+        required: true
+        description: "Architecture used to build deps."
+      image-version:
+        type: string
+        required: true
+        description: "Image version for the manylinux_2_28_* Docker image."
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-deps:
+    name: Build dependencies with Conan (${{ inputs.os }}; ${{ inputs.arch }})
+    runs-on: ${{ inputs.os }}
+
+    env:
+      CONAN_HOME: "${{ github.workspace }}/.conan2"
+      IMAGE: quay.io/pypa/manylinux_2_28_${{ inputs.arch }}:${{ inputs.image-version }}
+
+    outputs:
+      conan-key: ${{ steps.generate-cache-key.outputs.conan-key }}
+      conan-home: ${{ env.CONAN_HOME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate cache key
+        id: generate-cache-key
+        run: |
+          cat << 'EOF' | tee script.sh > /dev/null
+          #!usr/bin/env bash
+          set -u
+          set -e
+
+          dnf install -y clang &> /dev/null
+
+          hash="${{ hashFiles('conanfile.py') }}"
+
+          compiler="$(clang --version | head -n 1 | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g' | sed 's/-$//')"
+          image="$(echo "$IMAGE" | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g' | sed 's/-$//')"
+
+          suffix="${{ inputs.os }}-$image-$compiler-c++${{ inputs.cppstd }}-$hash"
+
+          echo "conan-key=conan-$suffix"
+          EOF
+
+          chmod 755 script.sh
+
+          docker run \
+            -v "$PWD/script.sh:/tmp/script.sh:ro" \
+            "$IMAGE" /tmp/script.sh | tee -a "$GITHUB_OUTPUT"
+
+      - name: Restore package cache
+        id: cache-conan
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ steps.generate-cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
+          lookup-only: true
+
+      - name: Configure Conan
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          cat << 'EOF' | tee script.sh > /dev/null
+          #!usr/bin/env bash
+          set -u
+          set -e
+
+          conan_version="$1"
+
+          dnf install -y clang
+
+          export CC=clang
+          export CXX=clang++
+
+          PATH="/opt/python/cp312-cp312/bin:$PATH"
+          pip install "conan==$conan_version"
+
+          conan remote update conancenter --url https://center2.conan.io
+          EOF
+
+          chmod 755 script.sh
+
+          docker run \
+            -e "CONAN_HOME=$CONAN_HOME" \
+            -v "$PWD/script.sh:/tmp/script.sh:ro" \
+            -v "$CONAN_HOME:$CONAN_HOME" \
+            "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
+
+      - name: Clean Conan cache (pre-build)
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          cat << 'EOF' | tee script.sh > /dev/null
+          #!usr/bin/env bash
+          set -u
+          set -e
+
+          conan_version="$1"
+
+          dnf install -y clang
+
+          export CC=clang
+          export CXX=clang++
+
+          PATH="/opt/python/cp312-cp312/bin:$PATH"
+          pip install "conan==$conan_version"
+          conan profile detect --force
+
+          conan cache clean "*" --build
+          conan cache clean "*" --download
+          conan cache clean "*" --source
+          conan remove --confirm "*"
+          EOF
+
+          chmod 755 script.sh
+
+          docker run \
+            -e "CONAN_HOME=$CONAN_HOME" \
+            -v "$PWD/script.sh:/tmp/script.sh:ro" \
+            -v "$CONAN_HOME:$CONAN_HOME" \
+            "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
+
+      - name: Install dependencies
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          cat << 'EOF' | tee script.sh > /dev/null
+          #!usr/bin/env bash
+          set -u
+          set -e
+
+          conan_version="$1"
+
+          dnf install -y clang
+
+          export CC=clang
+          export CXX=clang++
+
+          cppstd="$2"
+
+          PATH="/opt/python/cp312-cp312/bin:$PATH"
+          pip install "conan==$conan_version"
+          conan profile detect --force
+
+          conan install /tmp/conanfile.py \
+             --build='missing'            \
+             -s build_type=Release        \
+             -s compiler.cppstd="$cppstd" \
+             --options='*/*:shared=False'
+          EOF
+
+          chmod 755 script.sh
+
+          docker run \
+            -e "CONAN_HOME=$CONAN_HOME" \
+            -v "$PWD/script.sh:/tmp/script.sh:ro" \
+            -v "$PWD/conanfile.py:/tmp/conanfile.py:ro" \
+            -v "$CONAN_HOME:$CONAN_HOME" \
+            "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}' '${{ inputs.cppstd }}'
+
+      - name: Clean Conan cache (post-build)
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          cat << 'EOF' | tee script.sh > /dev/null
+          #!usr/bin/env bash
+          set -u
+          set -e
+
+          conan_version="$1"
+
+          dnf install -y clang
+
+          export CC=clang
+          export CXX=clang++
+
+          PATH="/opt/python/cp312-cp312/bin:$PATH"
+          pip install "conan==$conan_version"
+          conan profile detect --force
+
+          conan cache clean "*" --build
+          conan cache clean "*" --download
+          conan cache clean "*" --source
+          EOF
+
+          chmod 755 script.sh
+
+          docker run \
+            -e "CONAN_HOME=$CONAN_HOME" \
+            -v "$PWD/script.sh:/tmp/script.sh:ro" \
+            -v "$CONAN_HOME:$CONAN_HOME" \
+            "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
+
+      - name: Save Conan cache
+        uses: actions/cache/save@v4
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          key: ${{ steps.generate-cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
+        env:
+          ZSTD_CLEVEL: 19
