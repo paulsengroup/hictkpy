@@ -76,8 +76,8 @@ wheel.expand-macos-universal-tags = true
 cmake.build-type = "Release"
 
 [tool.scikit-build.cmake.define]
-BUILD_SHARED_LIBS = "OFF"
-CMAKE_OSX_DEPLOYMENT_TARGET = "10.15"
+BUILD_SHARED_LIBS = { env="HICTKPY_BUILD_SHARED_LIBS", default="OFF" }
+CMAKE_OSX_DEPLOYMENT_TARGET = { env="HICTKPY_OSX_DEPLOYMENT_TARGET", default="10.15" }
 CMAKE_PROJECT_TOP_LEVEL_INCLUDES = { env="HICTKPY_PROJECT_TOP_LEVEL_INCLUDES", default="cmake/conan_provider.cmake" }
 CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--settings=compiler.cppstd=17;--settings=build_type=Release;--build=missing;--update;--options=*/*:shared=False" }
 HICTK_BUILD_BENCHMARKS = "OFF"
