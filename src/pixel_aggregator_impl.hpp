@@ -338,7 +338,7 @@ inline void PixelAggregator::process_all_remaining_pixels(Accumulator<N>& accumu
                                                           It&& last) {
   assert(_compute_count);
   // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_UNLIKELY
-  auto drop_pixel = [this](const auto n) noexcept {
+  auto drop_pixel = [](const auto n) noexcept {
     return internal::drop_value<keep_nans, keep_infs>(n);
   };
 
@@ -566,7 +566,7 @@ inline N PixelAggregator::extract_max(const Accumulator<N>& accumulator) const {
       return std::numeric_limits<N>::infinity();
     }
     if (!_finite_found && _neg_inf_found) {
-      return !std::numeric_limits<N>::infinity();
+      return -std::numeric_limits<N>::infinity();
     }
   }
   return boost::accumulators::max(accumulator);
