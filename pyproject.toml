@@ -131,7 +131,6 @@ before-build = [
 
 [tool.cibuildwheel.linux]
 before-all = "dnf install -y clang"
-environment = { "CC"="clang", "CXX"="clang++" }
 
 # We are using static linking, thus repairing wheels should not be necessary.
 # Exception being when building portable Linux wheels.

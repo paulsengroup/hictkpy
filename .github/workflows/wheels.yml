@@ -224,6 +224,8 @@ jobs:
         env:
           CIBW_BUILD_VERBOSITY: 1
           CIBW_ENVIRONMENT_LINUX: >
+            CC=clang
+            CXX=clang++
             PIP_VERBOSE=1
             CONAN_HOME='/host${{ env.CONAN_HOME }}'
           CIBW_ENVIRONMENT_MACOS: >
