@@ -12,14 +12,6 @@ on:
       - "cmake/**"
       - "src/**"
       - "CMakeLists.txt"
-  pull_request: # TODO remove
-    branches: [main]
-    paths:
-      - ".github/workflows/build-conan-deps-linux.yml"
-      - ".github/workflows/codeql-cpp.yml"
-      - "cmake/**"
-      - "src/**"
-      - "CMakeLists.txt"
   schedule:
     - cron: "0 5 1 * *" # run monthly at 05:00
 
