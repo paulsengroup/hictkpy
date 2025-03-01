@@ -41,6 +41,8 @@ jobs:
 
     env:
       CONAN_HOME: "${{ github.workspace }}/.conan2/"
+      CC: clang
+      CXX: clang++
 
     steps:
       - name: Checkout repo
