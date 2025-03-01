@@ -1,0 +1,125 @@
+# Copyright (C) 2025 Roberto Rossini <roberros@uio.no>
+# SPDX-License-Identifier: MIT
+
+name: Run CodeQL analysis (C++)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-conan-deps-linux.yml"
+      - ".github/workflows/codeql-cpp.yml"
+      - "cmake/**"
+      - "src/**"
+      - "CMakeLists.txt"
+  schedule:
+    - cron: "0 5 1 * *" # run monthly at 05:00
+
+# https://stackoverflow.com/a/72408109
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (C++)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+
+    env:
+      CONAN_HOME: "${{ github.workspace }}/.conan2/"
+      CC: clang
+      CXX: clang++
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Add requirements
+        run: python -m pip install --upgrade conan wheel setuptools
+
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          hash="${{ hashFiles('.github/workflows/codeql-cpp.yml', 'conanfile.py') }}"
+
+          echo "conan-key=codeql-cpp-$hash" >> $GITHUB_OUTPUT
+
+      - name: Configure Conan
+        run: |
+          conan remote update conancenter --url https://center2.conan.io
+          conan profile detect
+
+      - name: Restore Conan cache
+        id: cache-conan
+        uses: actions/cache/restore@v4
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
+
+      - name: Clean Conan cache (pre-build)
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          conan cache clean "*" --build
+          conan cache clean "*" --download
+          conan cache clean "*" --source
+          conan remove --confirm "*"
+
+      - name: Install dependencies
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          conan install conanfile.py \
+            --settings=compiler.cppstd=17 \
+            --settings=build_type=Release \
+            --options='*/*:shared=False' \
+            --build=missing \
+            --update
+
+      - name: Clean Conan cache (post-build)
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          conan cache clean "*" --build
+          conan cache clean "*" --download
+          conan cache clean "*" --source
+
+      - name: Save Conan cache
+        uses: actions/cache/save@v4
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
+        env:
+          ZSTD_CLEVEL: 19
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
+        with:
+          languages: c-cpp
+          build-mode: manual
+
+      - name: Build project
+        run: |
+          HICTKPY_CONAN_INSTALL_ARGS=(
+            --settings=compiler.cppstd=17
+            --settings=build_type=Release
+            --build=never
+            --options='*/*:shared=False'
+          )
+          export HICTKPY_CONAN_INSTALL_ARGS="$(printf "%s;" "${HICTKPY_CONAN_INSTALL_ARGS[@]}")"
+
+          pip install . -v
+
+      - name: Run Analysis
+        uses: github/codeql-action/analyze@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
+        with:
+          category: "/language:c-cpp"

@@ -1,0 +1,122 @@
+# Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
+# SPDX-License-Identifier: MIT
+
+name: Build dependencies with Conan
+
+on:
+  workflow_call:
+    outputs:
+      conan-key:
+        description: "Conan packages"
+        value: ${{ jobs.build-deps.outputs.conan-key }}
+      conan-home:
+        description: "Conan home folder"
+        value: ${{ jobs.build-deps.outputs.conan-home }}
+
+    inputs:
+      conan-version:
+        default: "2.12.*"
+        type: string
+        required: false
+        description: "Conan version to be installed with pip."
+      cppstd:
+        default: "17"
+        type: string
+        required: false
+        description: "Value to pass to compiler.cppstd."
+      os:
+        type: string
+        required: true
+        description: "OS used to build Conan deps."
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build-deps:
+    name: Build dependencies with Conan (${{ inputs.os }})
+    runs-on: ${{ inputs.os }}
+
+    env:
+      CONAN_HOME: "${{ github.workspace }}/.conan2"
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+
+    outputs:
+      conan-key: ${{ steps.generate-cache-key.outputs.conan-key }}
+      conan-home: ${{ env.CONAN_HOME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate cache key
+        id: generate-cache-key
+        run: |
+          set -u
+          set -e
+
+          hash="${{ hashFiles('conanfile.py') }}"
+
+          compiler="$(cc --version | head -n 1 | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g' | sed 's/-$//')"
+
+          suffix="${{ inputs.os }}-$compiler-c++${{ inputs.cppstd }}-$hash"
+
+          echo "conan-key=conan-$suffix" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Restore package cache
+        id: cache-conan
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ steps.generate-cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
+          lookup-only: true
+
+      - uses: actions/setup-python@v5
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          python-version: "3.13"
+
+      - name: Update build deps
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: pip install "conan==${{ inputs.conan-version }}"
+
+      - name: Configure Conan
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          conan profile detect --force
+          conan remote update conancenter --url https://center2.conan.io
+
+      - name: Clean Conan cache (pre-build)
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          conan cache clean "*" --build
+          conan cache clean "*" --download
+          conan cache clean "*" --source
+          conan remove --confirm "*"
+
+      - name: Install dependencies
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          conan install conanfile.py                     \
+             --build='missing'                           \
+             -s build_type=Release                       \
+             -s compiler.cppstd=${{ inputs.cppstd }}     \
+             -s:h os.version="$MACOSX_DEPLOYMENT_TARGET" \
+             --options='*/*:shared=False'
+
+      - name: Clean Conan cache (post-build)
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          conan cache clean "*" --build
+          conan cache clean "*" --download
+          conan cache clean "*" --source
+
+      - name: Save Conan cache
+        uses: actions/cache/save@v4
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          key: ${{ steps.generate-cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
+        env:
+          ZSTD_CLEVEL: 19
