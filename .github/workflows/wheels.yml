@@ -221,7 +221,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.22
+        uses: pypa/cibuildwheel@ee63bf16da6cddfb925f542f2c7b59ad50e93969 # v2.22.0
         with:
           only: ${{ matrix.wheel-config }}
         env:
@@ -307,7 +307,7 @@ jobs:
           rm dist.tar
 
       - name: Upload wheels to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4
         with:
           attestations: true
           print-hash: true
