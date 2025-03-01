@@ -57,7 +57,7 @@ jobs:
       - name: Generate cache key
         id: cache-key
         run: |
-          hash="${{ hashFiles('conanfile.py') }}"
+          hash="${{ hashFiles('.github/workflows/codeql-cpp.yml', 'conanfile.py') }}"
 
           echo "conan-key=codeql-cpp-$hash" >> $GITHUB_OUTPUT
 
@@ -68,7 +68,7 @@ jobs:
 
       - name: Restore Conan cache
         id: cache-conan
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           key: conan-${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}/p
@@ -97,6 +97,15 @@ jobs:
           conan cache clean "*" --build
           conan cache clean "*" --download
           conan cache clean "*" --source
+
+      - name: Save Conan cache
+        uses: actions/cache/save@v4
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
+        env:
+          ZSTD_CLEVEL: 19
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
