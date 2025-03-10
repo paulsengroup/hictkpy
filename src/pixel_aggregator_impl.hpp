@@ -13,6 +13,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <hictk/transformers/diagonal_band.hpp>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
@@ -111,15 +112,46 @@ template <typename N>
 
 template <typename N, bool keep_nans, bool keep_infs, typename PixelSelector>
 inline Stats PixelAggregator::compute(const PixelSelector& sel,
-                                      const phmap::flat_hash_set<std::string>& metrics,
-                                      bool exact) {
+                                      const phmap::flat_hash_set<std::string>& metrics, bool exact,
+                                      std::optional<std::uint64_t> diagonal_band_width) {
   static_assert(std::is_same_v<N, std::int64_t> || std::is_same_v<N, double>);
 
   validate_metrics(metrics);
 
+  if (!metrics.contains("variance") && !metrics.contains("skewness") &&
+      !metrics.contains("kurtosis")) {
+    // approximate and exact computation yield the same results, so let's use the cheaper method
+    exact = false;
+  }
+
+  if (diagonal_band_width.has_value()) {
+    const hictk::transformers::DiagonalBand band_sel{sel.template begin<N>(), sel.template end<N>(),
+                                                     *diagonal_band_width};
+    if (!exact) {
+      auto stats = compute<keep_nans, keep_infs>(band_sel.begin(), band_sel.end(), metrics);
+      if (stats.has_value()) {
+        return *stats;
+      }
+    }
+    return compute_exact<keep_nans, keep_infs>(band_sel.begin(), band_sel.end(), metrics);
+  }
+
+  if (!exact) {
+    auto stats =
+        compute<keep_nans, keep_infs>(sel.template begin<N>(), sel.template end<N>(), metrics);
+    if (stats.has_value()) {
+      return *stats;
+    }
+  }
+  return compute_exact<keep_nans, keep_infs>(sel.template begin<N>(), sel.template end<N>(),
+                                             metrics);
+}
+
+template <bool keep_nans, bool keep_infs, typename PixelIt>
+inline std::optional<Stats> PixelAggregator::compute(
+    PixelIt first, PixelIt last, const phmap::flat_hash_set<std::string>& metrics) {
+  using N = decltype(std::declval<PixelIt>()->count);
   reset<N>(metrics);
-  auto first = sel.template begin<N>();
-  auto last = sel.template end<N>();
 
   if (auto stats = handle_edge_cases<N, keep_nans, keep_infs>(first, last, metrics);
       stats.has_value()) {
@@ -180,26 +212,43 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
   if (_neg_inf_found || _pos_inf_found || _nan_found) {
     return stats;
   }
-  if (!exact && nnz.value_or(10'000) >= 10'000) {  // NOLINT(*-avoid-magic-numbers)
+
+  if (nnz.value_or(10'000) >= 10'000) {  // NOLINT(*-avoid-magic-numbers)
     // exact computation is not required and sample size is big enough
     return stats;
   }
 
-  if (!stats.variance.has_value() && !stats.skewness.has_value() && !stats.kurtosis.has_value()) {
-    // all requested metrics have already been computed exactly
-    return stats;
+  // sample size is too small: exact computation is necessary
+  return {};
+}
+
+template <bool keep_nans, bool keep_infs, typename PixelIt>
+inline Stats PixelAggregator::compute_exact(PixelIt first, PixelIt last,
+                                            const phmap::flat_hash_set<std::string>& metrics) {
+  using N = decltype(std::declval<PixelIt>()->count);
+  reset<N>(metrics);
+
+  if (auto stats = handle_edge_cases<N, keep_nans, keep_infs>(first, last, metrics);
+      stats.has_value()) {
+    return *stats;
   }
 
   std::vector<N> values;
-  values.reserve(*nnz);
-  std::for_each(sel.template begin<N>(), sel.template end<N>(), [&](const auto& pixel) {
-    if (!internal::drop_value<keep_nans, keep_infs>(pixel.count)) {
-      values.push_back(pixel.count);
-    }
-  });
+  std::visit(
+      [&](auto& accumulator) {
+        std::for_each(std::move(first), std::move(last), [&](const auto& pixel) {
+          if (!internal::drop_value<keep_nans, keep_infs>(pixel.count)) {
+            values.push_back(pixel.count);
+            accumulator(pixel.count);
+          }
+        });
+      },
+      _accumulator);
 
-  const auto mean =
-      std::visit([&](const auto& accumulator) { return extract_mean(accumulator); }, _accumulator);
+  auto stats = extract<N>(metrics);
+
+  const auto mean = stats.mean.value_or(
+      std::visit([&](const auto& accumulator) { return extract_mean(accumulator); }, _accumulator));
 
   if (stats.variance.has_value()) {
     stats.variance = internal::compute_variance_exact(values, mean);

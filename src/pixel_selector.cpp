@@ -21,6 +21,7 @@
 #include <hictk/hic/pixel_selector.hpp>
 #include <hictk/pixel.hpp>
 #include <hictk/transformers/common.hpp>
+#include <hictk/transformers/diagonal_band.hpp>
 #include <hictk/transformers/join_genomic_coords.hpp>
 #include <hictk/transformers/to_dataframe.hpp>
 #include <hictk/transformers/to_dense_matrix.hpp>
@@ -47,22 +48,28 @@ namespace nb = nanobind;
 namespace hictkpy {
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_,
-                             std::string_view type, bool join)
+                             std::string_view type, bool join,
+                             std::optional<std::uint64_t> diagonal_band_width_)
     : selector(std::move(sel_)),
       pixel_count(parse_count_type(type)),
-      pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO) {}
+      pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO),
+      diagonal_band_width(diagonal_band_width_) {}
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_,
-                             std::string_view type, bool join)
+                             std::string_view type, bool join,
+                             std::optional<std::uint64_t> diagonal_band_width_)
     : selector(std::move(sel_)),
       pixel_count(parse_count_type(type)),
-      pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO) {}
+      pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO),
+      diagonal_band_width(diagonal_band_width_) {}
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_,
-                             std::string_view type, bool join)
+                             std::string_view type, bool join,
+                             std::optional<std::uint64_t> diagonal_band_width_)
     : selector(std::move(sel_)),
       pixel_count(parse_count_type(type)),
-      pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO) {}
+      pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO),
+      diagonal_band_width(diagonal_band_width_) {}
 
 std::string PixelSelector::repr() const {
   if (!coord1()) {
@@ -133,12 +140,23 @@ auto PixelSelector::get_coord2() const -> GenomicCoordTuple {
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] static nb::iterator make_bg2_iterable(const PixelSelector& sel) {
+[[nodiscard]] static nb::iterator make_bg2_iterable(
+    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_floating_point_v<N> && !std::is_same_v<N, double>) {
-    return make_bg2_iterable<double>(sel);
+    return make_bg2_iterable<double>(sel, diagonal_band_width);
   } else if constexpr (std::is_integral_v<N> && !std::is_same_v<N, std::int64_t>) {
-    return make_bg2_iterable<std::int64_t>(sel);
+    return make_bg2_iterable<std::int64_t>(sel, diagonal_band_width);
   }
+
+  if (diagonal_band_width.has_value()) {
+    const hictk::transformers::DiagonalBand band_sel(sel.template begin<N>(), sel.template end<N>(),
+                                                     *diagonal_band_width);
+    const hictk::transformers::JoinGenomicCoords jsel{band_sel.begin(), band_sel.end(),
+                                                      sel.bins_ptr()};
+    return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator", jsel.begin(),
+                             jsel.end());
+  }
+
   const hictk::transformers::JoinGenomicCoords jsel{sel.template begin<N>(), sel.template end<N>(),
                                                     sel.bins_ptr()};
   return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator", jsel.begin(),
@@ -146,11 +164,19 @@ template <typename N, typename PixelSelector>
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] static nb::iterator make_coo_iterable(const PixelSelector& sel) {
+[[nodiscard]] static nb::iterator make_coo_iterable(
+    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_floating_point_v<N> && !std::is_same_v<N, double>) {
-    return make_coo_iterable<double>(sel);
+    return make_coo_iterable<double>(sel, diagonal_band_width);
   } else if constexpr (std::is_integral_v<N> && !std::is_same_v<N, std::int64_t>) {
-    return make_coo_iterable<std::int64_t>(sel);
+    return make_coo_iterable<std::int64_t>(sel, diagonal_band_width);
+  }
+
+  if (diagonal_band_width.has_value()) {
+    const hictk::transformers::DiagonalBand band_sel(sel.template begin<N>(), sel.template end<N>(),
+                                                     *diagonal_band_width);
+    return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator", band_sel.begin(),
+                             band_sel.end());
   }
 
   return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
@@ -165,10 +191,10 @@ nb::iterator PixelSelector::make_iterable() const {
             [&]([[maybe_unused]] auto count) -> nb::iterator {
               using N = decltype(count);
               if (pixel_format == PixelFormat::BG2) {
-                return make_bg2_iterable<N>(*sel_ptr);
+                return make_bg2_iterable<N>(*sel_ptr, diagonal_band_width);
               }
               assert(pixel_format == PixelFormat::COO);
-              return make_coo_iterable<N>(*sel_ptr);
+              return make_coo_iterable<N>(*sel_ptr, diagonal_band_width);
             },
             pixel_count);
       },
@@ -177,25 +203,27 @@ nb::iterator PixelSelector::make_iterable() const {
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static std::shared_ptr<arrow::Table> make_bg2_arrow_df(
-    const PixelSelector& sel, hictk::transformers::QuerySpan span) {
+    const PixelSelector& sel, hictk::transformers::QuerySpan span,
+    std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
-    return make_bg2_arrow_df<double>(sel, span);
+    return make_bg2_arrow_df<double>(sel, span, diagonal_band_width);
   } else {
-    return hictk::transformers::ToDataFrame(sel.template begin<N>(), sel.template end<N>(),
-                                            hictk::transformers::DataFrameFormat::BG2,
-                                            sel.bins_ptr(), span)();
+    return hictk::transformers::ToDataFrame(
+        sel.template begin<N>(), sel.template end<N>(), hictk::transformers::DataFrameFormat::BG2,
+        sel.bins_ptr(), span, false, true, 256'000, diagonal_band_width)();
   }
 }
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static std::shared_ptr<arrow::Table> make_coo_arrow_df(
-    const PixelSelector& sel, hictk::transformers::QuerySpan span) {
+    const PixelSelector& sel, hictk::transformers::QuerySpan span,
+    std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
-    return make_coo_arrow_df<double>(sel, span);
+    return make_coo_arrow_df<double>(sel, span, diagonal_band_width);
   } else {
-    return hictk::transformers::ToDataFrame(sel.template begin<N>(), sel.template end<N>(),
-                                            hictk::transformers::DataFrameFormat::COO,
-                                            sel.bins_ptr(), span)();
+    return hictk::transformers::ToDataFrame(
+        sel.template begin<N>(), sel.template end<N>(), hictk::transformers::DataFrameFormat::COO,
+        sel.bins_ptr(), span, false, true, 256'000, diagonal_band_width)();
   }
 }
 
@@ -210,10 +238,10 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
             [&]([[maybe_unused]] auto count) -> std::shared_ptr<arrow::Table> {
               using N = decltype(count);
               if (pixel_format == PixelFormat::BG2) {
-                return make_bg2_arrow_df<N>(*sel_ptr, query_span);
+                return make_bg2_arrow_df<N>(*sel_ptr, query_span, diagonal_band_width);
               }
               assert(pixel_format == PixelFormat::COO);
-              return make_coo_arrow_df<N>(*sel_ptr, query_span);
+              return make_coo_arrow_df<N>(*sel_ptr, query_span, diagonal_band_width);
             },
             pixel_count);
       },
@@ -231,11 +259,13 @@ nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
-                                                hictk::transformers::QuerySpan span) {
+                                                hictk::transformers::QuerySpan span,
+                                                std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
-    return make_csr_matrix<double>(std::move(sel), span);
+    return make_csr_matrix<double>(std::move(sel), span, diagonal_band_width);
   } else {
-    return nb::cast(hictk::transformers::ToSparseMatrix(std::move(sel), N{}, span)());
+    return nb::cast(hictk::transformers::ToSparseMatrix(std::move(sel), N{}, span, false,
+                                                        diagonal_band_width)());
   }
 }
 
@@ -248,7 +278,7 @@ nb::object PixelSelector::to_csr(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::object {
               using N = decltype(count);
-              return make_csr_matrix<N>(std::move(sel_ptr), query_span);
+              return make_csr_matrix<N>(std::move(sel_ptr), query_span, diagonal_band_width);
             },
             pixel_count);
       },
@@ -261,12 +291,14 @@ nb::object PixelSelector::to_coo(std::string_view span) const {
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] static nb::object make_numpy_matrix(std::shared_ptr<const PixelSelector> sel,
-                                                  hictk::transformers::QuerySpan span) {
+[[nodiscard]] static nb::object make_numpy_matrix(
+    std::shared_ptr<const PixelSelector> sel, hictk::transformers::QuerySpan span,
+    std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
-    return make_numpy_matrix<double>(std::move(sel), span);
+    return make_numpy_matrix<double>(std::move(sel), span, diagonal_band_width);
   } else {
-    return nb::cast(hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span)());
+    return nb::cast(
+        hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)());
   }
 }
 
@@ -280,7 +312,7 @@ nb::object PixelSelector::to_numpy(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::object {
               using N = decltype(count);
-              return make_numpy_matrix<N>(std::move(sel_ptr), query_span);
+              return make_numpy_matrix<N>(std::move(sel_ptr), query_span, diagonal_band_width);
             },
             pixel_count);
       },
@@ -290,23 +322,25 @@ nb::object PixelSelector::to_numpy(std::string_view span) const {
 template <typename N, typename PixelSelector>
 [[nodiscard]] static Stats aggregate_pixels(const PixelSelector& sel, bool keep_nans,
                                             bool keep_infs, bool exact,
+                                            std::optional<std::uint64_t> diagonal_band_width,
                                             const phmap::flat_hash_set<std::string>& metrics) {
   static_assert(!std::is_same_v<PixelSelector, hictk::PixelSelector>);
   if (keep_nans && keep_infs) {
-    return PixelAggregator{}.compute<N, true, true>(sel, metrics, exact);
+    return PixelAggregator{}.compute<N, true, true>(sel, metrics, exact, diagonal_band_width);
   }
   if (keep_nans) {
-    return PixelAggregator{}.compute<N, true, false>(sel, metrics, exact);
+    return PixelAggregator{}.compute<N, true, false>(sel, metrics, exact, diagonal_band_width);
   }
   if (keep_infs) {
-    return PixelAggregator{}.compute<N, false, true>(sel, metrics, exact);
+    return PixelAggregator{}.compute<N, false, true>(sel, metrics, exact, diagonal_band_width);
   }
-  return PixelAggregator{}.compute<N, false, false>(sel, metrics, exact);
+  return PixelAggregator{}.compute<N, false, false>(sel, metrics, exact, diagonal_band_width);
 }
 
 [[nodiscard]] static Stats aggregate_pixels(const PixelSelector::SelectorVar& sel,
                                             const PixelSelector::PixelVar& count, bool keep_nans,
                                             bool keep_infs, bool exact,
+                                            std::optional<std::uint64_t> diagonal_band_width,
                                             const phmap::flat_hash_set<std::string>& metrics) {
   return std::visit(
       [&](const auto& sel_ptr) {
@@ -315,7 +349,8 @@ template <typename N, typename PixelSelector>
             [&]([[maybe_unused]] const auto& count_) {
               using CountT = remove_cvref_t<decltype(count_)>;
               using N = std::conditional_t<std::is_floating_point_v<CountT>, double, std::int64_t>;
-              return aggregate_pixels<N>(*sel_ptr, keep_nans, keep_infs, exact, metrics);
+              return aggregate_pixels<N>(*sel_ptr, keep_nans, keep_infs, exact, diagonal_band_width,
+                                         metrics);
             },
             count);
       },
@@ -325,7 +360,7 @@ template <typename N, typename PixelSelector>
 nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool keep_nans,
                                  bool keep_infs, bool exact) const {
   const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact,
-                                      {metrics.begin(), metrics.end()});
+                                      diagonal_band_width, {metrics.begin(), metrics.end()});
 
   using StatsDict =
       nanobind::typed<nanobind::dict, std::string, std::variant<std::int64_t, double>>;
@@ -368,40 +403,50 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
 }
 
 std::int64_t PixelSelector::nnz(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"nnz"}).nnz;
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, diagonal_band_width,
+                           {"nnz"})
+              .nnz;
 }
 
 nb::object PixelSelector::sum(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"sum"});
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false,
+                                      diagonal_band_width, {"sum"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
 }
 
 nb::object PixelSelector::min(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"min"});
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false,
+                                      diagonal_band_width, {"min"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
 }
 
 nb::object PixelSelector::max(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"max"});
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false,
+                                      diagonal_band_width, {"max"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
 }
 
 double PixelSelector::mean(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"mean"}).mean;
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, diagonal_band_width,
+                           {"mean"})
+              .mean;
 }
 
 double PixelSelector::variance(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"variance"})
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, diagonal_band_width,
+                           {"variance"})
               .variance;
 }
 
 double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"skewness"})
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, diagonal_band_width,
+                           {"skewness"})
               .skewness;
 }
 
 double PixelSelector::kurtosis(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"kurtosis"})
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, diagonal_band_width,
+                           {"kurtosis"})
               .kurtosis;
 }
 
@@ -471,12 +516,15 @@ void PixelSelector::bind(nb::module_& m) {
       m, "PixelSelector",
       "Class representing pixels overlapping with the given genomic intervals.");
 
-  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"));
+  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool,
+                   std::optional<std::uint64_t>>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("diagonal_band_width"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool,
+                   std::optional<std::uint64_t>>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("diagonal_band_width"));
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool,
+                   std::optional<std::uint64_t>>(),
+          nb::arg("selector"), nb::arg("type"), nb::arg("join"), nb::arg("diagonal_band_width"));
 
   sel.def("__repr__", &PixelSelector::repr, nb::rv_policy::move);
 

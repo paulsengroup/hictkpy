@@ -23,6 +23,7 @@
 #include <hictk/hic.hpp>
 #include <hictk/hic/common.hpp>
 #include <hictk/hic/validation.hpp>
+#include <hictkpy/common.hpp>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -88,7 +89,8 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::str
                                     std::optional<std::string_view> range2,
                                     std::optional<std::string_view> normalization,
                                     std::string_view count_type, bool join,
-                                    std::string_view query_type) {
+                                    std::string_view query_type,
+                                    std::optional<std::uint64_t> diagonal_band_width) {
   if (count_type != "float" && count_type != "int") {
     throw std::runtime_error(R"(count_type should be either "float" or "int")");
   }
@@ -107,10 +109,18 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::str
     assert(!range2.has_value() || range2->empty());
     return std::visit(
         [&](const auto &ff) {
-          auto sel = ff.fetch(normalization_method);
-          using SelT = decltype(sel);
-          return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                        join);
+          using FileT = remove_cvref_t<decltype(ff)>;
+          if constexpr (std::is_same_v<FileT, hictk::cooler::File>) {
+            auto sel = ff.fetch(normalization_method, diagonal_band_width.has_value());
+            using SelT = decltype(sel);
+            return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
+                                          join, diagonal_band_width);
+          } else {
+            auto sel = ff.fetch(normalization_method, diagonal_band_width);
+            using SelT = decltype(sel);
+            return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
+                                          join, diagonal_band_width);
+          }
         },
         f.get());
   }
@@ -128,12 +138,22 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::str
 
   return std::visit(
       [&](const auto &ff) {
-        auto sel = ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
-                            gi2.start(), gi2.end(), normalization_method);
+        using FileT = remove_cvref_t<decltype(ff)>;
+        if constexpr (std::is_same_v<FileT, hictk::hic::File>) {
+          auto sel = ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
+                              gi2.start(), gi2.end(), normalization_method, diagonal_band_width);
 
-        using SelT = decltype(sel);
-        return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                      join);
+          using SelT = decltype(sel);
+          return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
+                                        join, diagonal_band_width);
+        } else {
+          auto sel = ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
+                              gi2.start(), gi2.end(), normalization_method);
+
+          using SelT = decltype(sel);
+          return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
+                                        join, diagonal_band_width);
+        }
       },
       f.get());
 }
@@ -314,6 +334,7 @@ void declare_file_class(nb::module_ &m) {
   file.def("fetch", &file::fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = nb::none(),
            nb::arg("range2") = nb::none(), nb::arg("normalization") = nb::none(),
            nb::arg("count_type") = "int", nb::arg("join") = false, nb::arg("query_type") = "UCSC",
+           nb::arg("diagonal_band_width") = nb::none(),
            "Fetch interactions overlapping a region of interest.", nb::rv_policy::move);
 
   file.def("avail_normalizations", &file::avail_normalizations,

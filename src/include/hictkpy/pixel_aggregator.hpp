@@ -76,9 +76,16 @@ class PixelAggregator {
 
   template <typename N, bool keep_nans, bool keep_infs, typename PixelSelector>
   [[nodiscard]] Stats compute(const PixelSelector& sel,
-                              const phmap::flat_hash_set<std::string>& metrics, bool exact);
+                              const phmap::flat_hash_set<std::string>& metrics, bool exact,
+                              std::optional<std::uint64_t> diagonal_band_width);
 
  private:
+  template <bool keep_nans, bool keep_infs, typename PixelIt>
+  [[nodiscard]] std::optional<Stats> compute(PixelIt first, PixelIt last,
+                                             const phmap::flat_hash_set<std::string>& metrics);
+  template <bool keep_nans, bool keep_infs, typename PixelIt>
+  [[nodiscard]] Stats compute_exact(PixelIt first, PixelIt last,
+                                    const phmap::flat_hash_set<std::string>& metrics);
   static void validate_metrics(const phmap::flat_hash_set<std::string>& metrics);
 
   template <bool keep_nans, bool keep_infs, typename N>
