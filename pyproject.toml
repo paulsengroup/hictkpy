@@ -17,6 +17,8 @@ build-backend = "scikit_build_core.build"
 name = "hictkpy"
 dynamic = ["version"]
 description = "Python bindings for hictk: read and write .cool and .hic files directly from Python"
+license = "MIT"
+license-files = ["LICENSE", "external/licenses/*"]
 readme = "README.md"
 authors = [
   {name = "Roberto Rossini", email = "roberros@uio.no"}
@@ -29,7 +31,6 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
-  "License :: OSI Approved :: MIT License"
 ]
 
 dependencies = []
