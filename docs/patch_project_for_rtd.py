@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2024 Roberto Rossini <roberros@uio.no>
+# Copyright (c) 2025 Roberto Rossini <roberros@uio.no>
 #
 # SPDX-License-Identifier: MIT
 
@@ -14,6 +14,13 @@ import subprocess as sp
 
 def make_cli() -> argparse.ArgumentParser:
     cli = argparse.ArgumentParser()
+
+    cli.add_argument(
+        "name",
+        type=str,
+        choices=["docs/index.rst", "conanfile.py", "pyproject.toml"],
+        help="Name of the file to patch.",
+    )
 
     cli.add_argument(
         "--root-dir",
@@ -47,7 +54,8 @@ def infer_root_dir(cwd: pathlib.Path | None = None) -> pathlib.Path:
     return infer_root_dir(pathlib.Path(__file__).parent.resolve())
 
 
-def patch_index_file(path: pathlib.Path, inplace: bool):
+def patch_docs_index_file(path: pathlib.Path, inplace: bool):
+    logging.info('Patching "%s"...', path)
     url = os.getenv("READTHEDOCS_CANONICAL_URL")
     if url is None:
         raise RuntimeError("Unable to read url from the READTHEDOCS_CANONICAL_URL env variable")
@@ -78,6 +86,54 @@ def patch_index_file(path: pathlib.Path, inplace: bool):
         print(payload, end="")
 
 
+def patch_conanfile(path: pathlib.Path, inplace: bool):
+    logging.info('Patching "%s"...', path)
+    packages = (
+        "arrow",
+        "boost",
+        "hdf5",
+        "highfive",
+        "libdeflate",
+        "zstd",
+    )
+
+    pattern = "|".join(f"{p}/" for p in packages)
+    pattern += "|"
+    pattern += "|".join(rf"{p}\"" for p in packages)
+    pattern = re.compile(rf".*\"({pattern}).*\n")
+
+    payload = pattern.sub("", path.read_text(), 0)
+
+    if inplace:
+        logging.info(f'Updating file "{path}" inplace...')
+        path.write_text(payload)
+    else:
+        print(payload, end="")
+
+
+def patch_pyproject_file(path: pathlib.Path, inplace: bool):
+    logging.info('Patching "%s"...', path)
+    pattern1 = re.compile(r'BUILD_SHARED_LIBS\s*=\s*"OFF"')
+    pattern2 = re.compile(r"--options=\*/\*:shared=False")
+
+    payload = pattern1.sub('BUILD_SHARED_LIBS = "ON"', path.read_text())
+    payload = pattern2.sub(";--options=*/*:shared=True", payload)
+
+    if inplace:
+        logging.info(f'Updating file "{path}" inplace...')
+        path.write_text(payload)
+    else:
+        print(payload, end="")
+
+
+def generate_path_checked(root_dir: pathlib.Path, suffix: pathlib.Path) -> pathlib.Path:
+    path = root_dir / suffix
+    if not path.exists():
+        raise RuntimeError(f'Unable to find file "{suffix}" under {root_dir}')
+
+    return path
+
+
 def main():
     if "READTHEDOCS" not in os.environ:
         logging.info("Script is not being run by ReadTheDocs. Returning immediately!")
@@ -89,11 +145,18 @@ def main():
     if root_dir is None:
         root_dir = infer_root_dir()
 
-    index_file = root_dir / "docs" / "index.rst"
-    if not index_file.exists():
-        raise RuntimeError(f'Unable to find file "docs/index.rst" under {root_dir}')
-
-    patch_index_file(index_file, args["inplace"])
+    name = args["name"]
+    if name == "docs/index.rst":
+        docs_index_file = generate_path_checked(root_dir, pathlib.Path("docs/index.rst"))
+        patch_docs_index_file(docs_index_file, args["inplace"])
+    elif name == "conanfile.py":
+        conanfile = generate_path_checked(root_dir, pathlib.Path("conanfile.py"))
+        patch_conanfile(conanfile, args["inplace"])
+    elif name == "pyproject.toml":
+        pyproject_file = generate_path_checked(root_dir, pathlib.Path("pyproject.toml"))
+        patch_pyproject_file(pyproject_file, args["inplace"])
+    else:
+        raise NotImplementedError
 
 
 if __name__ == "__main__":
