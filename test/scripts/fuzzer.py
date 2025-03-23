@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: MIT
 
 import argparse
-import itertools
+import functools
 import logging
 import multiprocessing as mp
 import pathlib
@@ -118,6 +118,12 @@ def make_cli() -> argparse.ArgumentParser:
         "--seed",
         type=int,
         help="Seed used for PRNG.",
+    )
+    cli.add_argument(
+        "--excluded-chroms",
+        nargs="+",
+        type=str,
+        help="One or more chromosomes to be excluded.",
     )
     cli.add_argument(
         "--nproc",
@@ -476,6 +482,7 @@ def seed_prng(worker_id: int, seed):
 
 
 def worker(
+    worker_id: int,
     path_to_file: pathlib.Path,
     path_to_reference_file: pathlib.Path,
     resolution: int,
@@ -487,7 +494,6 @@ def worker(
     _1d_to_2d_query_ratio: float,
     balance: str,
     seed: int | None,
-    worker_id: int,
     end_time,
     early_return,
 ) -> Tuple[int, int]:
@@ -599,6 +605,16 @@ def main() -> int:
 
     chroms = read_chrom_sizes_cooler(reference_uri)
 
+    masked_chroms = args["excluded_chroms"]
+    if masked_chroms is not None:
+        for chrom in masked_chroms:
+            chroms.pop(chrom, None)
+
+        if len(chroms) == 0:
+            raise RuntimeError("No chromosomes left after dropping chromosomes specified through --excluded-chroms")
+
+    logging.info(f"Will generate random queries using the following chromosome(s): {', '.join(chroms.keys())}")
+
     chrom_ranks = {chrom: i for i, chrom in enumerate(chroms.keys())}
     chroms_flat = list(chroms.items())
 
@@ -606,24 +622,25 @@ def main() -> int:
 
     with mp.Pool(args["nproc"]) as pool, mp.Manager() as manager:
         early_return = manager.Value(bool, False)
-        results = pool.starmap(
+        worker_fx = functools.partial(
             worker,
-            zip(
-                itertools.repeat(args["test-uri"]),
-                itertools.repeat(reference_uri),
-                itertools.repeat(resolution),
-                itertools.repeat(chroms_flat),
-                itertools.repeat(chrom_ranks),
-                itertools.repeat(args["format"]),
-                itertools.repeat(args["query_length_avg"]),
-                itertools.repeat(args["query_length_std"]),
-                itertools.repeat(args["1d_to_2d_query_ratio"]),
-                itertools.repeat(args["normalization"]),
-                itertools.repeat(args["seed"]),
-                range(1, args["nproc"] + 1),
-                itertools.repeat(end_time),
-                itertools.repeat(early_return),
-            ),
+            path_to_file=args["test-uri"],
+            path_to_reference_file=reference_uri,
+            resolution=resolution,
+            chroms_flat=chroms_flat,
+            chrom_ranks=chrom_ranks,
+            query_type=args["format"],
+            query_length_mu=args["query_length_avg"],
+            query_length_std=args["query_length_std"],
+            _1d_to_2d_query_ratio=args["1d_to_2d_query_ratio"],
+            balance=args["normalization"],
+            seed=args["seed"],
+            end_time=end_time,
+            early_return=early_return,
+        )
+        results = pool.map(
+            worker_fx,
+            range(1, args["nproc"] + 1),
             chunksize=1,
         )
 
