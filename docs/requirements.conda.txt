@@ -1,0 +1,14 @@
+# Copyright (C) 2025 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+clangxx>18
+lld>18
+llvm-tools>18
+python>3.11
+pip
+libarrow>=16
+libboost-devel>=1.86
+libdeflate>=1
+highfive>=2.10
+zstd>=1.5
