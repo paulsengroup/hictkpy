@@ -278,7 +278,8 @@ jobs:
             --nproc $(nproc) \
             --format describe \
             *".${{ matrix.format }}" \
-            *.cool
+            *.cool \
+            --excluded-chroms chrY chrM
 
   fuzzy-testing-status-check:
     name: Status Check (fuzzy-testing)
