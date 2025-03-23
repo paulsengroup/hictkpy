@@ -113,7 +113,7 @@ def patch_conanfile(path: pathlib.Path, inplace: bool):
 
 def patch_pyproject_file(path: pathlib.Path, inplace: bool):
     logging.info('Patching "%s"...', path)
-    pattern1 = re.compile(r'BUILD_SHARED_LIBS\s*=\s*"OFF"')
+    pattern1 = re.compile(r"BUILD_SHARED_LIBS\s*=.*")
     pattern2 = re.compile(r"--options=\*/\*:shared=False")
 
     payload = pattern1.sub('BUILD_SHARED_LIBS = "ON"', path.read_text())
