@@ -1,0 +1,10 @@
+# Copyright (C) 2025 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+[codespell]
+ignore-words-list:
+ coo,
+ COO,
+ SelT
+skip: cmake/conan_provider.cmake,cmake/modules/*
