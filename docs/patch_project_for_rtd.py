@@ -54,6 +54,14 @@ def infer_root_dir(cwd: pathlib.Path | None = None) -> pathlib.Path:
     return infer_root_dir(pathlib.Path(__file__).parent.resolve())
 
 
+def subn_checked(pattern: re.Pattern, repl: str, string: str, count: int = 0) -> str:
+    string, num_replacements = pattern.subn(repl, string, count)
+    if num_replacements == 0:
+        raise RuntimeError(f"Failed to match pattern {str(pattern)} to the given string")
+
+    return string
+
+
 def patch_docs_index_file(path: pathlib.Path, inplace: bool):
     logging.info('Patching "%s"...', path)
     url = os.getenv("READTHEDOCS_CANONICAL_URL")
@@ -76,8 +84,8 @@ def patch_docs_index_file(path: pathlib.Path, inplace: bool):
     html_pattern = re.compile(r"https://hictkpy\.readthedocs\.io/en/[\w\-_]+/")
 
     payload = path.read_text()
-    payload = pdf_pattern.sub(f"https://{tgt_domain}/_/downloads/en/{tgt_branch}/pdf/", payload)
-    payload = html_pattern.sub(f"https://{tgt_domain}/en/{tgt_branch}/", payload)
+    payload = subn_checked(pdf_pattern, f"https://{tgt_domain}/_/downloads/en/{tgt_branch}/pdf/", payload)
+    payload = subn_checked(html_pattern, f"https://{tgt_domain}/en/{tgt_branch}/", payload)
 
     if inplace:
         logging.info(f'Updating file "{path}" inplace...')
@@ -102,7 +110,7 @@ def patch_conanfile(path: pathlib.Path, inplace: bool):
     pattern += "|".join(rf"{p}\"" for p in packages)
     pattern = re.compile(rf".*\"({pattern}).*\n")
 
-    payload = pattern.sub("", path.read_text(), 0)
+    payload = subn_checked(pattern, "", path.read_text(), 0)
 
     if inplace:
         logging.info(f'Updating file "{path}" inplace...')
@@ -116,8 +124,8 @@ def patch_pyproject_file(path: pathlib.Path, inplace: bool):
     pattern1 = re.compile(r"BUILD_SHARED_LIBS\s*=.*")
     pattern2 = re.compile(r"--options=\*/\*:shared=False")
 
-    payload = pattern1.sub('BUILD_SHARED_LIBS = "ON"', path.read_text())
-    payload = pattern2.sub(";--options=*/*:shared=True", payload)
+    payload = subn_checked(pattern1, 'BUILD_SHARED_LIBS = "ON"', path.read_text())
+    payload = subn_checked(pattern2, ";--options=*/*:shared=True", payload)
 
     if inplace:
         logging.info(f'Updating file "{path}" inplace...')
