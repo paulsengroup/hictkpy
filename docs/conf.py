@@ -262,6 +262,7 @@ latex_documents = [
 linkcheck_ignore = [
     r"https://hictk.*\.readthedocs\.build.*",
     r"https://hictk.*readthedocs.*/_/downloads/en/.*/pdf/",
+    "https://pypi.org/project/hictkpy/#files",
 ]
 
 primary_domain = "py"
