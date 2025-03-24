@@ -111,6 +111,7 @@ class PixelAggregator {
 
   template <typename N>
   [[nodiscard]] static std::int64_t extract_nnz(const Accumulator<N>& accumulator);
+  [[nodiscard]] static std::int64_t extract_nnz(const KurtosisAccumulator& accumulator);
   template <typename N>
   [[nodiscard]] N extract_sum(const Accumulator<N>& accumulator) const;
   template <typename N>
