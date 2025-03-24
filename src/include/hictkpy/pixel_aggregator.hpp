@@ -119,6 +119,7 @@ class PixelAggregator {
   [[nodiscard]] N extract_max(const Accumulator<N>& accumulator) const;
   template <typename N>
   [[nodiscard]] double extract_mean(const Accumulator<N>& accumulator) const;
+  [[nodiscard]] double extract_mean(const KurtosisAccumulator& accumulator) const;
   template <typename N>
   [[nodiscard]] double extract_variance(const Accumulator<N>& accumulator) const;
   template <typename N>

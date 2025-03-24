@@ -218,7 +218,8 @@ inline Stats PixelAggregator::compute(const PixelSelector& sel,
   }
 
   if (stats.kurtosis.has_value()) {
-    stats.kurtosis = internal::compute_kurtosis_exact(values, mean);
+    assert(_kurtosis_accumulator);
+    stats.kurtosis = internal::compute_kurtosis_exact(values, extract_mean(*_kurtosis_accumulator));
   }
 
   return stats;
@@ -381,15 +382,15 @@ inline void PixelAggregator::reset(const phmap::flat_hash_set<std::string>& metr
 
   if constexpr (std::is_floating_point_v<N>) {
     _accumulator = Accumulator<double>{};
-    _kurtosis_accumulator.reset();
   } else {
     _accumulator = Accumulator<std::int64_t>{};
-    if (metrics.contains("kurtosis")) {
-      _kurtosis_accumulator = KurtosisAccumulator{};
-    } else {
-      _kurtosis_accumulator.reset();
-      _compute_kurtosis = false;
-    }
+  }
+
+  if (metrics.contains("kurtosis")) {
+    _kurtosis_accumulator = KurtosisAccumulator{};
+  } else {
+    _kurtosis_accumulator.reset();
+    _compute_kurtosis = false;
   }
 
   std::visit(
@@ -576,6 +577,19 @@ inline N PixelAggregator::extract_max(const Accumulator<N>& accumulator) const {
 
 template <typename N>
 inline double PixelAggregator::extract_mean(const Accumulator<N>& accumulator) const {
+  if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  if (_pos_inf_found) {
+    return std::numeric_limits<double>::infinity();
+  }
+  if (_neg_inf_found) {
+    return -std::numeric_limits<double>::infinity();
+  }
+  return boost::accumulators::mean(accumulator);
+}
+
+inline double PixelAggregator::extract_mean(const KurtosisAccumulator& accumulator) const {
   if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
