@@ -40,9 +40,7 @@ class PixelAggregator {
              boost::accumulators::droppable<boost::accumulators::tag::max>,
              boost::accumulators::droppable<boost::accumulators::tag::mean>,
              boost::accumulators::droppable<boost::accumulators::tag::variance>,
-             boost::accumulators::droppable<boost::accumulators::tag::skewness>,
-             boost::accumulators::droppable<boost::accumulators::tag::kurtosis>>>;
-
+             boost::accumulators::droppable<boost::accumulators::tag::skewness>>>;
   // When using ints there is a high chance that computing the 3rd or 4th moments causes an int
   // overflow, leading to completely incorrect results.
   // At the same time we cannot use doubles everywhere, because for large numbers the value of
@@ -100,13 +98,12 @@ class PixelAggregator {
   template <typename N>
   void disable_redundant_accumulators(Accumulator<N>& accumulator);
 
-  template <bool keep_nans, bool keep_infs, typename N, typename It>
+  template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typename It>
   void process_all_remaining_pixels(Accumulator<N>& accumulator, It&& first, It&& last);
 
   template <typename N>
   void reset(const phmap::flat_hash_set<std::string>& metrics);
 
-  template <typename N>
   [[nodiscard]] Stats extract(const phmap::flat_hash_set<std::string>& metrics);
   template <typename N, std::size_t keep_nans, std::size_t keep_infs, typename It>
   [[nodiscard]] std::optional<Stats> handle_edge_cases(
@@ -126,8 +123,7 @@ class PixelAggregator {
   [[nodiscard]] double extract_variance(const Accumulator<N>& accumulator) const;
   template <typename N>
   [[nodiscard]] double extract_skewness(const Accumulator<N>& accumulator) const;
-  template <typename N>
-  [[nodiscard]] double extract_kurtosis(const Accumulator<N>& accumulator) const;
+  [[nodiscard]] double extract_kurtosis() const;
 };
 
 }  // namespace hictkpy
