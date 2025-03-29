@@ -53,6 +53,7 @@ struct PixelSelector {
 
   [[nodiscard]] auto get_coord1() const -> GenomicCoordTuple;
   [[nodiscard]] auto get_coord2() const -> GenomicCoordTuple;
+  [[nodiscard]] std::int64_t size(bool upper_triangular) const;
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
   [[nodiscard]] nanobind::object to_arrow(std::string_view span) const;

@@ -132,6 +132,14 @@ auto PixelSelector::get_coord2() const -> GenomicCoordTuple {
   return coords_to_tuple(coord2(), bins());
 }
 
+std::int64_t PixelSelector::size(bool upper_triangular) const {
+  return std::visit(
+      [&](const auto& sel_ptr) {
+        return static_cast<std::int64_t>(sel_ptr->size(upper_triangular));
+      },
+      selector);
+}
+
 template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::iterator make_bg2_iterable(const PixelSelector& sel) {
   if constexpr (std::is_floating_point_v<N> && !std::is_same_v<N, double>) {
@@ -484,6 +492,8 @@ void PixelSelector::bind(nb::module_& m) {
           nb::rv_policy::move);
   sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.",
           nb::rv_policy::move);
+  sel.def("size", &PixelSelector::size, nb::arg("upper_triangular") = true,
+          "Get the number of pixels overlapping with the given query.");
 
   sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
           nb::sig("def __iter__(self) -> hictkpy.PixelIterator"),
