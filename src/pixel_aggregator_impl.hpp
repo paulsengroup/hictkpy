@@ -5,22 +5,18 @@
 #pragma once
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <parallel_hashmap/phmap.h>
 
 #include <algorithm>
-#include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics.hpp>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <numeric>
+#include <optional>
 #include <stdexcept>
 #include <string>
-#include <tuple>
 #include <type_traits>
-#include <utility>
-#include <variant>
 
 #include "hictkpy/common.hpp"
 
@@ -47,191 +43,47 @@ template <bool keep_nans, bool keep_infs, typename N>
   return false;
 }
 
-template <bool keep_nans, bool keep_infs, typename PixelIt>
-[[nodiscard]] inline auto compute_descriptors_exact(PixelIt first, PixelIt last, std::size_t nnz,
-                                                    double mean) {
-  assert(first != last);
-
-  struct Result {
-    double variance{};
-    double m2{};
-    double m3{};
-    double m4{};
-  };
-
-  if (std::isnan(mean)) {
-    return Result{
-        std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN(),
-        std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::quiet_NaN()};
-  }
-
-  Result res{};
-
-  const auto nnz_fp = static_cast<double>(nnz);
-  const auto variance_denom = nnz < 2 ? std::numeric_limits<double>::quiet_NaN() : nnz_fp - 1;
-
-  while (first != last) {
-    const auto n = conditional_static_cast<double>(first->count);
-    std::ignore = ++first;
-    if (internal::drop_value<keep_nans, keep_infs>(n)) {
-      continue;
-    }
-    const auto delta = n - mean;
-    res.variance += delta * delta / variance_denom;
-    res.m2 += delta * delta;
-    res.m3 += delta * delta * delta;
-    res.m4 += delta * delta * delta * delta;
-  }
-
-  res.m2 /= nnz_fp;
-  res.m3 /= nnz_fp;
-  res.m4 /= nnz_fp;
-
-  if (nnz < 2) {
-    assert(std::isnan(res.variance));
-  }
-
-  return res;
-}
-
-[[nodiscard]] inline double skewness(std::size_t size, double mean, double m2, double m3) {
-  if (size < 2 || std::isnan(mean) || m2 == 0) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-
-  return m3 / std::pow(m2, 1.5);  // NOLINT(*-avoid-magic-numbers)
-}
-
-[[nodiscard]] inline double kurtosis(std::size_t size, double mean, double m2, double m4) {
-  if (size < 2 || std::isnan(mean) || m2 == 0) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-
-  return (m4 / (m2 * m2)) - 3.0;  // NOLINT(*-avoid-magic-numbers)
-}
-
 }  // namespace internal
 
-template <typename N, bool keep_nans, bool keep_infs, typename PixelSelector>
-inline Stats PixelAggregator::compute(const PixelSelector& sel,
-                                      const phmap::flat_hash_set<std::string>& metrics,
-                                      bool exact) {
-  static_assert(std::is_same_v<N, std::int64_t> || std::is_same_v<N, double>);
-
+template <typename PixelIt>
+template <bool keep_nans, bool keep_infs>
+inline Stats PixelAggregator<PixelIt>::compute(PixelIt first, PixelIt last, std::uint64_t size,
+                                               const phmap::flat_hash_set<std::string>& metrics,
+                                               bool keep_zeros, [[maybe_unused]] bool exact) {
   validate_metrics(metrics);
-
-  reset<N>(metrics);
-  auto first = sel.template begin<N>();
-  auto last = sel.template end<N>();
-
-  if (auto stats = handle_edge_cases<N, keep_nans, keep_infs>(first, last, metrics);
-      stats.has_value()) {
-    return *stats;
-  }
+  reset();
 
   auto break_on_non_finite = [this]() constexpr noexcept {
     return _nan_found || _neg_inf_found || _pos_inf_found;
   };
   auto break_on_nans = [this]() constexpr noexcept { return _nan_found; };
 
-  auto nnz = std::visit(
-      [&](auto& accumulator) -> std::optional<std::size_t> {
-        std::size_t nnz_ = 0;
-        if (_compute_kurtosis) {
-          constexpr bool skip_kurtosis = false;
-          auto result = process_pixels_until_true<keep_nans, keep_infs, skip_kurtosis>(
-              accumulator, std::move(first), last, break_on_non_finite);
-          first = std::move(result.first);
-          nnz_ = result.second;
-        } else {
-          constexpr bool skip_kurtosis = true;
-          auto result = process_pixels_until_true<keep_nans, keep_infs, skip_kurtosis>(
-              accumulator, std::move(first), last, break_on_non_finite);
-          first = std::move(result.first);
-          nnz_ = result.second;
-        }
-        if (first == last) {
-          return nnz_;
-        }
-
-        const auto skip_sum = sum_can_be_skipped(accumulator);
-        const auto skip_min = min_can_be_skipped(accumulator);
-        const auto skip_max = max_can_be_skipped(accumulator);
-        const auto skip_mean = mean_can_be_skipped(accumulator);
-        disable_redundant_accumulators(accumulator);
-
-        if (_compute_count) {
-          // if we need to compute the nnz, then we have no tricks up our sleeves
-          if (_compute_kurtosis) {
-            constexpr auto skip_kurtosis = false;
-            process_all_remaining_pixels<keep_nans, keep_infs, skip_kurtosis>(
-                accumulator, std::move(first), std::move(last));
-          } else {
-            constexpr auto skip_kurtosis = true;
-            process_all_remaining_pixels<keep_nans, keep_infs, skip_kurtosis>(
-                accumulator, std::move(first), std::move(last));
-          }
-          return {};
-        }
-
-        if (skip_sum && skip_min && skip_max && skip_mean) {
-          return {};
-        }
-
-        constexpr bool skip_kurtosis = true;
-        std::ignore = process_pixels_until_true<keep_nans, keep_infs, skip_kurtosis>(
-            accumulator, std::move(first), std::move(last), break_on_nans);
-
-        return {};
-      },
-      _accumulator);
-
-  auto stats = extract(metrics);
-  if (_neg_inf_found || _pos_inf_found || _nan_found) {
-    return stats;
+  process_pixels<keep_nans, keep_infs>(first, last, break_on_non_finite);
+  if (first == last) {
+    if (keep_zeros) {
+      update_with_zeros(size - _nnz);
+    }
+    return extract(metrics);
   }
 
-  if (!exact && nnz.value_or(10'000) >= 10'000) {  // NOLINT(*-avoid-magic-numbers)
-    // exact computation is not required and sample size is big enough
-    return stats;
+  if (metrics.contains("nnz")) {
+    // if we need to compute the nnz, then we have no tricks up our sleeves
+    process_pixels<keep_nans, keep_infs>(first, last, []() constexpr noexcept { return false; });
+  } else {
+    process_pixels<keep_nans, keep_infs>(first, last, break_on_nans);
   }
 
-  if (!stats.variance.has_value() && !stats.skewness.has_value() && !stats.kurtosis.has_value()) {
-    // all requested metrics have already been computed exactly
-    return stats;
+  if (keep_zeros) {
+    update_with_zeros(size - _nnz);
   }
 
-  const auto mean =
-      _kurtosis_accumulator.has_value()
-          ? extract_mean(*_kurtosis_accumulator)
-          : std::visit([&](const auto& accumulator) { return extract_mean(accumulator); },
-                       _accumulator);
-
-  nnz = static_cast<std::size_t>(
-      _kurtosis_accumulator.has_value()
-          ? extract_nnz(*_kurtosis_accumulator)
-          : std::visit([&](const auto& accumulator) { return extract_nnz(accumulator); },
-                       _accumulator));
-
-  const auto [variance, m2, m3, m4] = internal::compute_descriptors_exact<keep_nans, keep_infs>(
-      sel.template begin<N>(), sel.template end<N>(), *nnz, mean);
-
-  if (stats.variance.has_value()) {
-    stats.variance = variance;
-  }
-
-  if (stats.skewness.has_value()) {
-    stats.skewness = internal::skewness(*nnz, mean, m2, m3);
-  }
-
-  if (stats.kurtosis.has_value()) {
-    stats.kurtosis = internal::kurtosis(*nnz, mean, m2, m4);
-  }
-
-  return stats;
+  return extract(metrics);
+  // TODO deal with exact computations
 }
 
-inline void PixelAggregator::validate_metrics(const phmap::flat_hash_set<std::string>& metrics) {
+template <typename PixelIt>
+inline void PixelAggregator<PixelIt>::validate_metrics(
+    const phmap::flat_hash_set<std::string>& metrics) {
   for (const auto& metric : metrics) {
     if (std::find(valid_metrics.begin(), valid_metrics.end(), metric) == valid_metrics.end()) {
       throw std::out_of_range(
@@ -241,8 +93,9 @@ inline void PixelAggregator::validate_metrics(const phmap::flat_hash_set<std::st
   }
 }
 
-template <bool keep_nans, bool keep_infs, typename N>
-inline void PixelAggregator::update_finiteness_counters(N n) noexcept {
+template <typename PixelIt>
+template <bool keep_nans, bool keep_infs>
+inline void PixelAggregator<PixelIt>::update_finiteness_counters(N n) noexcept {
   static_assert(std::is_arithmetic_v<N>);
   if constexpr (std::is_floating_point_v<N>) {
     if constexpr (keep_nans) {
@@ -266,374 +119,212 @@ inline void PixelAggregator::update_finiteness_counters(N n) noexcept {
   _finite_found = true;
 }
 
-template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typename It,
-          typename StopCondition>
-inline std::pair<It, std::size_t> PixelAggregator::process_pixels_until_true(
-    Accumulator<N>& accumulator, It first, It last, StopCondition break_loop) {
-  // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_UNLIKELY
+template <typename PixelIt>
+template <bool keep_nans, bool keep_infs, typename StopCondition>
+inline void PixelAggregator<PixelIt>::process_pixels(PixelIt& first, const PixelIt& last,
+                                                     StopCondition break_condition) {
+  // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_LIKELY
   auto drop_pixel = [](const auto n) noexcept {
     return internal::drop_value<keep_nans, keep_infs>(n);
   };
 
-  std::size_t nnz = 0;
-  while (first != last) {
-    const auto n = first->count;
-    if (HICTKPY_UNLIKELY(drop_pixel(n))) {
-      std::ignore = ++first;
-      continue;
+  for (; first != last && !break_condition(); ++first) {
+    if (HICTKPY_LIKELY(!drop_pixel(first->count))) {
+      update<keep_nans, keep_infs>(first->count);
     }
-    update_finiteness_counters<keep_nans, keep_infs>(n);
-    if (HICTKPY_UNLIKELY(break_loop())) {
-      break;
-    }
-    accumulator(n);
-    ++nnz;
-
-    if constexpr (!skip_kurtosis) {
-      assert(_kurtosis_accumulator.has_value());
-      (*_kurtosis_accumulator)(conditional_static_cast<double>(n));
-    }
-    std::ignore = ++first;
-  }
-  return std::make_pair(first, nnz);
-}
-
-template <typename N>
-inline bool PixelAggregator::sum_can_be_skipped(Accumulator<N>& accumulator) const {
-  if (_compute_sum && (_nan_found || (_neg_inf_found && _pos_inf_found))) {
-    accumulator.template drop<boost::accumulators::tag::sum>();
-    return true;
-  }
-  return false;
-}
-
-template <typename N>
-inline bool PixelAggregator::min_can_be_skipped(Accumulator<N>& accumulator) const {
-  if (_compute_min && _nan_found) {
-    accumulator.template drop<boost::accumulators::tag::min>();
-    return true;
-  }
-  return false;
-}
-
-template <typename N>
-inline bool PixelAggregator::max_can_be_skipped(Accumulator<N>& accumulator) const {
-  if (_compute_max && _nan_found) {
-    accumulator.template drop<boost::accumulators::tag::max>();
-    return true;
-  }
-  return false;
-}
-
-template <typename N>
-inline bool PixelAggregator::mean_can_be_skipped(Accumulator<N>& accumulator) const {
-  if (_compute_mean && (_nan_found || (_neg_inf_found && _pos_inf_found))) {
-    accumulator.template drop<boost::accumulators::tag::mean>();
-    return true;
-  }
-  return false;
-}
-
-template <typename N>
-inline void PixelAggregator::disable_redundant_accumulators(Accumulator<N>& accumulator) {
-  if (_compute_variance) {
-    accumulator.template drop<boost::accumulators::tag::variance>();
-  }
-  if (_compute_skewness) {
-    accumulator.template drop<boost::accumulators::tag::skewness>();
   }
 }
 
-template <bool keep_nans, bool keep_infs, bool skip_kurtosis, typename N, typename It>
-inline void PixelAggregator::process_all_remaining_pixels(Accumulator<N>& accumulator, It&& first,
-                                                          It&& last) {
-  assert(_compute_count);
-  // This is just a workaround to allow wrapping drop_value and early_return with HICTKPY_UNLIKELY
-  auto drop_pixel = [](const auto n) noexcept {
-    return internal::drop_value<keep_nans, keep_infs>(n);
-  };
-
-  std::for_each(std::forward<It>(first), std::forward<It>(last), [&](const auto& pixel) {
-    if (HICTKPY_UNLIKELY(drop_pixel(pixel.count))) {
-      return;
-    }
-    update_finiteness_counters<keep_nans, keep_infs>(pixel.count);
-    accumulator(pixel.count);
-    if constexpr (!skip_kurtosis) {
-      assert(_kurtosis_accumulator);
-      (*_kurtosis_accumulator)(conditional_static_cast<double>(pixel.count));
-    }
-  });
-}
-
-template <typename N>
-inline void PixelAggregator::reset(const phmap::flat_hash_set<std::string>& metrics) {
-  if (metrics.empty()) {
-    throw std::runtime_error("provide one or more statistics to be computed");
-  }
-
-  _compute_count = true;
-  _compute_sum = true;
-  _compute_min = true;
-  _compute_max = true;
-  _compute_mean = true;
-  _compute_variance = true;
-  _compute_skewness = true;
-  _compute_kurtosis = true;
-
-  _finite_found = false;
-  _nan_found = false;
-  _neg_inf_found = false;
-  _pos_inf_found = false;
-
-  if constexpr (std::is_floating_point_v<N>) {
-    _accumulator = Accumulator<double>{};
-  } else {
-    _accumulator = Accumulator<std::int64_t>{};
-  }
-
-  if (metrics.contains("kurtosis")) {
-    _kurtosis_accumulator = KurtosisAccumulator{};
-  } else {
-    _kurtosis_accumulator.reset();
-    _compute_kurtosis = false;
-  }
-
-  std::visit(
-      [&](auto& accumulator) {
-        if (!metrics.contains("nnz")) {
-          accumulator.template drop<boost::accumulators::tag::count>();
-          _compute_count = false;
-        }
-
-        if (!metrics.contains("sum")) {
-          accumulator.template drop<boost::accumulators::tag::sum>();
-          _compute_sum = false;
-        }
-
-        if (!metrics.contains("min")) {
-          accumulator.template drop<boost::accumulators::tag::min>();
-          _compute_min = false;
-        }
-
-        if (!metrics.contains("max")) {
-          accumulator.template drop<boost::accumulators::tag::max>();
-          _compute_max = false;
-        }
-
-        if (!metrics.contains("mean")) {
-          accumulator.template drop<boost::accumulators::tag::mean>();
-          _compute_mean = false;
-        }
-
-        if (!metrics.contains("variance")) {
-          accumulator.template drop<boost::accumulators::tag::variance>();
-          _compute_variance = false;
-        }
-
-        if (!metrics.contains("skewness")) {
-          accumulator.template drop<boost::accumulators::tag::skewness>();
-          _compute_skewness = false;
-        }
-      },
-      _accumulator);
-}
-
-inline Stats PixelAggregator::extract(const phmap::flat_hash_set<std::string>& metrics) {
+template <typename PixelIt>
+Stats PixelAggregator<PixelIt>::extract(const phmap::flat_hash_set<std::string>& metrics) {
   assert(!metrics.empty());
 
   Stats stats{};
 
-  std::visit(
-      [&](const auto& accumulator) {
-        if (metrics.contains("nnz")) {
-          stats.nnz = extract_nnz(accumulator);
-        }
+  if (metrics.contains("nnz")) {
+    stats.nnz = static_cast<std::int64_t>(_nnz);
+  }
 
-        if (metrics.contains("sum")) {
-          stats.sum = extract_sum(accumulator);
-        }
+  if (metrics.contains("sum")) {
+    stats.sum = _sum;
+  }
 
-        if (metrics.contains("min")) {
-          stats.min = extract_min(accumulator);
-        }
+  if (metrics.contains("min")) {
+    stats.min = compute_min();
+  }
 
-        if (metrics.contains("max")) {
-          stats.max = extract_max(accumulator);
-        }
+  if (metrics.contains("max")) {
+    stats.max = compute_max();
+  }
 
-        if (metrics.contains("mean")) {
-          stats.mean = extract_mean(accumulator);
-        }
+  if (metrics.contains("mean")) {
+    stats.mean = compute_mean();
+  }
 
-        if (metrics.contains("variance")) {
-          stats.variance = extract_variance(accumulator);
-        }
+  if (metrics.contains("variance")) {
+    stats.variance = compute_variance();
+  }
 
-        if (metrics.contains("skewness")) {
-          stats.skewness = extract_skewness(accumulator);
-        }
-      },
-      _accumulator);
+  if (metrics.contains("skewness")) {
+    stats.skewness = compute_skewness();
+  }
 
   if (metrics.contains("kurtosis")) {
-    stats.kurtosis = extract_kurtosis();
+    stats.kurtosis = compute_kurtosis();
   }
 
   return stats;
 }
 
-template <typename N, std::size_t keep_nans, std::size_t keep_infs, typename It>
-inline std::optional<Stats> PixelAggregator::handle_edge_cases(
-    It first, It last, const phmap::flat_hash_set<std::string>& metrics) {
-  // Handle selectors with zero or one (valid) pixel
-  std::size_t nnz = 0;
-  N value{};
-  while (first != last && nnz < 2) {
-    if (!internal::drop_value<keep_nans, keep_infs>(first->count)) {
-      ++nnz;
-      value = first->count;
-    }
-    ++first;
-  }
+template <typename PixelIt>
+template <bool keep_nans, bool keep_infs>
+inline void PixelAggregator<PixelIt>::update(N n) noexcept {
+  assert(n != 0);
+  update_finiteness_counters<keep_nans, keep_infs>(n);
+  ++_nnz;
+  _min = std::min(_min, conditional_static_cast<CountT>(n));
+  _max = std::max(_max, conditional_static_cast<CountT>(n));
+  _sum += conditional_static_cast<CountT>(n);
 
-  if (HICTKPY_UNLIKELY(nnz == 0)) {
-    Stats stats{};
-    if (metrics.contains("nnz")) {
-      stats.nnz = 0;
-    }
-    if (metrics.contains("sum")) {
-      stats.sum = N{0};
-    }
-    return stats;
-  }
+  // clang-format off
+  // the formulas to compute the mean and 2nd, 3rd, and 4th moments are taken from the following two
+  // publications:
+  // Chan TF, Golub GH, LeVeque RJ. Updating formulae and a pairwise algorithm for computing sample variances.
+  // In COMPSTAT 1982 5th Symposium held at Toulouse 1982
+  // https://link.springer.com/chapter/10.1007/978-3-642-51461-6_3
+  // Terriberry TB. Computing higher-order moments online [Internet]. 2008 Jul 13
+  // https://web.archive.org/web/20140423031833/http://people.xiph.org/~tterribe/notes/homs.html  // codespell:ignore
+  // clang-format on
 
-  if (HICTKPY_UNLIKELY(nnz == 1)) {
-    update_finiteness_counters<keep_nans, keep_infs>(value);
-    std::visit([&](auto& accumulator) { accumulator(value); }, _accumulator);
-    auto stats = extract(metrics);
-    if (stats.variance.has_value()) {
-      stats.variance = std::numeric_limits<double>::quiet_NaN();
-    }
-    if (stats.skewness.has_value()) {
-      stats.skewness = std::numeric_limits<double>::quiet_NaN();
-    }
-    if (stats.kurtosis.has_value()) {
-      stats.kurtosis = std::numeric_limits<double>::quiet_NaN();
-    }
+  const auto n_fp = conditional_static_cast<double>(n);
+  const auto count_fp = static_cast<double>(_nnz);
 
-    return stats;
-  }
+  const auto delta = n_fp - _online_mean;
+  const auto delta_scaled = delta / static_cast<double>(_nnz);
+  const auto delta_scaled_squared = delta_scaled * delta_scaled;
+  const auto term1 = delta * delta_scaled * static_cast<double>(_nnz - 1);
 
-  return {};
+  _online_mean += delta_scaled;
+  _online_m4 += term1 * delta_scaled_squared * ((count_fp * count_fp) - (3 * count_fp) + 3) +
+                6 * delta_scaled_squared * _online_m2 - 4 * delta_scaled * _online_m3;
+  _online_m3 += term1 * delta_scaled * (count_fp - 2) - 3 * delta_scaled * _online_m2;
+  _online_m2 += term1;
 }
 
-template <typename N>
-inline std::int64_t PixelAggregator::extract_nnz(const Accumulator<N>& accumulator) {
-  return static_cast<std::int64_t>(boost::accumulators::count(accumulator));
+template <typename PixelIt>
+inline void PixelAggregator<PixelIt>::update_with_zeros(
+    [[maybe_unused]] std::uint64_t num_zeros) noexcept {}
+
+template <typename PixelIt>
+inline void PixelAggregator<PixelIt>::reset() noexcept {
+  _nnz = 0;
+  _num_zeros = 0;
+  _min = std::numeric_limits<CountT>::max();
+  _max = std::numeric_limits<CountT>::lowest();
+  _sum = 0;
+  _online_mean = 0;
+  _online_m2 = 0;
+  _online_m3 = 0;
+  _online_m4 = 0;
+
+  _finite_found = false;
+  _nan_found = false;
+  _neg_inf_found = false;
+  _pos_inf_found = false;
 }
 
-inline std::int64_t PixelAggregator::extract_nnz(const KurtosisAccumulator& accumulator) {
-  return static_cast<std::int64_t>(boost::accumulators::count(accumulator));
+template <typename PixelIt>
+inline std::uint64_t PixelAggregator<PixelIt>::count() const noexcept {
+  return _num_zeros + _nnz;
 }
 
-template <typename N>
-inline N PixelAggregator::extract_sum(const Accumulator<N>& accumulator) const {
-  if constexpr (std::is_floating_point_v<N>) {
-    if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
-      return std::numeric_limits<N>::quiet_NaN();
-    }
-    if (_pos_inf_found) {
-      return std::numeric_limits<N>::infinity();
-    }
-    if (_neg_inf_found) {
-      return -std::numeric_limits<N>::infinity();
-    }
-  }
-  return boost::accumulators::sum(accumulator);
-}
-
-template <typename N>
-inline N PixelAggregator::extract_min(const Accumulator<N>& accumulator) const {
-  if constexpr (std::is_floating_point_v<N>) {
+template <typename PixelIt>
+inline auto PixelAggregator<PixelIt>::compute_min() const noexcept -> std::optional<CountT> {
+  if constexpr (std::is_floating_point_v<CountT>) {
     if (_nan_found) {
-      return std::numeric_limits<N>::quiet_NaN();
+      return std::numeric_limits<CountT>::quiet_NaN();
     }
     if (_neg_inf_found) {
-      return -std::numeric_limits<N>::infinity();
+      return -std::numeric_limits<CountT>::infinity();
     }
     if (!_finite_found && _pos_inf_found) {
-      return std::numeric_limits<N>::infinity();
+      return std::numeric_limits<CountT>::infinity();
     }
   }
-  return boost::accumulators::min(accumulator);
+  if (count() == 0) {
+    return {};
+  }
+  return _min;
 }
 
-template <typename N>
-inline N PixelAggregator::extract_max(const Accumulator<N>& accumulator) const {
-  if constexpr (std::is_floating_point_v<N>) {
+template <typename PixelIt>
+inline auto PixelAggregator<PixelIt>::compute_max() const noexcept -> std::optional<CountT> {
+  if constexpr (std::is_floating_point_v<CountT>) {
     if (_nan_found) {
-      return std::numeric_limits<N>::quiet_NaN();
+      return std::numeric_limits<CountT>::quiet_NaN();
     }
     if (_pos_inf_found) {
-      return std::numeric_limits<N>::infinity();
+      return std::numeric_limits<CountT>::infinity();
     }
     if (!_finite_found && _neg_inf_found) {
-      return -std::numeric_limits<N>::infinity();
+      return -std::numeric_limits<CountT>::infinity();
     }
   }
-  return boost::accumulators::max(accumulator);
+  if (count() == 0) {
+    return {};
+  }
+  return _max;
 }
 
-template <typename N>
-inline double PixelAggregator::extract_mean(const Accumulator<N>& accumulator) const {
+template <typename PixelIt>
+inline std::optional<double> PixelAggregator<PixelIt>::compute_mean() const noexcept {
+  if (count() == 0) {
+    return {};
+  }
   if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  if (_pos_inf_found) {
-    return std::numeric_limits<double>::infinity();
-  }
-  if (_neg_inf_found) {
-    return -std::numeric_limits<double>::infinity();
-  }
-  return boost::accumulators::mean(accumulator);
+  return conditional_static_cast<double>(_sum) / static_cast<double>(count());
 }
 
-inline double PixelAggregator::extract_mean(const KurtosisAccumulator& accumulator) const {
-  if (_nan_found || (_neg_inf_found && _pos_inf_found)) {
-    return std::numeric_limits<double>::quiet_NaN();
+template <typename PixelIt>
+inline std::optional<double> PixelAggregator<PixelIt>::compute_variance() const noexcept {
+  if (count() < 2) {
+    return {};
   }
-  if (_pos_inf_found) {
-    return std::numeric_limits<double>::infinity();
-  }
-  if (_neg_inf_found) {
-    return -std::numeric_limits<double>::infinity();
-  }
-  return boost::accumulators::mean(accumulator);
-}
-
-template <typename N>
-inline double PixelAggregator::extract_variance(const Accumulator<N>& accumulator) const {
   if (_nan_found || _pos_inf_found || _neg_inf_found) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  return boost::accumulators::variance(accumulator);
+
+  return _online_m2 / static_cast<double>(count() - 1);
 }
 
-template <typename N>
-inline double PixelAggregator::extract_skewness(const Accumulator<N>& accumulator) const {
+template <typename PixelIt>
+inline std::optional<double> PixelAggregator<PixelIt>::compute_skewness() const noexcept {
+  if (count() < 2) {
+    return {};
+  }
   if (_nan_found || _pos_inf_found || _neg_inf_found) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  return boost::accumulators::skewness(accumulator);
+
+  const auto m2 = _online_m2 / static_cast<double>(count());
+  const auto m3 = _online_m3 / static_cast<double>(count());
+  return m3 / std::pow(m2, 1.5);  // NOLINT(*-avoid-magic-numbers)
 }
 
-inline double PixelAggregator::extract_kurtosis() const {
+template <typename PixelIt>
+inline std::optional<double> PixelAggregator<PixelIt>::compute_kurtosis() const noexcept {
+  if (count() < 2) {
+    return {};
+  }
   if (_nan_found || _pos_inf_found || _neg_inf_found) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  assert(_kurtosis_accumulator.has_value());
-  return boost::accumulators::kurtosis(*_kurtosis_accumulator);
+
+  const auto m2 = _online_m2 / static_cast<double>(count());
+  const auto m4 = _online_m4 / static_cast<double>(count());
+  return (m4 / (m2 * m2)) - 3.0;  // NOLINT(*-avoid-magic-numbers)
 }
 
 }  // namespace hictkpy

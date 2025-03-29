@@ -295,35 +295,41 @@ nb::object PixelSelector::to_numpy(std::string_view span) const {
       selector);
 }
 
-template <typename N, typename PixelSelector>
-[[nodiscard]] static Stats aggregate_pixels(const PixelSelector& sel, bool keep_nans,
-                                            bool keep_infs, bool exact,
+template <typename PixelIt>
+[[nodiscard]] static Stats aggregate_pixels(PixelIt first, PixelIt last, std::uint64_t size,
+                                            bool keep_nans, bool keep_infs, bool keep_zeros,
+                                            bool exact,
                                             const phmap::flat_hash_set<std::string>& metrics) {
   static_assert(!std::is_same_v<PixelSelector, hictk::PixelSelector>);
   if (keep_nans && keep_infs) {
-    return PixelAggregator{}.compute<N, true, true>(sel, metrics, exact);
+    return PixelAggregator<PixelIt>{}.template compute<true, true>(
+        std::move(first), std::move(last), size, metrics, keep_zeros, exact);
   }
   if (keep_nans) {
-    return PixelAggregator{}.compute<N, true, false>(sel, metrics, exact);
+    return PixelAggregator<PixelIt>{}.template compute<true, false>(
+        std::move(first), std::move(last), size, metrics, keep_zeros, exact);
   }
   if (keep_infs) {
-    return PixelAggregator{}.compute<N, false, true>(sel, metrics, exact);
+    return PixelAggregator<PixelIt>{}.template compute<false, true>(
+        std::move(first), std::move(last), size, metrics, keep_zeros, exact);
   }
-  return PixelAggregator{}.compute<N, false, false>(sel, metrics, exact);
+  return PixelAggregator<PixelIt>{}.template compute<false, false>(
+      std::move(first), std::move(last), size, metrics, keep_zeros, exact);
 }
 
 [[nodiscard]] static Stats aggregate_pixels(const PixelSelector::SelectorVar& sel,
                                             const PixelSelector::PixelVar& count, bool keep_nans,
-                                            bool keep_infs, bool exact,
+                                            bool keep_infs, bool keep_zeros, bool exact,
                                             const phmap::flat_hash_set<std::string>& metrics) {
   return std::visit(
       [&](const auto& sel_ptr) {
         assert(sel_ptr);
         return std::visit(
             [&]([[maybe_unused]] const auto& count_) {
-              using CountT = remove_cvref_t<decltype(count_)>;
-              using N = std::conditional_t<std::is_floating_point_v<CountT>, double, std::int64_t>;
-              return aggregate_pixels<N>(*sel_ptr, keep_nans, keep_infs, exact, metrics);
+              using N = remove_cvref_t<decltype(count_)>;
+              return aggregate_pixels(sel_ptr->template begin<N>(), sel_ptr->template end<N>(),
+                                      sel_ptr->size(), keep_nans, keep_infs, keep_zeros, exact,
+                                      metrics);
             },
             count);
       },
@@ -332,7 +338,7 @@ template <typename N, typename PixelSelector>
 
 nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool keep_nans,
                                  bool keep_infs, bool exact) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact,
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, exact,
                                       {metrics.begin(), metrics.end()});
 
   using StatsDict =
@@ -376,40 +382,44 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
 }
 
 std::int64_t PixelSelector::nnz(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"nnz"}).nnz;
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false, {"nnz"}).nnz;
 }
 
 nb::object PixelSelector::sum(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"sum"});
+  const auto stats =
+      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false, {"sum"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
 }
 
 nb::object PixelSelector::min(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"min"});
+  const auto stats =
+      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false, {"min"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
 }
 
 nb::object PixelSelector::max(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"max"});
+  const auto stats =
+      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false, {"max"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
 }
 
 double PixelSelector::mean(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, {"mean"}).mean;
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false, {"mean"})
+              .mean;
 }
 
 double PixelSelector::variance(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"variance"})
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, exact, {"variance"})
               .variance;
 }
 
 double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"skewness"})
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, exact, {"skewness"})
               .skewness;
 }
 
 double PixelSelector::kurtosis(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, exact, {"kurtosis"})
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, exact, {"kurtosis"})
               .kurtosis;
 }
 
@@ -520,8 +530,10 @@ void PixelSelector::bind(nb::module_& m) {
       nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
       "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::move);
 
-  static const std::vector<std::string> known_metrics(PixelAggregator::valid_metrics.begin(),
-                                                      PixelAggregator::valid_metrics.end());
+  using PixelIt = hictk::ThinPixel<int>*;
+  static const std::vector<std::string> known_metrics(
+      PixelAggregator<PixelIt>::valid_metrics.begin(),
+      PixelAggregator<PixelIt>::valid_metrics.end());
   static const auto describe_cmd_help =
       fmt::format(FMT_STRING("Compute one or more descriptive metrics in the most efficient "
                              "way possible. Known metrics: {}."),

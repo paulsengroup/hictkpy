@@ -13,7 +13,6 @@ find_package(
 )
 
 find_package(Arrow REQUIRED)
-find_package(Boost REQUIRED)
 find_package(FMT REQUIRED)
 find_package(nanobind REQUIRED)
 find_package(phmap REQUIRED)
@@ -57,7 +56,6 @@ target_link_libraries(
     hictk::hic
     hictk::transformers
     Arrow::arrow_$<IF:$<BOOL:${BUILD_SHARED_LIBS}>,shared,static>
-    Boost::headers
     fmt::fmt-header-only
     phmap
     spdlog::spdlog_header_only
