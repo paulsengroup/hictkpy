@@ -399,9 +399,9 @@ def compute_stats(df: pd.DataFrame, keep_nans: bool, keep_infs: bool) -> Dict:
             "min": stats.minmax[0],
             "max": stats.minmax[1],
             "mean": stats.mean,
-            "variance": stats.variance,
-            "skewness": stats.skewness,
-            "kurtosis": stats.kurtosis,
+            "variance": stats.variance if len(df) > 1 else None,
+            "skewness": stats.skewness if len(df) > 1 else None,
+            "kurtosis": stats.kurtosis if len(df) > 1 else None,
         }
 
 
