@@ -181,7 +181,11 @@ template <bool keep_nans, bool keep_infs>
 inline void PixelAggregator<PixelIt>::update(N n) noexcept {
   assert(n != 0);
   update_finiteness_counters<keep_nans, keep_infs>(n);
-  ++_nnz;
+  if (n != 0) {
+    ++_nnz;
+  } else {
+    ++_num_zeros;
+  }
   _min = std::min(_min, conditional_static_cast<CountT>(n));
   _max = std::max(_max, conditional_static_cast<CountT>(n));
   _sum += conditional_static_cast<CountT>(n);
@@ -194,15 +198,17 @@ inline void PixelAggregator<PixelIt>::update(N n) noexcept {
   // https://link.springer.com/chapter/10.1007/978-3-642-51461-6_3
   // Terriberry TB. Computing higher-order moments online [Internet]. 2008 Jul 13
   // https://web.archive.org/web/20140423031833/http://people.xiph.org/~tterribe/notes/homs.html  // codespell:ignore
+  //
+  // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Higher-order_statistics
   // clang-format on
 
   const auto n_fp = conditional_static_cast<double>(n);
-  const auto count_fp = static_cast<double>(_nnz);
+  const auto count_fp = static_cast<double>(count());
 
   const auto delta = n_fp - _online_mean;
-  const auto delta_scaled = delta / static_cast<double>(_nnz);
+  const auto delta_scaled = delta / static_cast<double>(count());
   const auto delta_scaled_squared = delta_scaled * delta_scaled;
-  const auto term1 = delta * delta_scaled * static_cast<double>(_nnz - 1);
+  const auto term1 = delta * delta_scaled * static_cast<double>(count() - 1);
 
   _online_mean += delta_scaled;
   _online_m4 += term1 * delta_scaled_squared * ((count_fp * count_fp) - (3 * count_fp) + 3) +
@@ -212,8 +218,23 @@ inline void PixelAggregator<PixelIt>::update(N n) noexcept {
 }
 
 template <typename PixelIt>
-inline void PixelAggregator<PixelIt>::update_with_zeros(
-    [[maybe_unused]] std::uint64_t num_zeros) noexcept {}
+inline void PixelAggregator<PixelIt>::update_with_zeros(std::uint64_t num_zeros) noexcept {
+  if (num_zeros == 0) {
+    return;
+  }
+
+  if (_nan_found || _neg_inf_found || _pos_inf_found) {
+    _min = std::min(_min, CountT{0});
+    _max = std::max(_max, CountT{0});
+    _num_zeros += num_zeros;
+    return;
+  }
+
+  // TODO optimize
+  for (std::uint64_t i = 0; i < num_zeros; ++i) {
+    update<true, true>(0);
+  }
+}
 
 template <typename PixelIt>
 inline void PixelAggregator<PixelIt>::reset() noexcept {

@@ -337,9 +337,9 @@ template <typename PixelIt>
 }
 
 nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool keep_nans,
-                                 bool keep_infs, bool exact) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, exact,
-                                      {metrics.begin(), metrics.end()});
+                                 bool keep_infs, bool keep_zeros, bool exact) const {
+  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros,
+                                      exact, {metrics.begin(), metrics.end()});
 
   using StatsDict =
       nanobind::typed<nanobind::dict, std::string, std::variant<std::int64_t, double>>;
@@ -391,35 +391,38 @@ nb::object PixelSelector::sum(bool keep_nans, bool keep_infs) const {
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
 }
 
-nb::object PixelSelector::min(bool keep_nans, bool keep_infs) const {
+nb::object PixelSelector::min(bool keep_nans, bool keep_infs, bool keep_zeros) const {
   const auto stats =
-      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false, {"min"});
+      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false, {"min"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
 }
 
-nb::object PixelSelector::max(bool keep_nans, bool keep_infs) const {
+nb::object PixelSelector::max(bool keep_nans, bool keep_infs, bool keep_zeros) const {
   const auto stats =
-      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false, {"max"});
+      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false, {"max"});
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
 }
 
-double PixelSelector::mean(bool keep_nans, bool keep_infs) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false, {"mean"})
+double PixelSelector::mean(bool keep_nans, bool keep_infs, bool keep_zeros) const {
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false, {"mean"})
               .mean;
 }
 
-double PixelSelector::variance(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, exact, {"variance"})
+double PixelSelector::variance(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
+                           {"variance"})
               .variance;
 }
 
-double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, exact, {"skewness"})
+double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
+                           {"skewness"})
               .skewness;
 }
 
-double PixelSelector::kurtosis(bool keep_nans, bool keep_infs, bool exact) const {
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, exact, {"kurtosis"})
+double PixelSelector::kurtosis(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
+                           {"kurtosis"})
               .kurtosis;
 }
 
@@ -539,8 +542,8 @@ void PixelSelector::bind(nb::module_& m) {
                              "way possible. Known metrics: {}."),
                   fmt::join(known_metrics, ", "));
   sel.def("describe", &PixelSelector::describe, nb::arg("metrics") = known_metrics,
-          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("exact") = false,
-          describe_cmd_help.c_str());
+          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
+          nb::arg("exact") = false, describe_cmd_help.c_str());
   sel.def("nnz", &PixelSelector::nnz, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
           "Get the number of non-zero entries for the current pixel selection.");
   sel.def("sum", &PixelSelector::sum, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
@@ -548,44 +551,48 @@ void PixelSelector::bind(nb::module_& m) {
           "Get the total number of interactions for the current pixel selection.");
   sel.def(
       "min", &PixelSelector::min, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::sig(
-          "def min(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float | None"),
+      nb::arg("keep_zeros") = false,
+      nb::sig("def min(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
+              "False) -> int | float | None"),
       "Get the minimum number of interactions for the current pixel selection (excluding "
       "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
       "region.");
   sel.def(
       "max", &PixelSelector::max, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::sig(
-          "def max(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float | None"),
+      nb::arg("keep_zeros") = false,
+      nb::sig("def max(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
+              "False) -> int | float | None"),
       "Get the maximum number of interactions for the current pixel selection. Return None in case "
       "the pixel selector overlaps with an empty region.");
   sel.def(
       "mean", &PixelSelector::mean, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::sig("def mean(self, keep_nans: bool = False, keep_infs: bool = False) -> float | None"),
+      nb::arg("keep_zeros") = false,
+      nb::sig("def mean(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
+              "False) -> float | None"),
       "Get the average number of interactions for the current pixel selection (excluding "
       "pixels with no interactions. Return None in case the pixel selector overlaps with an empty "
       "region.");
   sel.def(
       "variance", &PixelSelector::variance, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("exact") = false,
-      nb::sig("def variance(self, keep_nans: bool = False, keep_infs: bool = False, exact: bool = "
-              "False) -> float | None"),
+      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      nb::sig("def variance(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
+              "bool = False, exact: bool = False) -> float | None"),
       "Get the variance of the number of interactions for the current pixel selection (excluding "
       "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
       "region.");
   sel.def(
       "skewness", &PixelSelector::skewness, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("exact") = false,
-      nb::sig("def skewness(self, keep_nans: bool = False, keep_infs: bool = False, exact: bool = "
-              "False) -> float | None"),
+      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      nb::sig("def skewness(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
+              "bool = False, exact: bool = False) -> float | None"),
       "Get the skewness of the number of interactions for the current pixel selection (excluding "
       "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
       "region.");
   sel.def(
       "kurtosis", &PixelSelector::kurtosis, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("exact") = false,
-      nb::sig("def kurtosis(self, keep_nans: bool = False, keep_infs: bool = False, exact: bool = "
-              "False) -> float | None"),
+      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      nb::sig("def kurtosis(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
+              "bool = False, exact: bool = False) -> float | None"),
       "Get the kurtosis of the number of interactions for the current pixel selection (excluding "
       "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
       "region.");
