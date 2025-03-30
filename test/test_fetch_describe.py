@@ -44,7 +44,7 @@ class TestClass:
         bin2_ids = np.array(bin2_ids)
 
         # drop coordinates overlapping with the lower-triangular matrix
-        mask = bin1_ids <= bin1_ids
+        mask = bin1_ids > bin2_ids
         bin1_ids = bin1_ids[mask]
         bin2_ids = bin2_ids[mask]
 
