@@ -259,3 +259,20 @@ class TestClass:
         assert len(stats) == 2
         assert isnan(stats.get("max", -1))
         assert isnan(stats.get("variance", -1))
+
+    def test_describe_with_zeros(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(insert_nan=False, insert_neg_inf=False, insert_pos_inf=False), tmpdir
+        )
+
+        stats = f.fetch(count_type="float").describe(keep_nans=False, keep_infs=False, keep_zeros=True)
+        assert f.fetch(count_type="float").size() == 11_325
+
+        assert stats.get("nnz", -1) == 5_588
+        assert isclose(stats.get("sum", -1), 15610765.324)
+        assert isclose(stats.get("min", -1), 0)
+        assert isclose(stats.get("max", -1), 5587.123)
+        assert isclose(stats.get("mean", -1), 1378.4340241942605)
+        assert isclose(stats.get("variance", -1), 3234985.0448088404)
+        assert isclose(stats.get("skewness", -1), 0.9493134530532286)
+        assert isclose(stats.get("kurtosis", -1), -0.5867391846660897)
