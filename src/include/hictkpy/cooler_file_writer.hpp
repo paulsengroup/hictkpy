@@ -42,7 +42,7 @@ class CoolerFileWriter {
   [[nodiscard]] const hictk::Reference& chromosomes() const;
   [[nodiscard]] std::shared_ptr<const hictk::BinTable> bins_ptr() const noexcept;
 
-  void add_pixels(const nanobind::object& df, bool validate);
+  void add_pixels(const nanobind::object& df, bool sorted, bool validate);
 
   [[nodiscard]] hictk::File finalize(std::string_view log_lvl_str, std::size_t chunk_size,
                                      std::size_t update_frequency);

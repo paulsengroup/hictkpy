@@ -122,7 +122,7 @@ hictkpy::BinTable HiCFileWriter::bins(std::uint32_t resolution) const {
   return hictkpy::BinTable{_w.bins(resolution)};
 }
 
-void HiCFileWriter::add_pixels(const nb::object &df) {
+void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
   if (_finalized) {
     throw std::runtime_error(
         "caught attempt to add_pixels to a .hic file that has already been finalized!");
@@ -135,7 +135,7 @@ void HiCFileWriter::add_pixels(const nb::object &df) {
                  : bg2_df_to_thin_pixels<float>(_w.bins(_w.resolutions().front()), df, false);
   lck.reset();
   SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), _w.path());
-  _w.add_pixels(_w.resolutions().front(), pixels.begin(), pixels.end());
+  _w.add_pixels(_w.resolutions().front(), pixels.begin(), pixels.end(), validate);
 }
 
 std::string HiCFileWriter::repr() const {
@@ -194,12 +194,15 @@ void HiCFileWriter::bind(nb::module_ &m) {
   writer.def("bins", &hictkpy::HiCFileWriter::bins, "Get table of bins for the given resolution.",
              nb::sig("def bins(self, resolution: int) -> hictkpy.BinTable"), nb::rv_policy::move);
 
-  writer.def("add_pixels", &hictkpy::HiCFileWriter::add_pixels,
-             nb::call_guard<nb::gil_scoped_release>(),
-             nb::sig("def add_pixels(self, pixels: pandas.DataFrame) -> None"), nb::arg("pixels"),
-             "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
-             "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
-             "chrom2, start2, end2, count].");
+  writer.def(
+      "add_pixels", &hictkpy::HiCFileWriter::add_pixels, nb::call_guard<nb::gil_scoped_release>(),
+      nb::sig("def add_pixels(self, pixels: pandas.DataFrame, validate: bool = True) -> None"),
+      nb::arg("pixels"), nb::arg("validate") = true,
+      "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
+      "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
+      "chrom2, start2, end2, count].\n"
+      "When validate is True, hictkpy will perform some basic sanity checks on the given "
+      "pixels before adding them to the Cooler file.");
   writer.def("finalize", &hictkpy::HiCFileWriter::finalize,
              nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
              "Write interactions to file.", nb::rv_policy::move);
