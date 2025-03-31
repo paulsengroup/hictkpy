@@ -81,7 +81,7 @@ std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const noexce
   return _w->bins_ptr();
 }
 
-void CoolerFileWriter::add_pixels(const nb::object &df) {
+void CoolerFileWriter::add_pixels(const nb::object &df, bool validate) {
   if (!_w.has_value()) {
     throw std::runtime_error(
         "caught attempt to add_pixels to a .cool file that has already been finalized!");
@@ -110,7 +110,7 @@ void CoolerFileWriter::add_pixels(const nb::object &df) {
 
         SPDLOG_INFO(FMT_STRING("adding {} pixels of type {} to file \"{}\"..."), pixels.size(),
                     dtype_str, clr.uri());
-        clr.append_pixels(pixels.begin(), pixels.end());
+        clr.append_pixels(pixels.begin(), pixels.end(), validate);
 
         clr.flush();
       },
@@ -212,10 +212,13 @@ void CoolerFileWriter::bind(nb::module_ &m) {
 
   writer.def("add_pixels", &hictkpy::CoolerFileWriter::add_pixels,
              nb::call_guard<nb::gil_scoped_release>(),
-             nb::sig("def add_pixels(self, pixels: pandas.DataFrame)"), nb::arg("pixels"),
+             nb::sig("def add_pixels(self, pixels: pandas.DataFrame, validate: bool = True)"),
+             nb::arg("pixels"), nb::arg("validate") = true,
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
-             "chrom2, start2, end2, count].");
+             "chrom2, start2, end2, count].\n"
+             "When validate is True, hictkpy will perform some basic sanity checks on the given "
+             "pixels before adding them to the Cooler file.");
   // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def("finalize", &hictkpy::CoolerFileWriter::finalize,
              nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
