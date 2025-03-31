@@ -81,7 +81,7 @@ std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const noexce
   return _w->bins_ptr();
 }
 
-void CoolerFileWriter::add_pixels(const nb::object &df, bool validate) {
+void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool validate) {
   if (!_w.has_value()) {
     throw std::runtime_error(
         "caught attempt to add_pixels to a .cool file that has already been finalized!");
@@ -101,8 +101,8 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool validate) {
   std::visit(
       [&](const auto &n) {
         using N = remove_cvref_t<decltype(n)>;
-        const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, true)
-                                       : bg2_df_to_thin_pixels<N>(_w->bins(), df, true);
+        const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, !sorted)
+                                       : bg2_df_to_thin_pixels<N>(_w->bins(), df, !sorted);
         lck.reset();
 
         auto clr = _w->create_cell<N>(cell_id, std::move(attrs),
@@ -212,11 +212,14 @@ void CoolerFileWriter::bind(nb::module_ &m) {
 
   writer.def("add_pixels", &hictkpy::CoolerFileWriter::add_pixels,
              nb::call_guard<nb::gil_scoped_release>(),
-             nb::sig("def add_pixels(self, pixels: pandas.DataFrame, validate: bool = True)"),
-             nb::arg("pixels"), nb::arg("validate") = true,
+             nb::sig("def add_pixels(self, pixels: pandas.DataFrame, sorted: bool = False, "
+                     "validate: bool = True) -> None"),
+             nb::arg("pixels"), nb::arg("sorted") = false, nb::arg("validate") = true,
              "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
              "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
              "chrom2, start2, end2, count].\n"
+             "When sorted is True, pixels are assumed to be sorted by their genomic coordinates in "
+             "ascending order.\n"
              "When validate is True, hictkpy will perform some basic sanity checks on the given "
              "pixels before adding them to the Cooler file.");
   // NOLINTBEGIN(*-avoid-magic-numbers)

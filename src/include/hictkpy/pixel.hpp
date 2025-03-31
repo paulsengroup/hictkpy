@@ -66,7 +66,7 @@ inline void declare_pixel_class(nanobind::module_ &m, const std::string &suffix)
 }
 
 template <typename N>
-inline std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object df, bool sorted) {
+inline std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object df, bool sort) {
   using BufferT1 = nanobind::ndarray<nanobind::numpy, nanobind::shape<-1>, std::uint64_t>;
   using BufferT2 = nanobind::ndarray<nanobind::numpy, nanobind::shape<-1>, N>;
 
@@ -83,7 +83,7 @@ inline std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object d
     buffer[i] = hictk::ThinPixel<N>{bin1_ids(i), bin2_ids(i), counts(i)};
   }
 
-  if (sorted) {
+  if (sort) {
     std::sort(buffer.begin(), buffer.end());
   }
 
@@ -92,7 +92,7 @@ inline std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object d
 
 template <typename N>
 inline std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTable &bin_table,
-                                                              nanobind::object df, bool sorted) {
+                                                              nanobind::object df, bool sort) {
   using BufferT1 = nanobind::ndarray<nanobind::numpy, nanobind::shape<-1>, std::uint32_t>;
   using BufferT2 = nanobind::ndarray<nanobind::numpy, nanobind::shape<-1>, N>;
 
@@ -141,7 +141,7 @@ inline std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTa
             .to_thin();
   }
 
-  if (sorted) {
+  if (sort) {
     std::sort(buffer.begin(), buffer.end());
   }
 
