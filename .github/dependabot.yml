@@ -13,8 +13,8 @@ updates:
 
   - package-ecosystem: "pip"
     directory: "/"
+    schedule:
+      interval: "weekly"
     groups:
       python:
         patterns: ["*"]
-    schedule:
-      interval: "weekly"
