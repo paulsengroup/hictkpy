@@ -56,7 +56,7 @@ class HictkpyConan(ConanFile):
             check_min_cppstd(self, self._min_cppstd)
 
     def configure(self):
-        if self.settings.compiler in ["clang", "gcc"]:
+        if self.settings.compiler in ["clang", "gcc"] and self.settings.os == "Linux":
             self.settings.compiler.libcxx = "libstdc++11"
 
         self.options["arrow"].compute = True
