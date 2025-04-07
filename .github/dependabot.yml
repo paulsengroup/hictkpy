@@ -10,3 +10,11 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    groups:
+      python:
+        patterns: ["*"]
+    schedule:
+      interval: "weekly"
