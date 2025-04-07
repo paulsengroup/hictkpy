@@ -35,8 +35,8 @@ FetchContent_Declare(
 FetchContent_Declare(
   hictk
   URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.0.1.tar.xz"
-  URL_HASH "SHA256=9282f7f4e978c71970f07627b360c3a4cf2bce4670ce3bd12e040c51c691ec3c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.1.0.tar.xz"
+  URL_HASH "SHA256=628e2c7168ea58a85351b2c7d5401d5f808c2dc9b5f181f046e61230823c4989"
   EXCLUDE_FROM_ALL
   OVERRIDE_FIND_PACKAGE
   SYSTEM
