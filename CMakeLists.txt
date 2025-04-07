@@ -35,8 +35,8 @@ FetchContent_Declare(
 FetchContent_Declare(
   hictk
   URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.0.1.tar.xz"
-  URL_HASH "SHA256=9282f7f4e978c71970f07627b360c3a4cf2bce4670ce3bd12e040c51c691ec3c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.1.0.tar.xz"
+  URL_HASH "SHA256=628e2c7168ea58a85351b2c7d5401d5f808c2dc9b5f181f046e61230823c4989"
   EXCLUDE_FROM_ALL
   OVERRIDE_FIND_PACKAGE
   SYSTEM
@@ -45,8 +45,8 @@ FetchContent_Declare(
 FetchContent_Declare(
   nanobind
   URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.2.0.tar.xz"
-  URL_HASH "SHA256=6f0064c5e94b0bc34637644ddf035cdc7831135949b843adf52bc4bdbe2c6b5d"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.6.1.tar.xz"
+  URL_HASH "SHA256=eb07f31e4e2bdf6d84afe58b882c224373c71f04c25f47d276f78a9e0696e66c"
   EXCLUDE_FROM_ALL
   OVERRIDE_FIND_PACKAGE
   SYSTEM
