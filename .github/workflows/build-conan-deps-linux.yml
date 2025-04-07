@@ -103,11 +103,11 @@ jobs:
 
           dnf install -y clang
 
-          export CC=clang
-          export CXX=clang++
-
           PATH="/opt/python/cp312-cp312/bin:$PATH"
           pip install "conan==$conan_version"
+
+          CC=clang CXX=clang++ conan profile detect --name clang --force
+          CC=gcc CXX=g++ conan profile detect --name gcc --force
 
           conan remote update conancenter --url https://center2.conan.io
           EOF
@@ -130,14 +130,8 @@ jobs:
 
           conan_version="$1"
 
-          dnf install -y clang
-
-          export CC=clang
-          export CXX=clang++
-
           PATH="/opt/python/cp312-cp312/bin:$PATH"
           pip install "conan==$conan_version"
-          conan profile detect --force
 
           conan cache clean "*" --build
           conan cache clean "*" --download
@@ -165,17 +159,21 @@ jobs:
 
           dnf install -y clang
 
-          export CC=clang
-          export CXX=clang++
-
           cppstd="$2"
 
           PATH="/opt/python/cp312-cp312/bin:$PATH"
           pip install "conan==$conan_version"
-          conan profile detect --force
+
+          # Workaround ABI problems
+          conan install --requires 'b2/5.3.1' --build='*' -pr:b=gcc -pr:h=gcc
+
+          export CC=clang
+          export CXX=clang++
 
           conan install /tmp/conanfile.py \
              --build='missing'            \
+             -pr:b=clang                  \
+             -pr:h=clang                  \
              -s build_type=Release        \
              -s compiler.cppstd="$cppstd" \
              --options='*/*:shared=False'
@@ -200,14 +198,8 @@ jobs:
 
           conan_version="$1"
 
-          dnf install -y clang
-
-          export CC=clang
-          export CXX=clang++
-
           PATH="/opt/python/cp312-cp312/bin:$PATH"
           pip install "conan==$conan_version"
-          conan profile detect --force
 
           conan cache clean "*" --build
           conan cache clean "*" --download
