@@ -46,6 +46,19 @@ class TestClass:
         assert w.chromosomes() == bins.chromosomes()
         assert len(w.bins().to_df().compare(bins.to_df())) == 0
 
+    def test_file_creation_empty(self, file, resolution, tmpdir):
+        if resolution is None:
+            pytest.skip()
+
+        path = tmpdir / "test.cool"
+        w = hictkpy.cooler.FileWriter(path, {"chr1": 100, "chr2": 50}, 10)
+        f = w.finalize("info", 100_000, 100_000)
+
+        del w
+        gc.collect()
+
+        assert f.fetch().nnz() == 0
+
     def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
         f = hictkpy.File(file, resolution)
         if f.bins().type() != "fixed":
