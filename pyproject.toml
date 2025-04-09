@@ -52,12 +52,19 @@ optional-dependencies.scipy = [
   "scipy",
 ]
 
+optional-dependencies.telemetry = [
+  "opentelemetry-api",
+  "opentelemetry-exporter-otlp-proto-http",
+  "opentelemetry-sdk",
+]
+
 optional-dependencies.all = [
-  "hictkpy[numpy,pandas,pyarrow,scipy]",
+  "hictkpy[numpy,pandas,pyarrow,scipy,telemetry]",
 ]
 
 optional-dependencies.test = [
   "pytest>=8.0",
+  "pytest-env",
 ]
 
 optional-dependencies.dev = [
@@ -108,6 +115,9 @@ python_files = [
 testpaths = [
   "test/"
 ]
+
+[tool.pytest_env]
+HICTKPY_NO_CI = 1
 
 [tool.cibuildwheel]
 build-frontend = "build"
