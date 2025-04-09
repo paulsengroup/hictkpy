@@ -32,6 +32,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  HICTKPY_NO_TELEMETRY: "1"
+
 jobs:
   analyze:
     name: Analyze (python)

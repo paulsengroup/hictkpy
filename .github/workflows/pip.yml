@@ -31,6 +31,7 @@ on:
 env:
   CONAN_HOME: "${{ github.workspace }}/.conan2/"
   HICTK_CI: "1"
+  HICTKPY_NO_TELEMETRY: "1"
 
 # https://stackoverflow.com/a/72408109
 concurrency:

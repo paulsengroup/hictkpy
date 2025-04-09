@@ -231,17 +231,21 @@ jobs:
             CXX=clang++
             PIP_VERBOSE=1
             CONAN_HOME='/host${{ env.CONAN_HOME }}'
+            HICTKPY_NO_TELEMETRY=1
           CIBW_ENVIRONMENT_MACOS: >
             CC=clang
             CXX=clang++
             PIP_VERBOSE=1
             MACOSX_DEPLOYMENT_TARGET=10.15
             HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};-s:h os.version=${{ env.MACOSX_DEPLOYMENT_TARGET }}"
+            HICTKPY_NO_TELEMETRY=1
           CIBW_ENVIRONMENT_WINDOWS: >
             PIP_VERBOSE=1
+            HICTKPY_NO_TELEMETRY=1
           CIBW_ENVIRONMENT_PASS_LINUX: >
             CONAN_HOME
             HICTKPY_CONAN_INSTALL_ARGS
+            HICTKPY_NO_TELEMETRY
 
       - name: Verify clean directory
         run: git diff --exit-code
