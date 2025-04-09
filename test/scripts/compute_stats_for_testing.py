@@ -4,6 +4,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+import os
+
+os.environ["HICTKPY_NO_TELEMETRY"] = "1"
+
 import argparse
 import pathlib
 import warnings

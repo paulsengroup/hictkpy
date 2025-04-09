@@ -8,9 +8,9 @@ import pathlib
 
 import pytest
 
-import hictkpy
+from .helpers import import_hictkpy, pandas_avail, pyarrow_avail
 
-from .helpers import pandas_avail, pyarrow_avail
+hictkpy = import_hictkpy()
 
 testdir = pathlib.Path(__file__).resolve().parent
 

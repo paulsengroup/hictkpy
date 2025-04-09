@@ -6,9 +6,9 @@ import pathlib
 
 import pytest
 
-import hictkpy
+from .helpers import import_hictkpy, pandas_avail
 
-from .helpers import pandas_avail
+hictkpy = import_hictkpy()
 
 testdir = pathlib.Path(__file__).resolve().parent
 

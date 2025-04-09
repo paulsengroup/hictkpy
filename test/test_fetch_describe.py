@@ -8,9 +8,9 @@ from math import inf, isnan
 
 import pytest
 
-import hictkpy
+from .helpers import import_hictkpy, numpy_avail, pandas_avail
 
-from .helpers import numpy_avail, pandas_avail
+hictkpy = import_hictkpy()
 
 
 def isclose(n1, n2) -> bool:

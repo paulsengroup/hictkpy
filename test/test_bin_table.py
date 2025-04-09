@@ -7,9 +7,9 @@ import itertools
 
 import pytest
 
-import hictkpy
+from .helpers import import_hictkpy, pandas_avail, pyarrow_avail
 
-from .helpers import numpy_avail, pandas_avail, pyarrow_avail
+hictkpy = import_hictkpy()
 
 
 class TestClass:

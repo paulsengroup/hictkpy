@@ -37,3 +37,13 @@ def scipy_avail() -> bool:
         return False
 
     return True
+
+
+def import_hictkpy():
+    import os
+
+    os.environ["HICTKPY_NO_TELEMETRY"] = "1"
+
+    import hictkpy
+
+    return hictkpy

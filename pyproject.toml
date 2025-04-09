@@ -115,9 +115,7 @@ python_files = [
 testpaths = [
   "test/"
 ]
-
-[tool.pytest_env]
-HICTKPY_NO_CI = 1
+env = ["HICTKPY_NO_CI=1",]
 
 [tool.cibuildwheel]
 build-frontend = "build"
