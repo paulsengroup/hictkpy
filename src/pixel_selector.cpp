@@ -324,12 +324,18 @@ template <typename PixelIt>
   return std::visit(
       [&](const auto& sel_ptr) {
         assert(sel_ptr);
+        const auto fixed_bin_size = sel_ptr->bins().type() == hictk::BinTable::Type::fixed;
+        if (!fixed_bin_size && keep_zeros) {
+          throw std::runtime_error(
+              "calculating statistics including zeros on files with bin tables other than "
+              "\"fixed\" bin size is not supported.");
+        }
         return std::visit(
             [&]([[maybe_unused]] const auto& count_) {
               using N = remove_cvref_t<decltype(count_)>;
               return aggregate_pixels(sel_ptr->template begin<N>(), sel_ptr->template end<N>(),
-                                      sel_ptr->size(), keep_nans, keep_infs, keep_zeros, exact,
-                                      metrics);
+                                      fixed_bin_size ? sel_ptr->size() : 0, keep_nans, keep_infs,
+                                      keep_zeros, exact, metrics);
             },
             count);
       },

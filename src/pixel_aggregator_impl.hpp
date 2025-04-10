@@ -73,6 +73,9 @@ template <bool keep_nans, bool keep_infs>
 inline Stats PixelAggregator<PixelIt>::compute_online(
     PixelIt first, PixelIt last, std::uint64_t size,
     const phmap::flat_hash_set<std::string>& metrics, bool keep_zeros) {
+  if (!keep_zeros) {
+    assert(size == 0);
+  }
   auto break_on_non_finite = [this]() constexpr noexcept {
     return _nan_found || _neg_inf_found || _pos_inf_found;
   };
@@ -106,6 +109,10 @@ inline Stats PixelAggregator<PixelIt>::compute_exact(
     PixelIt first, PixelIt last, std::uint64_t size,
     const phmap::flat_hash_set<std::string>& metrics, std::uint64_t nnz, double mean,
     bool keep_zeros) {
+  if (!keep_zeros) {
+    assert(size == 0);
+  }
+
   if (size == nnz) {
     keep_zeros = false;
   }
