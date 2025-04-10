@@ -30,6 +30,8 @@ namespace hictkpy {
 }
 
 NB_MODULE(_hictkpy, m) {
+  // Leaks appear to only occur when the interpreter shuts down abruptly
+  nb::set_leak_warnings(false);
   [[maybe_unused]] const auto logger = init_logger();
 
   m.attr("__hictk_version__") = hictk::config::version::str();

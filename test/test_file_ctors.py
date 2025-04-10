@@ -27,16 +27,16 @@ class TestClass:
             pytest.skip(f'File "{file}" is not in .mcool format')
 
         assert 1_000_000 in f.resolutions()
-        with pytest.raises(RuntimeError, match="resolution mismatch"):
+        with pytest.raises(RuntimeError, match="found an unexpected resolution"):
             hictkpy.File(f"{file}::/resolutions/{resolution}", 1_000_000)
 
     def test_missing_resolution_param(self, file, resolution):
         f = hictkpy.MultiResFile(file)
 
-        if f[resolution].is_cooler():
-            ext = ".mcool"
-        else:
-            ext = ".hic"
+        if len(f.resolutions()) == 1:
+            pytest.skip("file contains a single resolution")
 
-        with pytest.raises(RuntimeError, match=f"resolution is required and cannot be None when opening {ext} files"):
+        with pytest.raises(
+            RuntimeError, match=f"resolution is required when opening .* files with more than one resolution"
+        ):
             hictkpy.File(file)

@@ -21,6 +21,7 @@ find_package(Filesystem REQUIRED)
 
 nanobind_add_module(
         _hictkpy
+        NB_SUPPRESS_WARNINGS
         NB_STATIC
         NB_DOMAIN hictkpy
         LTO
