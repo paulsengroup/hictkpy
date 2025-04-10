@@ -321,17 +321,29 @@ template <typename PixelIt>
                                             const PixelSelector::PixelVar& count, bool keep_nans,
                                             bool keep_infs, bool keep_zeros, bool exact,
                                             const phmap::flat_hash_set<std::string>& metrics) {
-  return std::visit(
+  // MSVC gets confused if fixed_bin_size is declared inside the nested call to std::visit down
+  // below
+  const auto fixed_bin_size = std::visit(
       [&](const auto& sel_ptr) {
         assert(sel_ptr);
-        const auto fixed_bin_size = sel_ptr->bins().type() == hictk::BinTable::Type::fixed;
-        if (!fixed_bin_size && keep_zeros) {
-          throw std::runtime_error(
-              "calculating statistics including zeros on files with bin tables other than "
-              "\"fixed\" bin size is not supported.");
-        }
+        return sel_ptr->bins().type() == hictk::BinTable::Type::fixed;
+      },
+      sel);
+
+  if (!fixed_bin_size && keep_zeros) {
+    throw std::runtime_error(
+        "calculating statistics including zeros on files with bin tables other than "
+        "\"fixed\" bin size is not supported.");
+  }
+
+  // All the explicit captures are required to make MSVC happy
+  return std::visit(
+      [&metrics, &count, fixed_bin_size, keep_nans, keep_infs, keep_zeros,
+       exact](const auto& sel_ptr) {
+        assert(sel_ptr);
         return std::visit(
-            [&]([[maybe_unused]] const auto& count_) {
+            [&metrics, &sel_ptr, fixed_bin_size, keep_nans, keep_infs, keep_zeros,
+             exact]([[maybe_unused]] const auto& count_) {
               using N = remove_cvref_t<decltype(count_)>;
               return aggregate_pixels(sel_ptr->template begin<N>(), sel_ptr->template end<N>(),
                                       fixed_bin_size ? sel_ptr->size() : 0, keep_nans, keep_infs,
