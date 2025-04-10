@@ -49,10 +49,30 @@ template <typename PixelIt>
 template <bool keep_nans, bool keep_infs>
 inline Stats PixelAggregator<PixelIt>::compute(PixelIt first, PixelIt last, std::uint64_t size,
                                                const phmap::flat_hash_set<std::string>& metrics,
-                                               bool keep_zeros, [[maybe_unused]] bool exact) {
+                                               bool keep_zeros, bool exact) {
   validate_metrics(metrics);
   reset();
 
+  if (exact) {
+    const auto stats =
+        compute_online<keep_nans, keep_infs>(first, last, size, {"nnz", "mean"}, keep_zeros);
+    assert(stats.nnz.has_value());
+    assert(stats.mean.has_value());
+    reset();
+    return compute_exact<keep_nans, keep_infs>(std::move(first), std::move(last), size, metrics,
+                                               static_cast<std::uint64_t>(*stats.nnz), *stats.mean,
+                                               keep_zeros);
+  }
+
+  return compute_online<keep_nans, keep_infs>(std::move(first), std::move(last), size, metrics,
+                                              keep_zeros);
+}
+
+template <typename PixelIt>
+template <bool keep_nans, bool keep_infs>
+inline Stats PixelAggregator<PixelIt>::compute_online(
+    PixelIt first, PixelIt last, std::uint64_t size,
+    const phmap::flat_hash_set<std::string>& metrics, bool keep_zeros) {
   auto break_on_non_finite = [this]() constexpr noexcept {
     return _nan_found || _neg_inf_found || _pos_inf_found;
   };
@@ -78,7 +98,61 @@ inline Stats PixelAggregator<PixelIt>::compute(PixelIt first, PixelIt last, std:
   }
 
   return extract(metrics);
-  // TODO deal with exact computations
+}
+
+template <typename PixelIt>
+template <bool keep_nans, bool keep_infs>
+inline Stats PixelAggregator<PixelIt>::compute_exact(
+    PixelIt first, PixelIt last, std::uint64_t size,
+    const phmap::flat_hash_set<std::string>& metrics, std::uint64_t nnz, double mean,
+    bool keep_zeros) {
+  if (size == nnz) {
+    keep_zeros = false;
+  }
+
+  _nnz = nnz;
+  _num_zeros = keep_zeros ? size - nnz : 0;
+  _online_mean = mean;
+
+  const auto count_fp = static_cast<double>(count());
+  double variance = 0;
+  const auto variance_denom = nnz < 2 ? std::numeric_limits<double>::quiet_NaN() : count_fp - 1;
+
+  while (first != last) {
+    const auto n = first->count;
+    std::ignore = ++first;
+    if (internal::drop_value<keep_nans, keep_infs>(n)) {
+      continue;
+    }
+    update_finiteness_counters<keep_nans, keep_infs>(n);
+    _min = std::min(_min, conditional_static_cast<CountT>(n));
+    _max = std::max(_max, conditional_static_cast<CountT>(n));
+    _sum += conditional_static_cast<CountT>(n);
+    const auto delta = conditional_static_cast<double>(n) - mean;
+    variance += delta * delta / variance_denom;
+    _online_m2 += delta * delta / count_fp;
+    _online_m3 += delta * delta * delta / count_fp;
+    _online_m4 += delta * delta * delta * delta / count_fp;
+  }
+
+  if (keep_zeros) {
+    _min = std::min(_min, CountT{0});
+    _max = std::max(_max, CountT{0});
+    _online_mean = conditional_static_cast<double>(_sum) / count_fp;
+    const auto delta = -mean;
+
+    variance += static_cast<double>(size - nnz) * delta * delta / variance_denom;
+    _online_m2 += static_cast<double>(size - nnz) * delta * delta / count_fp;
+    _online_m3 += static_cast<double>(size - nnz) * delta * delta * delta / count_fp;
+    _online_m4 += static_cast<double>(size - nnz) * delta * delta * delta * delta / count_fp;
+  }
+
+  auto stats = extract(metrics, true);
+  if (metrics.contains("variance")) {
+    stats.variance = variance;
+  }
+
+  return stats;
 }
 
 template <typename PixelIt>
@@ -136,7 +210,8 @@ inline void PixelAggregator<PixelIt>::process_pixels(PixelIt& first, const Pixel
 }
 
 template <typename PixelIt>
-Stats PixelAggregator<PixelIt>::extract(const phmap::flat_hash_set<std::string>& metrics) {
+Stats PixelAggregator<PixelIt>::extract(const phmap::flat_hash_set<std::string>& metrics,
+                                        bool no_divide) {
   assert(!metrics.empty());
 
   Stats stats{};
@@ -162,15 +237,15 @@ Stats PixelAggregator<PixelIt>::extract(const phmap::flat_hash_set<std::string>&
   }
 
   if (metrics.contains("variance")) {
-    stats.variance = compute_variance();
+    stats.variance = compute_variance(no_divide);
   }
 
   if (metrics.contains("skewness")) {
-    stats.skewness = compute_skewness();
+    stats.skewness = compute_skewness(no_divide);
   }
 
   if (metrics.contains("kurtosis")) {
-    stats.kurtosis = compute_kurtosis();
+    stats.kurtosis = compute_kurtosis(no_divide);
   }
 
   return stats;
@@ -309,7 +384,8 @@ inline std::optional<double> PixelAggregator<PixelIt>::compute_mean() const noex
 }
 
 template <typename PixelIt>
-inline std::optional<double> PixelAggregator<PixelIt>::compute_variance() const noexcept {
+inline std::optional<double> PixelAggregator<PixelIt>::compute_variance(
+    bool no_divide) const noexcept {
   if (count() < 2) {
     return {};
   }
@@ -317,11 +393,15 @@ inline std::optional<double> PixelAggregator<PixelIt>::compute_variance() const 
     return std::numeric_limits<double>::quiet_NaN();
   }
 
+  if (no_divide) {
+    return _online_m2;
+  }
   return _online_m2 / static_cast<double>(count() - 1);
 }
 
 template <typename PixelIt>
-inline std::optional<double> PixelAggregator<PixelIt>::compute_skewness() const noexcept {
+inline std::optional<double> PixelAggregator<PixelIt>::compute_skewness(
+    bool no_divide) const noexcept {
   if (count() < 2) {
     return {};
   }
@@ -329,13 +409,14 @@ inline std::optional<double> PixelAggregator<PixelIt>::compute_skewness() const 
     return std::numeric_limits<double>::quiet_NaN();
   }
 
-  const auto m2 = _online_m2 / static_cast<double>(count());
-  const auto m3 = _online_m3 / static_cast<double>(count());
+  const auto m2 = no_divide ? _online_m2 : _online_m2 / static_cast<double>(count());
+  const auto m3 = no_divide ? _online_m3 : _online_m3 / static_cast<double>(count());
   return m3 / std::pow(m2, 1.5);  // NOLINT(*-avoid-magic-numbers)
 }
 
 template <typename PixelIt>
-inline std::optional<double> PixelAggregator<PixelIt>::compute_kurtosis() const noexcept {
+inline std::optional<double> PixelAggregator<PixelIt>::compute_kurtosis(
+    bool no_divide) const noexcept {
   if (count() < 2) {
     return {};
   }
@@ -343,8 +424,8 @@ inline std::optional<double> PixelAggregator<PixelIt>::compute_kurtosis() const 
     return std::numeric_limits<double>::quiet_NaN();
   }
 
-  const auto m2 = _online_m2 / static_cast<double>(count());
-  const auto m4 = _online_m4 / static_cast<double>(count());
+  const auto m2 = no_divide ? _online_m2 : _online_m2 / static_cast<double>(count());
+  const auto m4 = no_divide ? _online_m4 : _online_m4 / static_cast<double>(count());
   return (m4 / (m2 * m2)) - 3.0;  // NOLINT(*-avoid-magic-numbers)
 }
 

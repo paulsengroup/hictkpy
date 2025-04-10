@@ -57,16 +57,24 @@ class PixelAggregator {
 
   template <bool keep_nans, bool keep_infs>
   Stats compute(PixelIt first, PixelIt last, std::uint64_t size,
-                const phmap::flat_hash_set<std::string>& metrics, bool keep_zeros,
-                [[maybe_unused]] bool exact);
+                const phmap::flat_hash_set<std::string>& metrics, bool keep_zeros, bool exact);
 
  private:
+  template <bool keep_nans, bool keep_infs>
+  Stats compute_online(PixelIt first, PixelIt last, std::uint64_t size,
+                       const phmap::flat_hash_set<std::string>& metrics, bool keep_zeros);
+
+  template <bool keep_nans, bool keep_infs>
+  Stats compute_exact(PixelIt first, PixelIt last, std::uint64_t size,
+                      const phmap::flat_hash_set<std::string>& metrics, std::uint64_t nnz,
+                      double mean, bool keep_zeros);
   static void validate_metrics(const phmap::flat_hash_set<std::string>& metrics);
   template <bool keep_nans, bool keep_infs>
   void update_finiteness_counters(N n) noexcept;
   template <bool keep_nans, bool keep_infs, typename StopCondition>
   void process_pixels(PixelIt& first, const PixelIt& last, StopCondition break_condition);
-  [[nodiscard]] Stats extract(const phmap::flat_hash_set<std::string>& metrics);
+  [[nodiscard]] Stats extract(const phmap::flat_hash_set<std::string>& metrics,
+                              bool no_divide = false);
   void reset() noexcept;
 
   template <bool keep_nans, bool keep_infs>
@@ -77,9 +85,9 @@ class PixelAggregator {
   [[nodiscard]] auto compute_min() const noexcept -> std::optional<CountT>;
   [[nodiscard]] auto compute_max() const noexcept -> std::optional<CountT>;
   [[nodiscard]] std::optional<double> compute_mean() const noexcept;
-  [[nodiscard]] std::optional<double> compute_variance() const noexcept;
-  [[nodiscard]] std::optional<double> compute_skewness() const noexcept;
-  [[nodiscard]] std::optional<double> compute_kurtosis() const noexcept;
+  [[nodiscard]] std::optional<double> compute_variance(bool no_divide) const noexcept;
+  [[nodiscard]] std::optional<double> compute_skewness(bool no_divide) const noexcept;
+  [[nodiscard]] std::optional<double> compute_kurtosis(bool no_divide) const noexcept;
 };
 
 }  // namespace hictkpy
