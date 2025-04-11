@@ -135,13 +135,19 @@ hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t
   spdlog::default_logger()->set_level(log_lvl);
 
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path);
+  hictk::internal::NumericVariant count_type{};
+  if (_w->cells().empty()) {
+    count_type = std::int32_t{};
+  } else {
+    count_type = _w->open("0").pixel_variant();
+  }
   try {
     std::visit(
         [&](const auto &num) {
           using N = remove_cvref_t<decltype(num)>;
           _w->aggregate<N>(_path.string(), false, _compression_lvl, chunk_size, update_freq);
         },
-        _w->open("0").pixel_variant());
+        count_type);
   } catch (...) {
     spdlog::default_logger()->set_level(previous_lvl);
     throw;

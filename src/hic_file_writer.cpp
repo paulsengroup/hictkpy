@@ -104,7 +104,7 @@ std::filesystem::path HiCFileWriter::path() const noexcept {
 }
 
 auto HiCFileWriter::resolutions() const {
-  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
+  using ResolutionVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
 
   // NOLINTNEXTLINE
   auto *resolutions_ptr = new std::vector<std::uint32_t>(_w.resolutions());
@@ -113,7 +113,7 @@ auto HiCFileWriter::resolutions() const {
     delete reinterpret_cast<std::vector<std::uint32_t> *>(vect_ptr);  // NOLINT
   });
 
-  return WeightVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
+  return ResolutionVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
 }
 
 const hictk::Reference &HiCFileWriter::chromosomes() const { return _w.chromosomes(); }

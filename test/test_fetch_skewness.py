@@ -28,7 +28,7 @@ class TestClass:
         def isclose(n1, n2) -> bool:
             import math
 
-            return math.isclose(n1, n2, rel_tol=1.0e-4)
+            return math.isclose(n1, n2, abs_tol=1.0e-5)
 
         # venv/bin/python test/scripts/compute_stats_for_testing.py test/data/cooler_test_file.mcool 100000 --metrics skewness --range "" chr2R chr2L --range2 "" chr2R chr2R --normalization NONE VC weight
         assert isclose(f.fetch().skewness(exact=exact), 59.84043704958881)
