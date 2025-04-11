@@ -405,7 +405,7 @@ template <typename PixelIt>
                 hictk::transformers::DiagonalBand sel_diag{
                     std::move(first), std::move(last),
                     static_cast<std::uint64_t>(*diagonal_band_width)};
-                return aggregate_pixels(sel_ptr->template begin<N>(), sel_ptr->template end<N>(),
+                return aggregate_pixels(sel_diag.begin(), sel_diag.end(),
                                         fixed_bin_size ? sel_ptr->size() : 0, keep_nans, keep_infs,
                                         keep_zeros, exact, metrics);
               }
