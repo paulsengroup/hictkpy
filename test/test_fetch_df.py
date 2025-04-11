@@ -112,3 +112,13 @@ class TestClass:
             df = f.fetch("chr2R:10,000,000-15,000,000", normalization="ICE").to_df()
 
         assert math.isclose(59.349524704033215, df["count"].sum(), rel_tol=1.0e-5, abs_tol=1.0e-8)
+
+    def test_diagonal_band(self, file, resolution):
+        f = hictkpy.File(file, resolution)
+
+        df = f.fetch(diagonal_band_width=100).to_df()
+
+        assert len(df) == 129018
+        assert df["count"].sum() == 104681024
+        for i, dff in df.groupby("bin1_id"):
+            assert len(dff) <= 100

@@ -13,6 +13,7 @@
 #include <hictk/transformers/common.hpp>
 #include <hictk/transformers/to_dataframe.hpp>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -37,15 +38,16 @@ struct PixelSelector {
   SelectorVar selector{};
   PixelVar pixel_count{std::int32_t{0}};
   hictk::transformers::DataFrameFormat pixel_format{hictk::transformers::DataFrameFormat::COO};
+  std::optional<std::uint64_t> _diagonal_band_width{};
 
   PixelSelector() = default;
 
   PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_, std::string_view type,
-                bool join);
+                bool join, std::optional<std::int64_t> diagonal_band_width);
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_, std::string_view type,
-                bool join);
+                bool join, std::optional<std::int64_t> diagonal_band_width);
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_, std::string_view type,
-                bool join);
+                bool join, std::optional<std::int64_t> diagonal_band_width);
 
   [[nodiscard]] std::string repr() const;
 

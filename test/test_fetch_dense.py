@@ -88,3 +88,23 @@ class TestClass:
 
         m = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED").to_numpy()
         assert m.shape == (50, 100)
+
+    def test_diagonal_band(self, file, resolution):
+        import numpy as np
+
+        f = hictkpy.File(file, resolution)
+
+        m = f.fetch(diagonal_band_width=100).to_numpy()
+
+        assert m.sum() == 149208057
+        assert m.shape[0] == m.shape[1]
+        assert m.shape[0] == 1380
+
+        m_triu = np.triu(m)
+        m_tril = np.tril(m)
+
+        for i in range(m.shape[0]):
+            row1 = m_triu[i, :]
+            row2 = m_tril[i, :]
+            assert (row1 != 0).sum() <= 100
+            assert (row2 != 0).sum() <= 100
