@@ -86,3 +86,23 @@ class TestClass:
             m = f.fetch("chr2R:10,000,000-15,000,000", normalization="ICE").to_coo()
 
         assert math.isclose(59.349524704033215, m.sum(), rel_tol=1.0e-5, abs_tol=1.0e-8)
+
+    def test_diagonal_band(self, file, resolution):
+        import scipy.sparse as ss
+
+        f = hictkpy.File(file, resolution)
+
+        m = f.fetch(diagonal_band_width=100).to_csr()
+
+        assert m.sum() == 104681024
+        assert m.shape[0] == m.shape[1]
+        assert m.shape[0] == 1380
+
+        m_triu = ss.triu(m, format="csr")
+        m_tril = ss.tril(m, format="csr")
+
+        for i in range(m.shape[0]):
+            row1 = m_triu[i, :].toarray()
+            row2 = m_tril[i, :].toarray()
+            assert (row1 != 0).sum() <= 100
+            assert (row2 != 0).sum() <= 100

@@ -642,3 +642,17 @@ class TestClass:
         assert isclose(stats.get("variance", -1), 0.0075645)
         assert isclose(stats.get("skewness", -1), 0)
         assert isclose(stats.get("kurtosis", -1), -2)
+
+    def test_diagonal_band(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(
+                insert_nan=False,
+                insert_neg_inf=False,
+                insert_pos_inf=False,
+            ),
+            tmpdir,
+        )
+
+        stats = f.fetch(diagonal_band_width=3, count_type="float").describe(metrics=["nnz", "sum"])
+        assert stats["nnz"] == 149
+        assert isclose(stats["sum"], 551355.327)
