@@ -46,7 +46,7 @@ class HiCFileWriter {
   [[nodiscard]] const hictk::Reference& chromosomes() const;
   [[nodiscard]] hictkpy::BinTable bins(std::uint32_t resolution) const;
 
-  void add_pixels(const nanobind::object& df);
+  void add_pixels(const nanobind::object& df, bool validate);
 
   [[nodiscard]] hictk::File finalize(std::string_view log_lvl_str);
 
