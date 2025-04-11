@@ -402,7 +402,6 @@ template <typename PixelIt>
               auto last = sel_ptr->template end<N>();
 
               if (diagonal_band_width.has_value()) {
-                assert(*diagonal_band_width >= 0);
                 hictk::transformers::DiagonalBand sel_diag{
                     std::move(first), std::move(last),
                     static_cast<std::uint64_t>(*diagonal_band_width)};
