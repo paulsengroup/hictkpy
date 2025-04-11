@@ -82,18 +82,13 @@ inline Stats PixelAggregator<PixelIt>::compute_online(
   auto break_on_nans = [this]() constexpr noexcept { return _nan_found; };
 
   process_pixels<keep_nans, keep_infs>(first, last, break_on_non_finite);
-  if (first == last) {
-    if (keep_zeros) {
-      update_with_zeros(size - _nnz);
+  if (first != last) {
+    if (metrics.contains("nnz")) {
+      // if we need to compute the nnz, then we have no tricks up our sleeves
+      process_pixels<keep_nans, keep_infs>(first, last, []() constexpr noexcept { return false; });
+    } else {
+      process_pixels<keep_nans, keep_infs>(first, last, break_on_nans);
     }
-    return extract(metrics);
-  }
-
-  if (metrics.contains("nnz")) {
-    // if we need to compute the nnz, then we have no tricks up our sleeves
-    process_pixels<keep_nans, keep_infs>(first, last, []() constexpr noexcept { return false; });
-  } else {
-    process_pixels<keep_nans, keep_infs>(first, last, break_on_nans);
   }
 
   if (keep_zeros) {
