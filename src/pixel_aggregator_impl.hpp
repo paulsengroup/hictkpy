@@ -122,7 +122,7 @@ inline Stats PixelAggregator<PixelIt>::compute_exact(
 
   const auto count_fp = static_cast<double>(count());
   double variance = 0;
-  const auto variance_denom = nnz < 2 ? std::numeric_limits<double>::quiet_NaN() : count_fp - 1;
+  const auto variance_denom = count() < 2 ? std::numeric_limits<double>::quiet_NaN() : count_fp - 1;
 
   while (first != last) {
     const auto n = first->count;
