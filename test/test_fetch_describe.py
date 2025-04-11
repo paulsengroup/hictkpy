@@ -44,7 +44,7 @@ class TestClass:
         bin2_ids = np.array(bin2_ids)
 
         # drop coordinates overlapping with the lower-triangular matrix
-        mask = bin1_ids > bin2_ids
+        mask = bin1_ids < bin2_ids
         bin1_ids = bin1_ids[mask]
         bin2_ids = bin2_ids[mask]
 
@@ -266,7 +266,7 @@ class TestClass:
         )
 
         stats = f.fetch(count_type="float").describe(keep_nans=False, keep_infs=False, keep_zeros=True)
-        assert f.fetch(count_type="float").size() == 11_325
+        assert f.fetch().size() == 11_325
 
         assert stats.get("nnz", -1) == 5_588
         assert isclose(stats.get("sum", -1), 15610765.324)
@@ -283,7 +283,7 @@ class TestClass:
         )
 
         stats = f.fetch(count_type="float").describe(keep_nans=False, keep_infs=False, keep_zeros=True, exact=True)
-        assert f.fetch(count_type="float").size() == 11_325
+        assert f.fetch().size() == 11_325
 
         assert stats.get("nnz", -1) == 5_588
         assert isclose(stats.get("sum", -1), 15610765.324)
@@ -293,3 +293,85 @@ class TestClass:
         assert isclose(stats.get("variance", -1), 3234985.0448088404)
         assert isclose(stats.get("skewness", -1), 0.9493134530532286)
         assert isclose(stats.get("kurtosis", -1), -0.5867391846660897)
+
+    def test_describe_empty_query(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(insert_nan=False, insert_neg_inf=False, insert_pos_inf=False), tmpdir
+        )
+
+        stats = f.fetch("chr1:0-10", count_type="float").describe(keep_nans=True, keep_infs=True, keep_zeros=False)
+        assert f.fetch("chr1:0-10").size() == 1
+
+        assert stats.get("nnz", -1) == 0
+        assert isclose(stats.get("sum", -1), 0)
+        assert stats.get("min", -1) is None
+        assert stats.get("max", -1) is None
+        assert stats.get("mean", -1) is None
+        assert stats.get("variance", -1) is None
+        assert stats.get("skewness", -1) is None
+        assert stats.get("kurtosis", -1) is None
+
+    def test_describe_empty_query_exact(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(insert_nan=False, insert_neg_inf=False, insert_pos_inf=False), tmpdir
+        )
+
+        stats = f.fetch("chr1:0-10", count_type="float").describe(
+            keep_nans=True,
+            keep_infs=True,
+            keep_zeros=False,
+            exact=True,
+        )
+        assert f.fetch("chr1:0-10").size() == 1
+
+        assert stats.get("nnz", -1) == 0
+        assert isclose(stats.get("sum", -1), 0)
+        assert stats.get("min", -1) is None
+        assert stats.get("max", -1) is None
+        assert stats.get("mean", -1) is None
+        assert stats.get("variance", -1) is None
+        assert stats.get("skewness", -1) is None
+        assert stats.get("kurtosis", -1) is None
+
+    def test_describe_empty_query_with_zeros(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(insert_nan=False, insert_neg_inf=False, insert_pos_inf=False), tmpdir
+        )
+
+        stats = f.fetch("chr1:0-10", count_type="float").describe(
+            keep_nans=True,
+            keep_infs=True,
+            keep_zeros=True,
+        )
+        assert f.fetch("chr1:0-10").size() == 1
+
+        assert stats.get("nnz", -1) == 0
+        assert stats.get("sum", -1) == 0
+        assert stats.get("min", -1) == 0
+        assert stats.get("max", -1) == 0
+        assert stats.get("mean", -1) == 0
+        assert stats.get("variance", -1) is None
+        assert stats.get("skewness", -1) is None
+        assert stats.get("kurtosis", -1) is None
+
+    def test_describe_empty_query_with_zeros_exact(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(insert_nan=False, insert_neg_inf=False, insert_pos_inf=False), tmpdir
+        )
+
+        stats = f.fetch("chr1:0-10", count_type="float").describe(
+            keep_nans=True,
+            keep_infs=True,
+            keep_zeros=True,
+            exact=True,
+        )
+        assert f.fetch("chr1:0-10").size() == 1
+
+        assert stats.get("nnz", -1) == 0
+        assert stats.get("sum", -1) == 0
+        assert stats.get("min", -1) == 0
+        assert stats.get("max", -1) == 0
+        assert stats.get("mean", -1) == 0
+        assert stats.get("variance", -1) is None
+        assert stats.get("skewness", -1) is None
+        assert stats.get("kurtosis", -1) is None
