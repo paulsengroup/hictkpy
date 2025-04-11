@@ -555,65 +555,70 @@ void PixelSelector::bind(nb::module_& m) {
   static const std::vector<std::string> known_metrics(
       PixelAggregator<PixelIt>::valid_metrics.begin(),
       PixelAggregator<PixelIt>::valid_metrics.end());
-  static const auto describe_cmd_help =
-      fmt::format(FMT_STRING("Compute one or more descriptive metrics in the most efficient "
-                             "way possible. Known metrics: {}."),
-                  fmt::join(known_metrics, ", "));
+  static const auto describe_cmd_help = fmt::format(
+      FMT_STRING(
+          "Compute one or more descriptive metrics in the most efficient way possible. "
+          "Known metrics: {}. "
+          "When a metric cannot be computed (e.g. because metrics=[\"variance\"], "
+          "but selector overlaps with a single pixel), the value for that metric is set to None. "
+          "When keep_infs or keep_nans are set to True, and keep_zeros=True, nan and/or inf "
+          "values are treated as zeros. "
+          "By default, metrics are estimated by doing a single pass through the data. "
+          "The estimates are stable and usually very accurate. "
+          "However, if you require exact values, you can specify exact=True."),
+      fmt::join(known_metrics, ", "));
   sel.def("describe", &PixelSelector::describe, nb::arg("metrics") = known_metrics,
           nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
           nb::arg("exact") = false, describe_cmd_help.c_str());
   sel.def("nnz", &PixelSelector::nnz, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-          "Get the number of non-zero entries for the current pixel selection.");
+          "Get the number of non-zero entries for the current pixel selection. See documentation "
+          "for describe() for more details.");
   sel.def("sum", &PixelSelector::sum, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
           nb::sig("def sum(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float"),
-          "Get the total number of interactions for the current pixel selection.");
+          "Get the total number of interactions for the current pixel selection. See documentation "
+          "for describe() for more details.");
   sel.def(
       "min", &PixelSelector::min, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
       nb::arg("keep_zeros") = false,
       nb::sig("def min(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> int | float | None"),
-      "Get the minimum number of interactions for the current pixel selection (excluding "
-      "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
-      "region.");
+      "Get the minimum number of interactions for the current pixel selection. See documentation "
+      "for describe() for more details.");
   sel.def(
       "max", &PixelSelector::max, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
       nb::arg("keep_zeros") = false,
       nb::sig("def max(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> int | float | None"),
-      "Get the maximum number of interactions for the current pixel selection. Return None in case "
-      "the pixel selector overlaps with an empty region.");
+      "Get the maximum number of interactions for the current pixel selection. See documentation "
+      "for describe() for more details.");
   sel.def(
       "mean", &PixelSelector::mean, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
       nb::arg("keep_zeros") = false,
       nb::sig("def mean(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> float | None"),
-      "Get the average number of interactions for the current pixel selection (excluding "
-      "pixels with no interactions. Return None in case the pixel selector overlaps with an empty "
-      "region.");
+      "Get the average number of interactions for the current pixel selection. See documentation "
+      "for describe() for more details.");
   sel.def(
       "variance", &PixelSelector::variance, nb::arg("keep_nans") = false,
       nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
       nb::sig("def variance(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
-      "Get the variance of the number of interactions for the current pixel selection (excluding "
-      "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
-      "region.");
+      "Get the variance of the number of interactions for the current pixel selection. See "
+      "documentation for describe() for more details.");
   sel.def(
       "skewness", &PixelSelector::skewness, nb::arg("keep_nans") = false,
       nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
       nb::sig("def skewness(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
-      "Get the skewness of the number of interactions for the current pixel selection (excluding "
-      "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
-      "region.");
+      "Get the skewness of the number of interactions for the current pixel selection. See "
+      "documentation for describe() for more details.");
   sel.def(
       "kurtosis", &PixelSelector::kurtosis, nb::arg("keep_nans") = false,
       nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
       nb::sig("def kurtosis(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
-      "Get the kurtosis of the number of interactions for the current pixel selection (excluding "
-      "pixels with no interactions). Return None in case the pixel selector overlaps with an empty "
-      "region.");
+      "Get the kurtosis of the number of interactions for the current pixel selection. See "
+      "documentation for describe() for more details.");
 }
 
 }  // namespace hictkpy
