@@ -54,6 +54,7 @@ Generic API
    .. automethod:: to_df
    .. automethod:: to_numpy
    .. automethod:: to_pandas
+   .. automethod:: size
 
    **Statistics**
 
