@@ -108,6 +108,10 @@ inline Stats PixelAggregator<PixelIt>::compute_exact(
     assert(size == 0);
   }
 
+  if (size == 0) {
+    return {};
+  }
+
   if (size == nnz) {
     keep_zeros = false;
   }
@@ -150,7 +154,7 @@ inline Stats PixelAggregator<PixelIt>::compute_exact(
   }
 
   auto stats = extract(metrics, true);
-  if (metrics.contains("variance")) {
+  if (metrics.contains("variance") && count() > 1) {
     stats.variance = variance;
   }
 
