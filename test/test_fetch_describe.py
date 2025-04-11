@@ -536,3 +536,109 @@ class TestClass:
         assert stats.get("variance", -1) is None
         assert stats.get("skewness", -1) is None
         assert stats.get("kurtosis", -1) is None
+
+    def test_describe_one_sized_query(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(
+                insert_nan=False,
+                insert_neg_inf=False,
+                insert_pos_inf=False,
+            ),
+            tmpdir,
+        )
+
+        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type="float").describe(
+            keep_nans=True,
+            keep_infs=True,
+            keep_zeros=False,
+        )
+        assert f.fetch("chr1:0-20", "chr1:10-20").size() == 2
+
+        assert stats.get("nnz", -1) == 1
+        assert isclose(stats.get("sum", -1), 0.123)
+        assert isclose(stats.get("min", -1), 0.123)
+        assert isclose(stats.get("max", -1), 0.123)
+        assert isclose(stats.get("mean", -1), 0.123)
+        assert stats.get("variance", -1) is None
+        assert stats.get("skewness", -1) is None
+        assert stats.get("kurtosis", -1) is None
+
+    def test_describe_one_sized_query_exact(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(
+                insert_nan=False,
+                insert_neg_inf=False,
+                insert_pos_inf=False,
+            ),
+            tmpdir,
+        )
+
+        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type="float").describe(
+            keep_nans=True,
+            keep_infs=True,
+            keep_zeros=False,
+            exact=True,
+        )
+        assert f.fetch("chr1:0-20", "chr1:10-20").size() == 2
+
+        assert stats.get("nnz", -1) == 1
+        assert isclose(stats.get("sum", -1), 0.123)
+        assert isclose(stats.get("min", -1), 0.123)
+        assert isclose(stats.get("max", -1), 0.123)
+        assert isclose(stats.get("mean", -1), 0.123)
+        assert stats.get("variance", -1) is None
+        assert stats.get("skewness", -1) is None
+        assert stats.get("kurtosis", -1) is None
+
+    def test_describe_one_sized_query_with_zeros(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(
+                insert_nan=False,
+                insert_neg_inf=False,
+                insert_pos_inf=False,
+            ),
+            tmpdir,
+        )
+
+        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type="float").describe(
+            keep_nans=True,
+            keep_infs=True,
+            keep_zeros=True,
+        )
+        assert f.fetch("chr1:0-20", "chr1:10-20").size() == 2
+
+        assert stats.get("nnz", -1) == 1
+        assert isclose(stats.get("sum", -1), 0.123)
+        assert isclose(stats.get("min", -1), 0)
+        assert isclose(stats.get("max", -1), 0.123)
+        assert isclose(stats.get("mean", -1), 0.123 / 2)
+        assert isclose(stats.get("variance", -1), 0.0075645)
+        assert isclose(stats.get("skewness", -1), 0)
+        assert isclose(stats.get("kurtosis", -1), -2)
+
+    def test_describe_one_sized_query_with_zeros_exact(self, tmpdir):
+        f = self.make_cooler_file(
+            *self.generate_pixels(
+                insert_nan=False,
+                insert_neg_inf=False,
+                insert_pos_inf=False,
+            ),
+            tmpdir,
+        )
+
+        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type="float").describe(
+            keep_nans=True,
+            keep_infs=True,
+            keep_zeros=True,
+            exact=True,
+        )
+        assert f.fetch("chr1:0-20", "chr1:10-20").size() == 2
+
+        assert stats.get("nnz", -1) == 1
+        assert isclose(stats.get("sum", -1), 0.123)
+        assert isclose(stats.get("min", -1), 0)
+        assert isclose(stats.get("max", -1), 0.123)
+        assert isclose(stats.get("mean", -1), 0.123 / 2)
+        assert isclose(stats.get("variance", -1), 0.0075645)
+        assert isclose(stats.get("skewness", -1), 0)
+        assert isclose(stats.get("kurtosis", -1), -2)
