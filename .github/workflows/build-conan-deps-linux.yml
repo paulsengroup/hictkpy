@@ -80,6 +80,7 @@ jobs:
           chmod 755 script.sh
 
           docker run \
+            -e "IMAGE=$IMAGE" \
             -v "$PWD/script.sh:/tmp/script.sh:ro" \
             "$IMAGE" /tmp/script.sh | tee -a "$GITHUB_OUTPUT"
 
