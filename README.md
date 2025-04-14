@@ -34,7 +34,7 @@ sel = clr.fetch("chr1")
 
 df = sel.to_df()     # Get interactions as a pd.DataFrame
 m1 = sel.to_numpy()  # Get interactions as a numpy matrix
-m2 = sel.to_coo()    # Get interactions as a scipy.sparse.coo_matrix
+m2 = sel.to_csr()    # Get interactions as a scipy.sparse.csr_matrix
 ```
 
 For more detailed examples refer to [Quickstart](https://hictkpy.readthedocs.io/en/stable/quickstart.html).

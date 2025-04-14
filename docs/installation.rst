@@ -86,14 +86,14 @@ Installing version corresponding to a git tag
 
 .. code-block:: bash
 
-  pip install 'hictkpy[all] @ git+https://github.com/paulsengroup/hictkpy.git@v1.0.0'
+  pip install 'hictkpy[all] @ git+https://github.com/paulsengroup/hictkpy.git@v1.2.0'
 
 Installing from a release archive
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
-  pip install 'hictkpy[all] @ https://pypi.python.org/packages/source/h/hictkpy/hictkpy-1.0.0.tar.gz'
+  pip install 'hictkpy[all] @ https://pypi.python.org/packages/source/h/hictkpy/hictkpy-1.2.0.tar.gz'
 
 Running the automated tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -107,7 +107,7 @@ This can be achieved in several ways. Here is an example:
   git clone https://github.com/paulsengroup/hictkpy.git
 
   # make sure to run tests for the same version/tag/commit used to build hictkpy
-  git checkout v1.0.0
+  git checkout v1.2.0
 
   python -m venv venv
 
