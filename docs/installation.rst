@@ -110,15 +110,15 @@ This can be achieved in several ways. Here is an example:
 
   git clone https://github.com/paulsengroup/hictkpy.git
 
+  cd hictkpy
+
   # make sure to run tests for the same version/tag/commit used to build hictkpy
   git checkout v1.2.0
 
-  python -m venv venv
+  # if you installed hictkpy in a venv make sure to install pytest in the venv
+  pip install pytest
 
-  # On Windows use venv\Scripts\pip.exe instead
-  venv/bin/pip install pytest
-
-  venv/bin/pytest test/
+  pytest test/
 
 **All tests are expected to pass. Do not ignore test failures!**
 
