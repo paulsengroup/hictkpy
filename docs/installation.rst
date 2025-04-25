@@ -67,6 +67,10 @@ Building hictkpy's wheels from source requires a compiler toolchain supporting C
 * Apple-Clang 10.0+
 * MSVC 19.12+
 
+Based on our testing, hictkpy's wheels compiled on Linux using Clang are noticeably faster than those compiled with GCC.
+For this reason we recommend building hictkpy using a modern version of Clang whenever possible.
+This can be achieved by redefining the ``CC`` and ``CXX`` environment variables before running pip (e.g. ``CC=clang CXX=clang++ pip install ...``).
+
 Furthermore, the following tools are required:
 
 * CMake 3.25+
