@@ -12,12 +12,12 @@ find_package(
   REQUIRED
 )
 
-find_package(Arrow REQUIRED)
-find_package(FMT REQUIRED)
-find_package(nanobind REQUIRED)
-find_package(phmap REQUIRED)
-find_package(spdlog REQUIRED)
-find_package(Filesystem REQUIRED)
+find_package(Arrow REQUIRED QUIET)
+find_package(FMT REQUIRED QUIET)
+find_package(nanobind REQUIRED QUIET)
+find_package(phmap REQUIRED QUIET)
+find_package(spdlog REQUIRED QUIET)
+find_package(Filesystem REQUIRED QUIET)
 
 nanobind_add_module(
         _hictkpy
