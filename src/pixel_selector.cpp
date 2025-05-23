@@ -230,8 +230,8 @@ template <typename N, typename PixelSelector>
     return make_bg2_arrow_df<double>(sel, span, diagonal_band_width);
   } else {
     return hictk::transformers::ToDataFrame(
-        sel.template begin<N>(), sel.template end<N>(), hictk::transformers::DataFrameFormat::BG2,
-        sel.bins_ptr(), span, false, true, 256'000, diagonal_band_width)();
+        sel, sel.template end<N>(), hictk::transformers::DataFrameFormat::BG2, sel.bins_ptr(), span,
+        false, 256'000, diagonal_band_width)();
   }
 }
 
@@ -243,8 +243,8 @@ template <typename N, typename PixelSelector>
     return make_coo_arrow_df<double>(sel, span, diagonal_band_width);
   } else {
     return hictk::transformers::ToDataFrame(
-        sel.template begin<N>(), sel.template end<N>(), hictk::transformers::DataFrameFormat::COO,
-        sel.bins_ptr(), span, false, true, 256'000, diagonal_band_width)();
+        sel, sel.template end<N>(), hictk::transformers::DataFrameFormat::COO, sel.bins_ptr(), span,
+        false, 256'000, diagonal_band_width)();
   }
 }
 
