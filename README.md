@@ -39,7 +39,11 @@ m2 = sel.to_csr()    # Get interactions as a scipy.sparse.csr_matrix
 
 For more detailed examples refer to [Quickstart](https://hictkpy.readthedocs.io/en/stable/quickstart.html).
 
+<!-- markdownlint-disable MD059 -->
+
 The complete documentation for hictkpy API is available [here](https://hictkpy.readthedocs.io/en/stable/api/index.html).
+
+<!-- markdownlint-enable MD059 -->
 
 ## Citing
 
