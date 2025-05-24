@@ -150,6 +150,12 @@ Generic API
 
 .. autoclass:: Bin
 
+  .. autoproperty:: id
+  .. autoproperty:: rel_id
+  .. autoproperty:: chrom
+  .. autoproperty:: start
+  .. autoproperty:: end
+
 .. autoclass:: BinTable
 
    .. automethod:: __init__
