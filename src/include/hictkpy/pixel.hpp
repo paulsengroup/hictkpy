@@ -155,6 +155,9 @@ class Pixel {
   }
 
   static void bind(nanobind::module_ &m) {
+    const auto *count_attr_sig = typing_union_required() ? "def count(self) -> Union[int, float]"
+                                                         : "def count(self) -> int | float";
+
     register_pixel_class(m)
         .def_prop_ro("bin1_id", &Pixel::bin1_id, "Get the ID of bin1.")
         .def_prop_ro("bin2_id", &Pixel::bin2_id, "Get the ID of bin2.")
@@ -166,7 +169,8 @@ class Pixel {
         .def_prop_ro("chrom2", &Pixel::chrom2, "Get the chromosome associated with bin2.")
         .def_prop_ro("start2", &Pixel::start2, "Get the start position associated with bin2.")
         .def_prop_ro("end2", &Pixel::end2, "Get the end position associated with bin2.")
-        .def_prop_ro("count", &Pixel::count, "Get the number of interactions.")
+        .def_prop_ro("count", &Pixel::count, nanobind::sig(count_attr_sig),
+                     "Get the number of interactions.")
         .def("__repr__", &Pixel::repr)
         .def("__str__", &Pixel::str);
   }
