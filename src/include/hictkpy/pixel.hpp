@@ -35,17 +35,25 @@ class Pixel {
  public:
   Pixel() = default;
   template <typename N>
-  Pixel(hictk::Pixel<N> p)  // NOLINT(*-explicit-conversions)
+  Pixel(hictk::Pixel<N> p) noexcept  // NOLINT(*-explicit-conversions)
       : _coords(std::move(p.coords)),
         _bin1_id(static_cast<std::int64_t>(_coords->bin1.id())),
         _bin2_id(static_cast<std::int64_t>(_coords->bin2.id())),
         _count(cast_count(p.count)) {}
 
   template <typename N>
-  Pixel(const hictk::ThinPixel<N> &p)  // NOLINT(*-explicit-conversions)
-      : _bin1_id(static_cast<std::int64_t>(p.bin1_id)),
-        _bin2_id(static_cast<std::int64_t>(p.bin2_id)),
-        _count(cast_count(p.count)) {}
+  Pixel(const hictk::ThinPixel<N> &p) noexcept  // NOLINT(*-explicit-conversions)
+      : Pixel(static_cast<std::int64_t>(p.bin1_id), static_cast<std::int64_t>(p.bin2_id), p.count) {
+  }
+
+  template <typename N>
+  Pixel(hictk::Bin bin1, hictk::Bin bin2, N count) noexcept
+      : Pixel(hictk::Pixel{{std::move(bin1), std::move(bin2)}, count}) {}
+
+  template <typename N>
+  Pixel(std::int64_t bin1_id, std::int64_t bin2_id, N count_) noexcept
+      : _bin1_id(bin1_id), _bin2_id(bin2_id), _count(cast_count(count_)) {}
+
   template <typename N>
   Pixel &operator=(hictk::Pixel<N> p) noexcept {
     _coords = std::move(p.coords);
@@ -72,7 +80,7 @@ class Pixel {
     return std::visit([&](const auto n) { return nanobind::cast(n); }, _count);
   }
 
-  const hictk::PixelCoordinates &coords() const {
+  [[nodiscard]] const hictk::PixelCoordinates &coords() const {
     if (HICTKPY_LIKELY(_coords.has_value())) {
       return *_coords;
     }
@@ -128,8 +136,12 @@ class Pixel {
     using Var = hictk::internal::NumericVariant;
     if constexpr (I < std::variant_size_v<Var>) {
       using N = std::variant_alternative_t<I, Var>;
-      c.def(nanobind::init_implicit<hictk::ThinPixel<N>>());
-      c.def(nanobind::init_implicit<hictk::Pixel<N>>());
+      c.def(nanobind::init_implicit<const hictk::ThinPixel<N> &>(), "Private constructor.");
+      c.def(nanobind::init_implicit<hictk::Pixel<N>>(), "Private constructor.");
+      c.def(nanobind::init<hictk::Bin, hictk::Bin, N>(),
+            "Construct a Pixel given a pair of Bins and the number of interactions.");
+      c.def(nanobind::init<std::int64_t, std::int64_t, N>(),
+            "Construct a Pixel given a pair of Bin identifiers and the number of interactions.");
 
       return register_pixel_class_helper<I + 1>(m, c);
     }
