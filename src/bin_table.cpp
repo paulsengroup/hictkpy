@@ -434,12 +434,20 @@ std::vector<std::string> BinTable::chrom_names(bool include_ALL) const {
 }
 
 static void declare_bin_class(nb::module_& m) {
-  nb::class_<hictk::Bin>(m, "Bin", "Genomic Bin.")
-      .def_prop_ro("id", [](const hictk::Bin& b) { return b.id(); })
-      .def_prop_ro("rel_id", [](const hictk::Bin& b) { return b.rel_id(); })
-      .def_prop_ro("chrom", [](const hictk::Bin& b) { return b.chrom().name(); })
-      .def_prop_ro("start", [](const hictk::Bin& b) { return b.start(); })
-      .def_prop_ro("end", [](const hictk::Bin& b) { return b.end(); })
+  nb::class_<hictk::Bin>(m, "Bin", "Class representing a genomic Bin (i.e., a BED interval).")
+      .def_prop_ro(
+          "id", [](const hictk::Bin& b) { return b.id(); }, "Get the bin ID.")
+      .def_prop_ro(
+          "rel_id", [](const hictk::Bin& b) { return b.rel_id(); },
+          "Get the relative bin ID "
+          "(i.e., the ID that uniquely identifies a bin within a chromosome).")
+      .def_prop_ro(
+          "chrom", [](const hictk::Bin& b) { return b.chrom().name(); },
+          "Get the name of the chromosome to which the Bin refers to.")
+      .def_prop_ro(
+          "start", [](const hictk::Bin& b) { return b.start(); }, "Get the Bin start position.")
+      .def_prop_ro(
+          "end", [](const hictk::Bin& b) { return b.end(); }, "Get the Bin end position.")
       .def("__repr__",
            [](const hictk::Bin& b) {
              return fmt::format(FMT_COMPILE("id={}; rel_id={}; chrom={}; start={}; end={}"), b.id(),
@@ -483,7 +491,8 @@ void BinTable::bind(nb::module_& m) {
 
   bt.def("__iter__", &BinTable::make_iterable, nb::keep_alive<0, 1>(),
          nb::sig("def __iter__(self) -> hictkpy.BinTableIterator"),
-         "Return an iterator over the bins in the table.", nb::rv_policy::take_ownership);
+         "Implement iter(self). The resulting iterator yields objects of type hictkpy.Bin.",
+         nb::rv_policy::take_ownership);
 
   bt.def("get", &BinTable::bin_id_to_coord, nb::arg("bin_id"),
          "Get the genomic coordinate given a bin ID.",

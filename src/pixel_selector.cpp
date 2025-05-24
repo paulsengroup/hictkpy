@@ -38,8 +38,8 @@
 #include <variant>
 #include <vector>
 
-#include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/pixel.hpp"
 #include "hictkpy/pixel_aggregator.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/to_pyarrow.hpp"
@@ -160,6 +160,37 @@ std::int64_t PixelSelector::size(bool upper_triangular) const {
       selector);
 }
 
+template <typename PixelIt>
+class PixelIteratorWrapper {
+  PixelIt _it{};
+  Pixel _value;
+
+ public:
+  PixelIteratorWrapper() = default;
+  // NOLINTNEXTLINE(*-explicit-conversions)
+  PixelIteratorWrapper(PixelIt it) noexcept : _it(std::move(it)) {}
+
+  bool operator==(const PixelIteratorWrapper& other) const { return _it == other._it; }
+  bool operator!=(const PixelIteratorWrapper& other) const { return !(*this == other); }
+
+  const Pixel& operator*() {
+    _value = *_it;
+    return _value;
+  }
+  const Pixel* operator->() { return &(**this); }
+
+  PixelIteratorWrapper& operator++() {
+    std::ignore = ++_it;
+    return *this;
+  }
+
+  PixelIteratorWrapper operator++(int) {
+    auto it = *this;
+    std::ignore = ++_it;
+    return it;
+  }
+};
+
 template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::iterator make_bg2_iterable(
     const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width) {
@@ -174,14 +205,14 @@ template <typename N, typename PixelSelector>
                                                      *diagonal_band_width);
     const hictk::transformers::JoinGenomicCoords jsel{band_sel.begin(), band_sel.end(),
                                                       sel.bins_ptr()};
-    return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator", jsel.begin(),
-                             jsel.end());
+    return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
+                             PixelIteratorWrapper(jsel.begin()), PixelIteratorWrapper(jsel.end()));
   }
 
   const hictk::transformers::JoinGenomicCoords jsel{sel.template begin<N>(), sel.template end<N>(),
                                                     sel.bins_ptr()};
-  return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator", jsel.begin(),
-                           jsel.end());
+  return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
+                           PixelIteratorWrapper(jsel.begin()), PixelIteratorWrapper(jsel.end()));
 }
 
 template <typename N, typename PixelSelector>
@@ -196,12 +227,14 @@ template <typename N, typename PixelSelector>
   if (diagonal_band_width.has_value()) {
     const hictk::transformers::DiagonalBand band_sel(sel.template begin<N>(), sel.template end<N>(),
                                                      *diagonal_band_width);
-    return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator", band_sel.begin(),
-                             band_sel.end());
+    return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
+                             PixelIteratorWrapper(band_sel.begin()),
+                             PixelIteratorWrapper(band_sel.end()));
   }
 
   return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                           sel.template begin<N>(), sel.template end<N>());
+                           PixelIteratorWrapper(sel.template begin<N>()),
+                           PixelIteratorWrapper(sel.template end<N>()));
 }
 
 nb::iterator PixelSelector::make_iterable() const {
@@ -602,7 +635,8 @@ void PixelSelector::bind(nb::module_& m) {
 
   sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
           nb::sig("def __iter__(self) -> hictkpy.PixelIterator"),
-          "Return an iterator over the selected pixels.", nb::rv_policy::take_ownership);
+          "Implement iter(self). The resulting iterator yields objects of type hictkpy.Pixel.",
+          nb::rv_policy::take_ownership);
 
   sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_arrow(self, query_span: str = \"upper_triangle\") -> pyarrow.Table"),

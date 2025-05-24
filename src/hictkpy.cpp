@@ -46,12 +46,9 @@ NB_MODULE(_hictkpy, m) {
         "Test whether path points to a .scool file.");
   m.def("is_hic", &file::is_hic, nb::arg("path"), "Test whether path points to a .hic file.");
 
-  declare_thin_pixel_class<std::int64_t>(m, "Int");
-  declare_thin_pixel_class<double>(m, "FP");
-  declare_pixel_class<std::int64_t>(m, "Int");
-  declare_pixel_class<double>(m, "FP");
-
   BinTable::bind(m);
+
+  Pixel::bind(m);
 
   PixelSelector::bind(m);
 

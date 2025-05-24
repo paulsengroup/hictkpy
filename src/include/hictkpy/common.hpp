@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <patchlevel.h>
+
 #include <hictk/common.hpp>
 #include <hictk/numeric_variant.hpp>
 #include <hictk/type_traits.hpp>
@@ -77,5 +79,14 @@ template <typename T>
 [[nodiscard]] hictk::internal::NumericVariant map_dtype_to_type(std::string_view dtype);
 
 [[nodiscard]] std::string normalize_log_lvl(std::string_view lvl);
+
+[[nodiscard]] constexpr bool typing_union_required() noexcept {
+#ifdef PY_VERSION_HEX
+  constexpr auto python_310_hex = 0x030A00F0;
+  return PY_VERSION_HEX < python_310_hex;
+#else
+  return true;
+#endif
+}
 
 }  // namespace hictkpy
