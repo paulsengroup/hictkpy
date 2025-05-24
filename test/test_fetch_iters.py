@@ -47,10 +47,10 @@ class TestClass:
         sel = f.fetch("chr2R:10,000,000-15,000,000", join=True)
         assert all(x.chrom1 == "chr2R" for x in sel)
 
-        sel = f.fetch("chr2R:10,000,000-15,000,000", count_type="int")
+        sel = f.fetch("chr2R:10,000,000-15,000,000", count_type="int32")
         assert isinstance(compute_sum(sel), int)
 
-        sel = f.fetch("chr2R:10,000,000-15,000,000", count_type="float")
+        sel = f.fetch("chr2R:10,000,000-15,000,000", count_type=float)
         assert isinstance(compute_sum(sel), float)
 
         sel = f.fetch("chr2R\t10000000\t15000000", query_type="BED")
@@ -66,10 +66,10 @@ class TestClass:
         assert compute_sum(sel) == 83_604
         assert all(x.chrom1 == "chr2R" and x.chrom2 == "chrX" for x in sel)
 
-        sel = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="int")
+        sel = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type=int)
         assert isinstance(compute_sum(sel), int)
 
-        sel = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="float")
+        sel = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type=float)
         assert isinstance(compute_sum(sel), float)
 
         sel = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED")

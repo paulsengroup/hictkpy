@@ -8,7 +8,7 @@ import pytest
 
 import hictkpy
 
-from .helpers import pandas_avail
+from .helpers import numpy_avail, pandas_avail
 
 testdir = pathlib.Path(__file__).resolve().parent
 
@@ -64,3 +64,16 @@ class TestClass:
             df = f.weights(hic_weights)
             assert len(df.columns) == len(hic_weights)
         assert len(df) == f.nbins()
+
+    @pytest.mark.skipif(not numpy_avail(), reason="numpy is not available")
+    def test_fetch(self, file, resolution):
+        import numpy as np
+
+        f = hictkpy.File(file, resolution)
+
+        assert f.fetch().dtype() is np.int32
+        assert f.fetch(count_type=float).dtype() is np.float64
+        assert f.fetch(count_type=np.int8).dtype() is np.int8
+
+        with pytest.raises(TypeError):
+            f.fetch(count_type=str)

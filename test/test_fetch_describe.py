@@ -441,7 +441,7 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch("chr1:0-10", count_type="float").describe(
+        stats = f.fetch("chr1:0-10", count_type=float).describe(
             keep_nans=True,
             keep_infs=True,
             keep_zeros=False,
@@ -467,7 +467,7 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch("chr1:0-10", count_type="float").describe(
+        stats = f.fetch("chr1:0-10", count_type=float).describe(
             keep_nans=True,
             keep_infs=True,
             keep_zeros=False,
@@ -494,7 +494,7 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch("chr1:0-10", count_type="float").describe(
+        stats = f.fetch("chr1:0-10", count_type=float).describe(
             keep_nans=True,
             keep_infs=True,
             keep_zeros=True,
@@ -520,7 +520,7 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch("chr1:0-10", count_type="float").describe(
+        stats = f.fetch("chr1:0-10", count_type=float).describe(
             keep_nans=True,
             keep_infs=True,
             keep_zeros=True,
@@ -547,7 +547,7 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type="float").describe(
+        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type=float).describe(
             keep_nans=True,
             keep_infs=True,
             keep_zeros=False,
@@ -573,7 +573,7 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type="float").describe(
+        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type=float).describe(
             keep_nans=True,
             keep_infs=True,
             keep_zeros=False,
@@ -600,7 +600,7 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type="float").describe(
+        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type=float).describe(
             keep_nans=True,
             keep_infs=True,
             keep_zeros=True,
@@ -626,7 +626,7 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type="float").describe(
+        stats = f.fetch("chr1:0-20", "chr1:10-20", count_type=float).describe(
             keep_nans=True,
             keep_infs=True,
             keep_zeros=True,
@@ -653,6 +653,6 @@ class TestClass:
             tmpdir,
         )
 
-        stats = f.fetch(diagonal_band_width=3, count_type="float").describe(metrics=["nnz", "sum"])
+        stats = f.fetch(diagonal_band_width=3, count_type=float).describe(metrics=["nnz", "sum"])
         assert stats["nnz"] == 149
         assert isclose(stats["sum"], 551355.327)
