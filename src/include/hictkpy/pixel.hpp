@@ -10,60 +10,166 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <hictk/bin.hpp>
 #include <hictk/pixel.hpp>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+#include <variant>
 #include <vector>
 
+#include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy {
 
-template <typename N>
-inline void declare_thin_pixel_class(nanobind::module_ &m, const std::string &suffix) {
-  const auto type_name = std::string{"ThinPixel"} + suffix;
-  nanobind::class_<hictk::ThinPixel<N>>(m, type_name.c_str(), "Pixel in COO format.")
-      .def_prop_ro("bin1_id", [](const hictk::ThinPixel<N> &tp) { return tp.bin1_id; })
-      .def_prop_ro("bin2_id", [](const hictk::ThinPixel<N> &tp) { return tp.bin2_id; })
-      .def_prop_ro("count", [](const hictk::ThinPixel<N> &tp) { return tp.count; })
-      .def("__repr__",
-           [](const hictk::ThinPixel<N> &tp) {
-             return fmt::format(FMT_COMPILE("bin1_id={}; bin2_id={}; count={};"), tp.bin1_id,
-                                tp.bin2_id, tp.count);
-           })
-      .def("__str__", [](const hictk::ThinPixel<N> &tp) {
-        return fmt::format(FMT_COMPILE("{}\t{}\t{}"), tp.bin1_id, tp.bin2_id, tp.count);
-      });
-}
+class Pixel {
+  std::optional<hictk::PixelCoordinates> _coords{};
+  std::int64_t _bin1_id{};
+  std::int64_t _bin2_id{};
+  std::variant<std::int64_t, double> _count{std::int64_t{}};
 
-template <typename N>
-inline void declare_pixel_class(nanobind::module_ &m, const std::string &suffix) {
-  const auto type_name = std::string{"Pixel"} + suffix;
-  nanobind::class_<hictk::Pixel<N>>(m, type_name.c_str(), "Pixel in BG2 format.")
-      .def_prop_ro("bin1_id", [](const hictk::Pixel<N> &p) { return p.coords.bin1.id(); })
-      .def_prop_ro("bin2_id", [](const hictk::Pixel<N> &p) { return p.coords.bin2.id(); })
-      .def_prop_ro("rel_bin1_id", [](const hictk::Pixel<N> &p) { return p.coords.bin1.rel_id(); })
-      .def_prop_ro("rel_bin2_id", [](const hictk::Pixel<N> &p) { return p.coords.bin2.rel_id(); })
-      .def_prop_ro("chrom1", [](const hictk::Pixel<N> &p) { return p.coords.bin1.chrom().name(); })
-      .def_prop_ro("start1", [](const hictk::Pixel<N> &p) { return p.coords.bin1.start(); })
-      .def_prop_ro("end1", [](const hictk::Pixel<N> &p) { return p.coords.bin1.end(); })
-      .def_prop_ro("chrom2", [](const hictk::Pixel<N> &p) { return p.coords.bin2.chrom().name(); })
-      .def_prop_ro("start2", [](const hictk::Pixel<N> &p) { return p.coords.bin2.start(); })
-      .def_prop_ro("end2", [](const hictk::Pixel<N> &p) { return p.coords.bin2.end(); })
-      .def_prop_ro("count", [](const hictk::Pixel<N> &p) { return p.count; })
-      .def("__repr__",
-           [](const hictk::Pixel<N> &p) {
-             return fmt::format(
-                 FMT_COMPILE("chrom1={}; start1={}; end1={}; chrom2={}; start2={}; end2={};"),
-                 p.coords.bin1.chrom().name(), p.coords.bin1.start(), p.coords.bin1.end(),
-                 p.coords.bin2.chrom().name(), p.coords.bin2.start(), p.coords.bin2.end(), p.count);
-           })
-      .def("__str__", [](const hictk::Pixel<N> &p) {
-        return fmt::format(FMT_COMPILE("{}\t{}\t{}\t{}\t{}\t{}"), p.coords.bin1.chrom().name(),
-                           p.coords.bin1.start(), p.coords.bin1.end(), p.coords.bin2.chrom().name(),
-                           p.coords.bin2.start(), p.coords.bin2.end(), p.count);
-      });
-}
+ public:
+  Pixel() = default;
+  template <typename N>
+  Pixel(hictk::Pixel<N> p)  // NOLINT(*-explicit-conversions)
+      : _coords(std::move(p.coords)),
+        _bin1_id(static_cast<std::int64_t>(_coords->bin1.id())),
+        _bin2_id(static_cast<std::int64_t>(_coords->bin2.id())),
+        _count(cast_count(p.count)) {}
+
+  template <typename N>
+  Pixel(const hictk::ThinPixel<N> &p)  // NOLINT(*-explicit-conversions)
+      : _bin1_id(static_cast<std::int64_t>(p.bin1_id)),
+        _bin2_id(static_cast<std::int64_t>(p.bin2_id)),
+        _count(cast_count(p.count)) {}
+  template <typename N>
+  Pixel &operator=(hictk::Pixel<N> p) noexcept {
+    _coords = std::move(p.coords);
+    _bin1_id = static_cast<std::int64_t>(_coords->bin1.id());
+    _bin2_id = static_cast<std::int64_t>(_coords->bin2.id());
+    _count = cast_count(p.count);
+
+    return *this;
+  }
+
+  template <typename N>
+  Pixel &operator=(const hictk::ThinPixel<N> &p) noexcept {
+    _coords = hictk::PixelCoordinates{};
+    _bin1_id = static_cast<std::int64_t>(p.bin1_id);
+    _bin2_id = static_cast<std::int64_t>(p.bin2_id);
+    _count = cast_count(p.count);
+
+    return *this;
+  }
+
+  [[nodiscard]] constexpr std::int64_t bin1_id() const noexcept { return _bin1_id; }
+  [[nodiscard]] constexpr std::int64_t bin2_id() const noexcept { return _bin2_id; }
+  [[nodiscard]] nanobind::object count() const {
+    return std::visit([&](const auto n) { return nanobind::cast(n); }, _count);
+  }
+
+  const hictk::PixelCoordinates &coords() const {
+    if (HICTKPY_LIKELY(_coords.has_value())) {
+      return *_coords;
+    }
+
+    throw nanobind::attribute_error(
+        "Pixel does not have Bin with genomic coordinates associated with it. "
+        "If you intend to access the genomic coordinates of Pixels, please make sure to call "
+        "PixelSelector.fetch() with join=True.");
+  }
+
+  [[nodiscard]] const hictk::Bin &bin1() const { return coords().bin1; }
+  [[nodiscard]] const hictk::Bin &bin2() const { return coords().bin2; }
+
+  [[nodiscard]] std::string_view chrom1() const { return bin1().chrom().name(); }
+  [[nodiscard]] std::int64_t start1() const { return static_cast<std::int64_t>(bin1().start()); }
+  [[nodiscard]] std::int64_t end1() const { return static_cast<std::int64_t>(bin1().end()); }
+  [[nodiscard]] std::string_view chrom2() const { return bin2().chrom().name(); }
+  [[nodiscard]] std::int64_t start2() const { return static_cast<std::int64_t>(bin2().start()); }
+  [[nodiscard]] std::int64_t end2() const { return static_cast<std::int64_t>(bin2().end()); }
+
+  [[nodiscard]] std::string repr() const {
+    return std::visit(
+        [&](const auto &n) {
+          if (_coords.has_value()) {
+            return fmt::format(
+                FMT_COMPILE("chrom1={}; start1={}; end1={}; chrom2={}; start2={}; end2={};"),
+                _coords->bin1.chrom().name(), _coords->bin1.start(), _coords->bin1.end(),
+                _coords->bin2.chrom().name(), _coords->bin2.start(), _coords->bin2.end(), n);
+          }
+
+          return fmt::format(FMT_COMPILE("bin1_id={}; bin2_id={}; count={};"), _bin1_id, _bin2_id,
+                             n);
+        },
+        _count);
+  }
+
+  [[nodiscard]] std::string str() const {
+    return std::visit(
+        [&](const auto &n) {
+          if (_coords.has_value()) {
+            return fmt::format(FMT_COMPILE("{}\t{}\t{}\t{}\t{}\t{}"), _coords->bin1.chrom().name(),
+                               _coords->bin1.start(), _coords->bin1.end(),
+                               _coords->bin2.chrom().name(), _coords->bin2.start(),
+                               _coords->bin2.end(), n);
+          }
+          return fmt::format(FMT_COMPILE("{}\t{}\t{}"), _bin1_id, _bin2_id, n);
+        },
+        _count);
+  }
+
+  template <std::size_t I>
+  static void register_pixel_class_helper(nanobind::module_ &m, nanobind::class_<Pixel> &c) {
+    using Var = hictk::internal::NumericVariant;
+    if constexpr (I < std::variant_size_v<Var>) {
+      using N = std::variant_alternative_t<I, Var>;
+      c.def(nanobind::init_implicit<hictk::ThinPixel<N>>());
+      c.def(nanobind::init_implicit<hictk::Pixel<N>>());
+
+      return register_pixel_class_helper<I + 1>(m, c);
+    }
+  }
+
+  [[nodiscard]] static nanobind::class_<Pixel> register_pixel_class(nanobind::module_ &m) {
+    auto pxl = nanobind::class_<Pixel>(m, "Pixel", "Class modeling a Pixel in COO or BG2 format.");
+    register_pixel_class_helper<0>(m, pxl);
+
+    return pxl;
+  }
+
+  static void bind(nanobind::module_ &m) {
+    register_pixel_class(m)
+        .def_prop_ro("bin1_id", &Pixel::bin1_id, "Get the ID of bin1.")
+        .def_prop_ro("bin2_id", &Pixel::bin2_id, "Get the ID of bin2.")
+        .def_prop_ro("bin1", &Pixel::bin1, "Get bin1.", nanobind::rv_policy::copy)
+        .def_prop_ro("bin2", &Pixel::bin2, "Get bin2.", nanobind::rv_policy::copy)
+        .def_prop_ro("chrom1", &Pixel::chrom1, "Get the chromosome associated with bin1.")
+        .def_prop_ro("start1", &Pixel::start1, "Get the start position associated with bin1.")
+        .def_prop_ro("end1", &Pixel::end1, "Get the end position associated with bin1.")
+        .def_prop_ro("chrom2", &Pixel::chrom2, "Get the chromosome associated with bin2.")
+        .def_prop_ro("start2", &Pixel::start2, "Get the start position associated with bin2.")
+        .def_prop_ro("end2", &Pixel::end2, "Get the end position associated with bin2.")
+        .def_prop_ro("count", &Pixel::count, "Get the number of interactions.")
+        .def("__repr__", &Pixel::repr)
+        .def("__str__", &Pixel::str);
+  }
+
+ private:
+  template <typename N>
+  [[nodiscard]] static constexpr std::variant<std::int64_t, double> cast_count(N n) noexcept {
+    static_assert(std::is_arithmetic_v<N>);
+    if constexpr (std::is_floating_point_v<N>) {
+      return {conditional_static_cast<double>(n)};
+    } else {
+      return {conditional_static_cast<std::int64_t>(n)};
+    }
+  }
+};
 
 template <typename N>
 inline std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(nanobind::object df, bool sort) {
