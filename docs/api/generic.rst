@@ -48,6 +48,7 @@ Generic API
 
    .. automethod:: coord1
    .. automethod:: coord2
+   .. automethod:: dtype
    .. automethod:: to_arrow
    .. automethod:: to_coo
    .. automethod:: to_csr
