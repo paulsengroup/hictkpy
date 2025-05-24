@@ -38,11 +38,11 @@
 #include <variant>
 #include <vector>
 
-#include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_aggregator.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/to_pyarrow.hpp"
+#include "hictkpy/type.hpp"
 
 namespace nb = nanobind;
 
@@ -61,28 +61,43 @@ static std::optional<std::uint64_t> transform_diagonal_band_width(std::optional<
 }
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_,
-                             std::string_view type, bool join,
+                             PixelVar count_type, bool join,
                              std::optional<std::int64_t> diagonal_band_width)
     : selector(std::move(sel_)),
-      pixel_count(parse_count_type(type)),
+      pixel_count(count_type),
       pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO),
       _diagonal_band_width(transform_diagonal_band_width(diagonal_band_width)) {}
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_,
-                             std::string_view type, bool join,
+                             PixelVar count_type, bool join,
                              std::optional<std::int64_t> diagonal_band_width)
     : selector(std::move(sel_)),
-      pixel_count(parse_count_type(type)),
+      pixel_count(count_type),
       pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO),
       _diagonal_band_width(transform_diagonal_band_width(diagonal_band_width)) {}
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_,
-                             std::string_view type, bool join,
+                             PixelVar count_type, bool join,
                              std::optional<std::int64_t> diagonal_band_width)
     : selector(std::move(sel_)),
-      pixel_count(parse_count_type(type)),
+      pixel_count(count_type),
       pixel_format(join ? PixelFormat::BG2 : PixelFormat::COO),
       _diagonal_band_width(transform_diagonal_band_width(diagonal_band_width)) {}
+
+PixelSelector::PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_,
+                             const nb::type_object& type, bool join,
+                             std::optional<std::int64_t> diagonal_band_width)
+    : PixelSelector(std::move(sel_), map_py_type_to_cpp_type(type), join, diagonal_band_width) {}
+
+PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_,
+                             const nb::type_object& type, bool join,
+                             std::optional<std::int64_t> diagonal_band_width)
+    : PixelSelector(std::move(sel_), map_py_type_to_cpp_type(type), join, diagonal_band_width) {}
+
+PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_,
+                             const nb::type_object& type, bool join,
+                             std::optional<std::int64_t> diagonal_band_width)
+    : PixelSelector(std::move(sel_), map_py_type_to_cpp_type(type), join, diagonal_band_width) {}
 
 std::string PixelSelector::repr() const {
   if (!coord1()) {
@@ -132,24 +147,25 @@ const hictk::BinTable& PixelSelector::bins() const noexcept {
   return std::visit([](const auto& s) -> const hictk::BinTable& { return s->bins(); }, selector);
 }
 
-[[nodiscard]] static PixelSelector::GenomicCoordTuple coords_to_tuple(
-    const hictk::PixelCoordinates& coords, const hictk::BinTable& bins) {
+[[nodiscard]] static std::optional<PixelSelector::GenomicCoordTuple> coords_to_tuple(
+    const hictk::PixelCoordinates& coords) {
   if (!coords) {
-    return {"ALL", 0, static_cast<std::int64_t>(bins.size())};
+    return {};
   }
 
   assert(coords.bin1.chrom() == coords.bin2.chrom());
 
-  return {std::string{coords.bin1.chrom().name()}, static_cast<std::int64_t>(coords.bin1.start()),
-          static_cast<std::int64_t>(coords.bin2.end())};
+  return PixelSelector::GenomicCoordTuple{std::string{coords.bin1.chrom().name()},
+                                          static_cast<std::int64_t>(coords.bin1.start()),
+                                          static_cast<std::int64_t>(coords.bin2.end())};
 }
 
-auto PixelSelector::get_coord1() const -> GenomicCoordTuple {
-  return coords_to_tuple(coord1(), bins());
+auto PixelSelector::get_coord1() const -> std::optional<GenomicCoordTuple> {
+  return coords_to_tuple(coord1());
 }
 
-auto PixelSelector::get_coord2() const -> GenomicCoordTuple {
-  return coords_to_tuple(coord2(), bins());
+auto PixelSelector::get_coord2() const -> std::optional<GenomicCoordTuple> {
+  return coords_to_tuple(coord2());
 }
 
 std::int64_t PixelSelector::size(bool upper_triangular) const {
@@ -158,6 +174,47 @@ std::int64_t PixelSelector::size(bool upper_triangular) const {
         return static_cast<std::int64_t>(sel_ptr->size(upper_triangular));
       },
       selector);
+}
+
+nb::type_object PixelSelector::dtype() const {
+  auto np = import_module_checked("numpy");
+  if (std::holds_alternative<std::uint8_t>(pixel_count)) {
+    return np.attr("uint8");
+  }
+  if (std::holds_alternative<std::uint16_t>(pixel_count)) {
+    return np.attr("uint16");
+  }
+  if (std::holds_alternative<std::uint32_t>(pixel_count)) {
+    return np.attr("uint32");
+  }
+  if (std::holds_alternative<std::uint64_t>(pixel_count)) {
+    return np.attr("uint64");
+  }
+
+  if (std::holds_alternative<std::int8_t>(pixel_count)) {
+    return np.attr("int8");
+  }
+  if (std::holds_alternative<std::int16_t>(pixel_count)) {
+    return np.attr("int16");
+  }
+  if (HICTKPY_LIKELY(std::holds_alternative<std::int32_t>(pixel_count))) {
+    return np.attr("int32");
+  }
+  if (HICTKPY_LIKELY(std::holds_alternative<std::int64_t>(pixel_count))) {
+    return np.attr("int64");
+  }
+
+  if (std::holds_alternative<float>(pixel_count)) {
+    return np.attr("float32");
+  }
+  if (HICTKPY_LIKELY(std::holds_alternative<double>(pixel_count))) {
+    return np.attr("float64");
+  }
+  if (std::holds_alternative<long double>(pixel_count)) {
+    return np.attr("float64");
+  }
+
+  unreachable_code();
 }
 
 template <typename N, typename PixelSelector>
@@ -529,10 +586,6 @@ auto PixelSelector::parse_span(std::string_view span) -> QuerySpan {
                   span));
 }
 
-auto PixelSelector::parse_count_type(std::string_view type) -> PixelVar {
-  return map_dtype_to_type(type);
-}
-
 std::string_view PixelSelector::count_type_to_str(const PixelVar& var) {
   // NOLINTBEGIN(*-avoid-magic-numbers)
   static_assert(sizeof(float) == 4);
@@ -578,27 +631,32 @@ void PixelSelector::bind(nb::module_& m) {
       m, "PixelSelector",
       "Class representing pixels overlapping with the given genomic intervals.");
 
-  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, std::string_view, bool,
+  const char* ctor_description =
+      "Private constructor. PixelSelector objects are supposed to be created by calling the "
+      "fetch() method on hictkpy.File objects.";
+  sel.def(nb::init<std::shared_ptr<const hictk::cooler::PixelSelector>, const nb::type_object&,
+                   bool, std::optional<std::int64_t>>(),
+          ctor_description);
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, const nb::type_object&, bool,
                    std::optional<std::int64_t>>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"),
-          nb::arg("diagonal_band_width") = nb::none());
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelector>, std::string_view, bool,
-                   std::optional<std::int64_t>>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"),
-          nb::arg("diagonal_band_width") = nb::none());
-  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, std::string_view, bool,
-                   std::optional<std::int64_t>>(),
-          nb::arg("selector"), nb::arg("type"), nb::arg("join"),
-          nb::arg("diagonal_band_width") = nb::none());
+          ctor_description);
+  sel.def(nb::init<std::shared_ptr<const hictk::hic::PixelSelectorAll>, const nb::type_object&,
+                   bool, std::optional<std::int64_t>>(),
+          ctor_description);
 
   sel.def("__repr__", &PixelSelector::repr, nb::rv_policy::move);
 
-  sel.def("coord1", &PixelSelector::get_coord1, "Get query coordinates for the first dimension.",
+  sel.def("coord1", &PixelSelector::get_coord1,
+          "Get query coordinates for the first dimension. Returns None when query spans the entire "
+          "genome.",
           nb::rv_policy::move);
-  sel.def("coord2", &PixelSelector::get_coord2, "Get query coordinates for the second dimension.",
+  sel.def("coord2", &PixelSelector::get_coord2,
+          "Get query coordinates for the second dimension. Returns None when query spans the "
+          "entire genome.",
           nb::rv_policy::move);
   sel.def("size", &PixelSelector::size, nb::arg("upper_triangular") = true,
           "Get the number of pixels overlapping with the given query.");
+  sel.def("dtype", &PixelSelector::dtype, "Get the dtype for the pixel count.");
 
   sel.def("__iter__", &PixelSelector::make_iterable, nb::keep_alive<0, 1>(),
           nb::sig("def __iter__(self) -> hictkpy.PixelIterator"),

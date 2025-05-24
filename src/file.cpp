@@ -38,6 +38,7 @@
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/reference.hpp"
 #include "hictkpy/to_pyarrow.hpp"
+#include "hictkpy/type.hpp"
 
 namespace nb = nanobind;
 
@@ -69,16 +70,91 @@ bool is_cooler(const std::filesystem::path &uri) {
 
 bool is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
 
+static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
+                                            const hictk::balancing::Method &normalization,
+                                            hictk::internal::NumericVariant count_type, bool join,
+                                            std::optional<std::int64_t> diagonal_band_width) {
+  return std::visit(
+      [&](const auto &ff) -> hictkpy::PixelSelector {
+        using FileT = remove_cvref_t<decltype(ff)>;
+        if constexpr (std::is_same_v<FileT, hictk::cooler::File>) {
+          auto sel = ff.fetch(normalization, diagonal_band_width.has_value());
+          using SelT = decltype(sel);
+          return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
+                  diagonal_band_width};
+        } else {
+          auto sel = ff.fetch(normalization, diagonal_band_width);
+          using SelT = decltype(sel);
+          return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
+                  diagonal_band_width};
+        }
+      },
+      f.get());
+}
+
+static hictkpy::PixelSelector fetch_impl(const hictk::File &f, const hictk::GenomicInterval &range1,
+                                         const hictk::GenomicInterval &range2,
+                                         const hictk::balancing::Method &normalization,
+                                         hictk::internal::NumericVariant count_type, bool join,
+                                         std::optional<std::int64_t> diagonal_band_width) {
+  const auto chrom1 = range1.chrom().name();
+  const auto start1 = range1.start();
+  const auto end1 = range1.end();
+  const auto chrom2 = range2.chrom().name();
+  const auto start2 = range2.start();
+  const auto end2 = range2.end();
+
+  return std::visit(
+      [&](const auto &ff) -> hictkpy::PixelSelector {
+        using FileT = remove_cvref_t<decltype(ff)>;
+        if constexpr (std::is_same_v<FileT, hictk::hic::File>) {
+          auto sel = ff.fetch(chrom1, start1, end1, chrom2, start2, end2, normalization,
+                              diagonal_band_width);
+
+          using SelT = decltype(sel);
+          return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
+                  diagonal_band_width};
+        } else {
+          auto sel = ff.fetch(chrom1, start1, end1, chrom2, start2, end2, normalization);
+
+          using SelT = decltype(sel);
+          return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
+                  diagonal_band_width};
+        }
+      },
+      f.get());
+}
+
+static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
+                                         std::optional<std::string_view> range1,
+                                         std::optional<std::string_view> range2,
+                                         const hictk::balancing::Method &normalization,
+                                         hictk::internal::NumericVariant count_type, bool join,
+                                         hictk::GenomicInterval::Type query_type,
+                                         std::optional<std::int64_t> diagonal_band_width) {
+  if (!range1.has_value() || range1->empty()) {
+    assert(!range2.has_value() || range2->empty());
+    return fetch_gw_impl(f, normalization, count_type, join, diagonal_band_width);
+  }
+
+  if (!range2.has_value() || range2->empty()) {
+    range2 = range1;
+  }
+
+  return fetch_impl(
+      f, hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range1}, query_type),
+      hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range2}, query_type),
+      normalization, count_type, join, diagonal_band_width
+
+  );
+}
+
 static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::string_view> range1,
                                     std::optional<std::string_view> range2,
                                     std::optional<std::string_view> normalization,
-                                    std::string_view count_type, bool join,
-                                    std::string_view query_type,
+                                    std::variant<nb::type_object, std::string_view> count_type,
+                                    bool join, std::string_view query_type,
                                     std::optional<std::int64_t> diagonal_band_width) {
-  if (count_type != "float" && count_type != "int") {
-    throw std::runtime_error(R"(count_type should be either "float" or "int")");
-  }
-
   if (query_type != "UCSC" && query_type != "BED") {
     throw std::runtime_error("query_type should be either UCSC or BED");
   }
@@ -89,57 +165,11 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::str
     count_type = "float";
   }
 
-  if (!range1.has_value() || range1->empty()) {
-    assert(!range2.has_value() || range2->empty());
-    return std::visit(
-        [&](const auto &ff) {
-          using FileT = remove_cvref_t<decltype(ff)>;
-          if constexpr (std::is_same_v<FileT, hictk::cooler::File>) {
-            auto sel = ff.fetch(normalization_method, diagonal_band_width.has_value());
-            using SelT = decltype(sel);
-            return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                          join, diagonal_band_width);
-          } else {
-            auto sel = ff.fetch(normalization_method, diagonal_band_width);
-            using SelT = decltype(sel);
-            return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                          join, diagonal_band_width);
-          }
-        },
-        f.get());
-  }
-
-  if (!range2.has_value() || range2->empty()) {
-    range2 = range1;
-  }
-
-  const auto query_type_ =
-      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
-  const auto gi1 =
-      hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range1}, query_type_);
-  const auto gi2 =
-      hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range2}, query_type_);
-
-  return std::visit(
-      [&](const auto &ff) {
-        using FileT = remove_cvref_t<decltype(ff)>;
-        if constexpr (std::is_same_v<FileT, hictk::hic::File>) {
-          auto sel = ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
-                              gi2.start(), gi2.end(), normalization_method, diagonal_band_width);
-
-          using SelT = decltype(sel);
-          return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                        join, diagonal_band_width);
-        } else {
-          auto sel = ff.fetch(gi1.chrom().name(), gi1.start(), gi1.end(), gi2.chrom().name(),
-                              gi2.start(), gi2.end(), normalization_method);
-
-          using SelT = decltype(sel);
-          return hictkpy::PixelSelector(std::make_shared<const SelT>(std::move(sel)), count_type,
-                                        join, diagonal_band_width);
-        }
-      },
-      f.get());
+  return fetch_impl(
+      f, std::move(range1), std::move(range2), normalization_method,
+      std::visit([](const auto &ct) { return map_py_type_to_cpp_type(ct); }, count_type), join,
+      query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED,
+      diagonal_band_width);
 }
 
 static nb::dict get_cooler_attrs(const hictk::cooler::File &clr) {
@@ -317,7 +347,7 @@ void declare_file_class(nb::module_ &m) {
 
   file.def("fetch", &file::fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = nb::none(),
            nb::arg("range2") = nb::none(), nb::arg("normalization") = nb::none(),
-           nb::arg("count_type") = "int", nb::arg("join") = false, nb::arg("query_type") = "UCSC",
+           nb::arg("count_type") = "int32", nb::arg("join") = false, nb::arg("query_type") = "UCSC",
            nb::arg("diagonal_band_width") = nb::none(),
            "Fetch interactions overlapping a region of interest.", nb::rv_policy::move);
 
