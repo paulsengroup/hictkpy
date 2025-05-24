@@ -45,6 +45,11 @@ optional-dependencies.pandas = [
   "pandas>=2.1.0,!=2.2.0",
 ]
 
+optional-dependencies.plot = [
+  "hictkpy[numpy]",
+  "matplotlib",
+]
+
 optional-dependencies.pyarrow = [
   "pyarrow>=16",
 ]
@@ -54,7 +59,7 @@ optional-dependencies.scipy = [
 ]
 
 optional-dependencies.all = [
-  "hictkpy[numpy,pandas,pyarrow,scipy]",
+  "hictkpy[numpy,pandas,plot,pyarrow,scipy]",
 ]
 
 optional-dependencies.test = [
