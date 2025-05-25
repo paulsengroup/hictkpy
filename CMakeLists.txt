@@ -131,6 +131,8 @@ dynamic_project_options(
 
 target_compile_features(hictkpy_project_options INTERFACE "cxx_std_${CMAKE_CXX_STANDARD}")
 
+option(HICTKPY_BUILD_PORTABLE_WHEELS_WIN "Build portable Windows wheels" OFF)
+
 # Tweak fmt
 target_compile_definitions(
   hictkpy_project_options
@@ -157,6 +159,15 @@ if(WIN32)
       _CRT_SECURE_NO_WARNINGS
       _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR # https://github.com/gabime/spdlog/issues/3212
   )
+
+  if(HICTKPY_BUILD_PORTABLE_WHEELS_WIN)
+    target_compile_definitions(
+      hictkpy_project_options
+      INTERFACE
+        _WIN32_WINNT=_WIN32_WINNT_WIN10
+        /FI<sdkddkver.h> # required to use _WIN32_WINNT_WIN10
+    )
+  endif()
 endif()
 
 add_subdirectory(src)
