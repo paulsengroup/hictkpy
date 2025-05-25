@@ -15,7 +15,7 @@ on:
 
     inputs:
       conan-version:
-        default: "2.15.*"
+        default: "2.16.*"
         type: string
         required: false
         description: "Conan version to be installed with pip."
@@ -85,15 +85,26 @@ jobs:
             "$IMAGE" /tmp/script.sh | tee -a "$GITHUB_OUTPUT"
 
       - name: Restore package cache
-        id: cache-conan
+        id: lookup-conan-cache
         uses: actions/cache/restore@v4
         with:
           key: ${{ steps.generate-cache-key.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}/p
+          path: |
+            ${{ env.CONAN_HOME }}/p
+            /tmp/cmake-prefix-rel.tar
           lookup-only: true
 
+      - name: Restore package cache
+        uses: actions/cache/restore@v4
+        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
+        with:
+          key: ${{ steps.generate-cache-key.outputs.conan-key }}
+          path: |
+            ${{ env.CONAN_HOME }}/p
+            /tmp/cmake-prefix-rel.tar
+
       - name: Configure Conan
-        if: steps.cache-conan.outputs.cache-hit != 'true'
+        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
           cat << 'EOF' | tee script.sh > /dev/null
           #!usr/bin/env bash
@@ -122,7 +133,7 @@ jobs:
             "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
 
       - name: Clean Conan cache (pre-build)
-        if: steps.cache-conan.outputs.cache-hit != 'true'
+        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
           cat << 'EOF' | tee script.sh > /dev/null
           #!usr/bin/env bash
@@ -149,7 +160,7 @@ jobs:
             "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
 
       - name: Install dependencies
-        if: steps.cache-conan.outputs.cache-hit != 'true'
+        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
           cat << 'EOF' | tee script.sh > /dev/null
           #!usr/bin/env bash
@@ -177,7 +188,10 @@ jobs:
              -pr:h=clang                    \
              -s build_type=Release          \
              -s:a compiler.cppstd="$cppstd" \
-             --options='*/*:shared=False'
+             --options='*/*:shared=False'   \
+             --output-folder cmake-prefix-rel
+
+          tar -cf /tmp/cmake-prefix-rel.tar cmake-prefix-rel
           EOF
 
           chmod 755 script.sh
@@ -187,10 +201,11 @@ jobs:
             -v "$PWD/script.sh:/tmp/script.sh:ro" \
             -v "$PWD/conanfile.py:/tmp/conanfile.py:ro" \
             -v "$CONAN_HOME:$CONAN_HOME" \
+            -v /tmp/:/tmp/ \
             "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}' '${{ inputs.cppstd }}'
 
       - name: Clean Conan cache (post-build)
-        if: steps.cache-conan.outputs.cache-hit != 'true'
+        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
           cat << 'EOF' | tee script.sh > /dev/null
           #!usr/bin/env bash
@@ -217,9 +232,11 @@ jobs:
 
       - name: Save Conan cache
         uses: actions/cache/save@v4
-        if: steps.cache-conan.outputs.cache-hit != 'true'
+        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         with:
           key: ${{ steps.generate-cache-key.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}/p
+          path: |
+            ${{ env.CONAN_HOME }}/p
+            /tmp/cmake-prefix-rel.tar
         env:
           ZSTD_CLEVEL: 19
