@@ -81,7 +81,8 @@ cmake.build-type = "Release"
 BUILD_SHARED_LIBS = { env="HICTKPY_BUILD_SHARED_LIBS", default="OFF" }
 CMAKE_OSX_DEPLOYMENT_TARGET = { env="HICTKPY_OSX_DEPLOYMENT_TARGET", default="10.15" }
 CMAKE_PROJECT_TOP_LEVEL_INCLUDES = { env="HICTKPY_PROJECT_TOP_LEVEL_INCLUDES", default="cmake/conan_provider.cmake" }
-CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--settings=compiler.cppstd=17;--settings=build_type=Release;--build=missing;--update;--options=*/*:shared=False" }
+CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--settings=compiler.cppstd=17;--build=missing;--update;--options=*/*:shared=False" }
+HICTKPY_BUILD_PORTABLE_WHEELS_WIN = { env="HICTKPY_BUILD_PORTABLE_WHEELS_WIN", default="OFF" }
 HICTK_BUILD_BENCHMARKS = "OFF"
 HICTK_BUILD_EXAMPLES = "OFF"
 HICTK_BUILD_TOOLS = "OFF"
@@ -112,14 +113,14 @@ testpaths = [
 
 [tool.cibuildwheel]
 build-frontend = "build"
-manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.04.05-1"
-manylinux-i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.04.05-1"
-manylinux-aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.04.05-1"
-manylinux-ppc64le-image = "quay.io/pypa/manylinux_2_28_ppc64le:2025.04.05-1"
-manylinux-s390x-image = "quay.io/pypa/manylinux_2_28_s390x:2025.04.05-1"
-manylinux-pypy_x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.04.05-1"
-manylinux-pypy_i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.04.05-1"
-manylinux-pypy_aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.04.05-1"
+manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.05.24-1"
+manylinux-i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.05.24-1"
+manylinux-aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.05.24-1"
+manylinux-ppc64le-image = "quay.io/pypa/manylinux_2_28_ppc64le:2025.05.24-1"
+manylinux-s390x-image = "quay.io/pypa/manylinux_2_28_s390x:2025.05.24-1"
+manylinux-pypy_x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.05.24-1"
+manylinux-pypy_i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.05.24-1"
+manylinux-pypy_aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.05.24-1"
 
 skip = ["cp314*", "*musllinux*", "pp*"]
 test-command = "python -m pytest {project}/test"

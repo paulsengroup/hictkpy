@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <patchlevel.h>
+
 #include <hictk/numeric_variant.hpp>
 #include <stdexcept>
 #include <string_view>
@@ -56,6 +58,15 @@ template <typename T>
   }
 
   throw std::runtime_error("Unable to infer dtype.");
+}
+
+[[nodiscard]] constexpr bool typing_union_required() noexcept {
+#ifdef PY_VERSION_HEX
+  constexpr auto python_310_hex = 0x030A00F0;
+  return PY_VERSION_HEX < python_310_hex;
+#else
+  return true;
+#endif
 }
 
 [[nodiscard]] hictk::internal::NumericVariant map_py_type_to_cpp_type(

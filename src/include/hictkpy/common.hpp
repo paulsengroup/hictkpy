@@ -11,8 +11,6 @@
 #include <string>
 #include <string_view>
 
-#include "hictkpy/nanobind.hpp"
-
 namespace hictkpy {
 
 #define HICTKPY_LIKELY   HICTK_LIKELY

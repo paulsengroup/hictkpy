@@ -151,6 +151,12 @@ Generic API
 
 .. autoclass:: Bin
 
+  .. autoproperty:: id
+  .. autoproperty:: rel_id
+  .. autoproperty:: chrom
+  .. autoproperty:: start
+  .. autoproperty:: end
+
 .. autoclass:: BinTable
 
    .. automethod:: __init__
@@ -164,3 +170,20 @@ Generic API
    .. automethod:: type
 
    .. automethod:: __iter__
+
+.. autoclass:: Pixel
+
+  .. autoproperty:: bin1_id
+  .. autoproperty:: bin2_id
+  .. autoproperty:: count
+
+  The following properties are only available when pixels are in BG2 format.
+
+  .. autoproperty:: bin1
+  .. autoproperty:: bin2
+  .. autoproperty:: chrom1
+  .. autoproperty:: start1
+  .. autoproperty:: end1
+  .. autoproperty:: chrom2
+  .. autoproperty:: start2
+  .. autoproperty:: end2
