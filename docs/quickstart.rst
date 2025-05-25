@@ -20,7 +20,7 @@ Opening files
 
   In [1]: import hictkpy as htk
 
-  # .mcool and .cool files work as well
+  # .mcool and .cool files are also supported
   In [2]: f = htk.File("4DNFIOTPSS3L.hic", 10_000)
 
   In [3]: f.path()

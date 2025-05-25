@@ -99,7 +99,7 @@ Ingesting interactions in a .cool file
 Ingesting interactions in a .hic file
 -------------------------------------
 
-Follow the same steps as in the previous section and replace ``htk.cooler.FileWriter`` with ``htk.hic.FileWriter``.
+Follow the same steps as above for ``.cool`` files, but replace ``htk.cooler.FileWriter`` with ``htk.hic.FileWriter``.
 
 Tips and tricks
 ---------------

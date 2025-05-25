@@ -127,7 +127,8 @@ Notes
 ^^^^^
 
 Building hictkpy requires several dependencies that are not needed after the build process.
-Some of these dependencies are installed using Conan, which creates several files under ``~/.conan2``. if you don't need Conan for other purposes feel free to delete the ``~/.conan2`` once the build process completes successfully.
+Some of these dependencies are installed using Conan, which creates several files under ``~/.conan2``.
+If you don't need Conan for other purposes feel free to delete the ``~/.conan2`` once the build process completes successfully.
 
 If you do not want to use Conan for dependency management you can set the ``HICTKPY_PROJECT_TOP_LEVEL_INCLUDES`` environment variable to an empty string.
 See section ``[tool.scikit-build.cmake.define]`` in the `pyproject.toml <https://github.com/paulsengroup/hictkpy/blob/main/pyproject.toml>`__ file for the list of CMake variables that can be overridden by defining the appropriate environment variables.
