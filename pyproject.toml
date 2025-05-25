@@ -81,7 +81,7 @@ cmake.build-type = "Release"
 BUILD_SHARED_LIBS = { env="HICTKPY_BUILD_SHARED_LIBS", default="OFF" }
 CMAKE_OSX_DEPLOYMENT_TARGET = { env="HICTKPY_OSX_DEPLOYMENT_TARGET", default="10.15" }
 CMAKE_PROJECT_TOP_LEVEL_INCLUDES = { env="HICTKPY_PROJECT_TOP_LEVEL_INCLUDES", default="cmake/conan_provider.cmake" }
-CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--settings=compiler.cppstd=17;--settings=build_type=Release;--build=missing;--update;--options=*/*:shared=False" }
+CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--settings=compiler.cppstd=17;--build=missing;--update;--options=*/*:shared=False" }
 HICTKPY_BUILD_PORTABLE_WHEELS_WIN = { env="HICTKPY_BUILD_PORTABLE_WHEELS_WIN", default="OFF" }
 HICTK_BUILD_BENCHMARKS = "OFF"
 HICTK_BUILD_EXAMPLES = "OFF"

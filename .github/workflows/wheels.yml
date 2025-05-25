@@ -243,7 +243,7 @@ jobs:
             CXX=clang++
             PIP_VERBOSE=1
             MACOSX_DEPLOYMENT_TARGET=10.15
-            HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--settings=os.version=${{ env.MACOSX_DEPLOYMENT_TARGET }}"
+            HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--settings:h=os.version=10.15"
           CIBW_ENVIRONMENT_WINDOWS: >
             PIP_VERBOSE=1
             HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--conf:a=tools.microsoft:winsdk_version=10.0.17763.0"
