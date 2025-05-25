@@ -181,6 +181,7 @@ jobs:
 
           export CC=clang
           export CXX=clang++
+          export CMAKE_POLICY_VERSION_MINIMUM=3.5
 
           conan install /tmp/conanfile.py   \
              --build='*'                    \
