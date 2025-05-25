@@ -111,10 +111,10 @@ jobs:
         if: steps.cache-conan.outputs.cache-hit != 'true'
         run: |
           conan install conanfile.py                                          \
-             --build='missing'                                                \
+             --build='*'                                                      \
              -s build_type=Release                                            \
              -s compiler.runtime_type=Release                                 \
-             -s compiler.cppstd=${{ inputs.cppstd }}                          \
+             -s:a compiler.cppstd=${{ inputs.cppstd }}                        \
              -c:a tools.microsoft:winsdk_version=${{ inputs.winsdk_version }} \
              --options='*/*:shared=False'
 
