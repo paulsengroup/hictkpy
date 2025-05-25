@@ -98,7 +98,7 @@ jobs:
           CIBW_ARCHS_WINDOWS=AMD64 cibuildwheel \
             --print-build-identifiers \
             --platform windows |
-          jq -nRc '{"wheel-config": inputs, "os": "windows-2019", "arch": "AMD64"}' |
+          jq -nRc '{"wheel-config": inputs, "os": "windows-2022", "arch": "AMD64"}' |
           tee -a configs.json
 
           MATRIX="$(jq -sc < configs.json)"
@@ -107,7 +107,7 @@ jobs:
 
   build-conan-deps-linux-x86:
     name: Build Conan deps (Linux x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@74a7d3c4ec52b16f7bcb59fd8579f5520b1a01e3
     with:
       os: ubuntu-24.04
       arch: x86_64
@@ -115,7 +115,7 @@ jobs:
 
   build-conan-deps-linux-arm64:
     name: Build Conan deps (Linux arm64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@74a7d3c4ec52b16f7bcb59fd8579f5520b1a01e3
     with:
       os: ubuntu-24.04-arm
       arch: aarch64
@@ -123,21 +123,22 @@ jobs:
 
   build-conan-deps-macos-x86:
     name: Build Conan deps (macOS x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@74a7d3c4ec52b16f7bcb59fd8579f5520b1a01e3
     with:
       os: macos-13
 
   build-conan-deps-macos-arm64:
     name: Build Conan deps (macOS arm64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@74a7d3c4ec52b16f7bcb59fd8579f5520b1a01e3
     with:
       os: macos-14
 
   build-conan-deps-windows-x86:
     name: Build Conan deps (Windows x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-windows.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-windows.yml@74a7d3c4ec52b16f7bcb59fd8579f5520b1a01e3
     with:
-      os: windows-2019
+      os: windows-2022
+      winsdk_version: 10.0.17763.0
 
   build-sdist:
     name: Build SDist
@@ -173,7 +174,7 @@ jobs:
 
     env:
       CONAN_HOME: "${{ github.workspace }}/.conan2"
-      HICTKPY_CONAN_INSTALL_ARGS: "--settings=compiler.cppstd=17;--settings=build_type=Release;--build=never;--options=*/*:shared=False"
+      HICTKPY_CONAN_INSTALL_ARGS: "--settings:a=compiler.cppstd=17;--build=never;--options=*/*:shared=False"
 
     steps:
       - uses: actions/checkout@v4
@@ -230,6 +231,12 @@ jobs:
             ${{ github.workspace }}\cmake-prefix-rel.tar
           fail-on-cache-miss: true
 
+      - name: Add devtools to PATH (Windows)
+        if: startsWith(matrix.os, 'windows')
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          sdk: "10.0.17763.0"
+
       - name: Extract CMake configs
         if: startsWith(matrix.os, 'windows')
         run: |
@@ -260,11 +267,12 @@ jobs:
             PIP_VERBOSE=1
             CMAKE_PREFIX_PATH='${{ github.workspace }}/conan-env'
             MACOSX_DEPLOYMENT_TARGET=10.15
-            HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};-s:h os.version=${{ env.MACOSX_DEPLOYMENT_TARGET }}"
-            HICTKPY_PROJECT_TOP_LEVEL_INCLUDES=''
+            HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--settings:h=os.version=10.15"
           CIBW_ENVIRONMENT_WINDOWS: >
             PIP_VERBOSE=1
             CMAKE_PREFIX_PATH='${{ github.workspace }}/conan-env'
+            HICTKPY_BUILD_PORTABLE_WHEELS_WIN=ON
+            HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--conf:a=tools.microsoft:winsdk_version=10.0.17763.0"
             HICTKPY_PROJECT_TOP_LEVEL_INCLUDES=''
           CIBW_ENVIRONMENT_PASS_LINUX: >
             CONAN_HOME

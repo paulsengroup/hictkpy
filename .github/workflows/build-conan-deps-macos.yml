@@ -110,9 +110,9 @@ jobs:
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
           conan install conanfile.py                     \
-             --build='missing'                           \
+             --build='*'                                 \
              -s build_type=Release                       \
-             -s compiler.cppstd=${{ inputs.cppstd }}     \
+             -s:a compiler.cppstd=${{ inputs.cppstd }}   \
              -s:h os.version="$MACOSX_DEPLOYMENT_TARGET" \
              --options='*/*:shared=False'                \
              --output-folder cmake-prefix-rel
