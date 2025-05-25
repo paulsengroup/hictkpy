@@ -28,6 +28,10 @@ on:
         type: string
         required: true
         description: "OS used to build Conan deps."
+      winsdk_version:
+        type: string
+        required: true
+        description: "Windows SDK version used to build Conan deps."
 
 defaults:
   run:
@@ -50,6 +54,8 @@ jobs:
 
       - name: Add devtools to PATH
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          sdk: ${{ inputs.winsdk_version }}
 
       - name: Generate cache key
         id: generate-cache-key
@@ -104,11 +110,12 @@ jobs:
       - name: Install dependencies
         if: steps.cache-conan.outputs.cache-hit != 'true'
         run: |
-          conan install conanfile.py                  \
-             --build='missing'                        \
-             -s build_type=Release                    \
-             -s compiler.runtime_type=Release         \
-             -s compiler.cppstd=${{ inputs.cppstd }}  \
+          conan install conanfile.py                                          \
+             --build='missing'                                                \
+             -s build_type=Release                                            \
+             -s compiler.runtime_type=Release                                 \
+             -s compiler.cppstd=${{ inputs.cppstd }}                          \
+             -c:a tools.microsoft:winsdk_version=${{ inputs.winsdk_version }} \
              --options='*/*:shared=False'
 
       - name: Clean Conan cache (post-build)
