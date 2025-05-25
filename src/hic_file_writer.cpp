@@ -189,7 +189,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
              "Get the list of resolutions in bp.", nb::rv_policy::take_ownership);
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::HiCFileWriter>,
              nb::arg("include_ALL") = false,
-             "Get chromosomes sizes as a dictionary mapping names to sizes.",
+             "Get the chromosome sizes as a dictionary mapping names to sizes.",
              nb::rv_policy::take_ownership);
   writer.def("bins", &hictkpy::HiCFileWriter::bins, "Get table of bins for the given resolution.",
              nb::sig("def bins(self, resolution: int) -> hictkpy.BinTable"), nb::rv_policy::move);
@@ -202,7 +202,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
       "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
       "chrom2, start2, end2, count].\n"
       "When validate is True, hictkpy will perform some basic sanity checks on the given "
-      "pixels before adding them to the Cooler file.");
+      "pixels before adding them to the .hic file.");
   writer.def("finalize", &hictkpy::HiCFileWriter::finalize,
              nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
              "Write interactions to file.", nb::rv_policy::move);

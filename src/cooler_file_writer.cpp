@@ -211,7 +211,7 @@ void CoolerFileWriter::bind(nb::module_ &m) {
   writer.def("resolution", &hictkpy::CoolerFileWriter::resolution, "Get the resolution in bp.");
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::CoolerFileWriter>,
              nb::arg("include_ALL") = false,
-             "Get chromosomes sizes as a dictionary mapping names to sizes.",
+             "Get the chromosome sizes as a dictionary mapping names to sizes.",
              nb::rv_policy::take_ownership);
   writer.def("bins", &get_bins_from_object<hictkpy::CoolerFileWriter>, "Get table of bins.",
              nb::sig("def bins(self) -> hictkpy.BinTable"), nb::rv_policy::move);

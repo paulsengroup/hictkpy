@@ -113,7 +113,7 @@ void declare_singlecell_file_class(nb::module_& m) {
                  "Get the bin size in bp.");
   scell_file.def("chromosomes", &get_chromosomes_from_object<hictk::cooler::SingleCellFile>,
                  nb::arg("include_ALL") = false,
-                 "Get chromosomes sizes as a dictionary mapping names to sizes.",
+                 "Get the chromosome sizes as a dictionary mapping names to sizes.",
                  nb::rv_policy::take_ownership);
   scell_file.def("bins", &get_bins_from_object<hictk::cooler::SingleCellFile>,
                  nb::sig("def bins(self) -> hictkpy.BinTable"), "Get table of bins.",
