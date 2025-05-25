@@ -30,7 +30,8 @@ hictkpy provides Python bindings to `hictk <https://github.com/paulsengroup/hict
 
    .. rubric:: Installation
 
-Python bindings for hictk can be installed using pip or conda. Refer to :doc:`Installation <./installation>` for more details.
+hictkpy can be installed using pip or conda with e.g., ``pip install 'hictkpy[all]'``.
+Refer to :doc:`Installation <./installation>` for more details.
 
 .. only:: not latex
 

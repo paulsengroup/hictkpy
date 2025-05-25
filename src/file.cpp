@@ -332,7 +332,7 @@ void declare_file_class(nb::module_ &m) {
   file.def("is_cooler", &hictk::File::is_cooler, "Test whether file is in .cool format.");
 
   file.def("chromosomes", &get_chromosomes_from_object<hictk::File>, nb::arg("include_ALL") = false,
-           "Get chromosomes sizes as a dictionary mapping names to sizes.",
+           "Get chromosome sizes as a dictionary mapping names to sizes.",
            nb::rv_policy::take_ownership);
   file.def("bins", &get_bins_from_object<hictk::File>, "Get table of bins.",
            nb::sig("def bins(self) -> hictkpy.BinTable"), nb::rv_policy::move);

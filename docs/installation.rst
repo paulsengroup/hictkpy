@@ -27,11 +27,11 @@ It is also possible to install hictkpy with a minimal set of dependencies with o
   pip install 'hictkpy[scipy]'
 
 
-In general, pandas and pyarrow are required when hictkpy is returning data using pandas.DataFrame or arrow.Table, such as when calling :py:meth:`hictkpy.PixelSelector.to_pandas()` or :py:meth:`hictkpy.BinTable.to_df()`.
+In general, Pandas and PyArrow are required when hictkpy is returning data using :py:class:`pandas.DataFrame` or :py:class:`pyarrow.Table`, such as when calling :py:meth:`hictkpy.PixelSelector.to_pandas()` or :py:meth:`hictkpy.BinTable.to_df()`.
 
-NumPy is required when calling methods returning data as np.array, such as :py:meth:`hictkpy.PixelSelector.to_numpy()` or certain overloads of :py:meth:`hictkpy.BinTable.get_ids()`.
+NumPy is required when calling methods returning data as :py:class:`numpy.array`, such as :py:meth:`hictkpy.PixelSelector.to_numpy()` or certain overloads of :py:meth:`hictkpy.BinTable.get_ids()`.
 
-SciPy is required when fetching interactions as sparse matrix with, such as :py:meth:`hictkpy.PixelSelector.to_coo()` and :py:meth:`hictkpy.PixelSelector.to_csr()`
+SciPy is required when fetching interactions as sparse matrix, such as :py:meth:`hictkpy.PixelSelector.to_coo()` and :py:meth:`hictkpy.PixelSelector.to_csr()`
 
 In case applications call methods depending on missing third-party dependencies, hictkpy will raise an exception like the following:
 
@@ -58,7 +58,7 @@ Conda (bioconda)
 From source
 -----------
 
-Building hictkpy from source should not be necessary for regular users, as we publish pre-built wheels for Linux, MacOS, and Windows for all Python versions we support (currently these include all CPython versions from 3.9 up until 3.13). For a complete and up-to-date list of available wheels refer to the `Download files <https://pypi.org/project/hictkpy/#files>`_ page on hictkpy's `homepage <https://pypi.org/project/hictkpy/>`_ on PyPI.
+Building hictkpy from source should not be necessary for regular users, as we publish pre-built wheels for Linux, macOS, and Windows for all Python versions we support (currently these include all CPython versions from 3.9 up until 3.13). For a complete and up-to-date list of available wheels refer to the `Download files <https://pypi.org/project/hictkpy/#files>`_ page on hictkpy's `homepage <https://pypi.org/project/hictkpy/>`_ on PyPI.
 
 Building hictkpy's wheels from source requires a compiler toolchain supporting C++17, such as:
 
@@ -73,7 +73,6 @@ This can be achieved by redefining the ``CC`` and ``CXX`` environment variables 
 
 Furthermore, the following tools are required:
 
-* CMake 3.25+
 * git 2.7+
 * make or ninja
 
@@ -122,10 +121,14 @@ This can be achieved in several ways. Here is an example:
 
 **All tests are expected to pass. Do not ignore test failures!**
 
-However, it is expected that some test cases are skipped (especially if not all optional dependencies where installed).
+However, it is expected that some test cases will be skipped (especially if not all optional dependencies were installed)
 
 Notes
 ^^^^^
 
 Building hictkpy requires several dependencies that are not needed after the build process.
-Some of these dependencies are installed using Conan, which creates several files under ``~/.conan2``. if you don't need Conan for other purposes feel free to delete the ``~/.conan2`` once the build process completes successfully.
+Some of these dependencies are installed using Conan, which creates several files under ``~/.conan2``.
+If you don't need Conan for other purposes feel free to delete the ``~/.conan2`` once the build process completes successfully.
+
+If you do not want to use Conan for dependency management you can set the ``HICTKPY_PROJECT_TOP_LEVEL_INCLUDES`` environment variable to an empty string.
+See section ``[tool.scikit-build.cmake.define]`` in the `pyproject.toml <https://github.com/paulsengroup/hictkpy/blob/main/pyproject.toml>`__ file for the list of CMake variables that can be overridden by defining the appropriate environment variables.

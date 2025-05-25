@@ -476,7 +476,7 @@ void BinTable::bind(nb::module_& m) {
 
   bt.def("chromosomes", &get_chromosomes_from_object<hictkpy::BinTable>,
          nb::arg("include_ALL") = false,
-         "Get chromosomes sizes as a dictionary mapping names to sizes.",
+         "Get the chromosome sizes as a dictionary mapping names to sizes.",
          nb::rv_policy::take_ownership);
 
   bt.def("resolution", &BinTable::resolution,

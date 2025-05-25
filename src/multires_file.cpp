@@ -96,7 +96,7 @@ void declare_multires_file_class(nb::module_& m) {
   mres_file.def("is_hic", &hictk::MultiResFile::is_hic, "Test whether the file is in .hic format.");
   mres_file.def("chromosomes", &get_chromosomes_from_object<hictk::MultiResFile>,
                 nb::arg("include_ALL") = false,
-                "Get chromosomes sizes as a dictionary mapping names to sizes.",
+                "Get the chromosome sizes as a dictionary mapping names to sizes.",
                 nb::rv_policy::take_ownership);
   mres_file.def("resolutions", &get_resolutions, "Get the list of available resolutions.",
                 nb::rv_policy::take_ownership);

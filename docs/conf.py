@@ -47,6 +47,9 @@ intersphinx_timeout = 30
 # Add any paths that contain templates here, relative to this directory.
 templates_path = [".templates"]
 
+# Wrap class/function signatures that are too long
+maximum_signature_line_length = 80
+
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']

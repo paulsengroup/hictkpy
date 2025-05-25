@@ -9,7 +9,9 @@ hictkpy provides Python bindings for hictk through `nanobind <https://github.com
 
 ``hictk.File()`` can open .cool and .hic files and can be used to fetch interactions as well as file metadata.
 
-The examples in this section use file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_, which can be downloaded from `here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
+The examples in this section use the file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_,
+which can be downloaded from the 4D Nucleome Data Portal
+`here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
 
 Opening files
 -------------
@@ -18,7 +20,7 @@ Opening files
 
   In [1]: import hictkpy as htk
 
-  # .mcool and .cool files work as well
+  # .mcool and .cool files are also supported
   In [2]: f = htk.File("4DNFIOTPSS3L.hic", 10_000)
 
   In [3]: f.path()
@@ -57,9 +59,9 @@ Reading file metadata
 Fetch interactions
 ------------------
 
-Interactions can be fetched by calling the :py:meth:`hictkpy.File.fetch()` method on :py:meth:`hictkpy.File()` objects.
+Interactions can be fetched by calling the :py:meth:`hictkpy.File.fetch()` method on :py:class:`hictkpy.File` objects.
 
-:py:meth:`hictkpy.File.fetch()` returns :py:meth:`hictkpy.PixelSelector` objects, which are very cheap to create.
+:py:meth:`hictkpy.File.fetch()` returns :py:class:`hictkpy.PixelSelector` objects, which are very cheap to create.
 
 .. code-block:: ipythonconsole
 
@@ -73,15 +75,15 @@ Interactions can be fetched by calling the :py:meth:`hictkpy.File.fetch()` metho
   In [9]: sel = f.fetch(normalization="KR")
 
   # Fetch interactions for a region of interest
-  In [9]: sel = f.fetch("2L:10,000,000-20,000,000")
+  In [10]: sel = f.fetch("2L:10,000,000-20,000,000")
 
-  In [10]: sel = f.fetch("2L:10,000,000-20,000,000", "X")
+  In [11]: sel = f.fetch("2L:10,000,000-20,000,000", "X")
 
-  In [11]: sel.nnz()
-  Out[11]: 2247057
+  In [12]: sel.nnz()
+  Out[12]: 2247057
 
-  In [12]: sel.sum()
-  Out[12]: 7163361
+  In [13]: sel.sum()
+  Out[13]: 7163361
 
 Fetching interactions as pandas DataFrames
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

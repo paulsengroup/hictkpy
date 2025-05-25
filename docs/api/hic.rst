@@ -2,7 +2,7 @@
    Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
    SPDX-License-Identifier: MIT
 
-Hi-C API
+.hic API
 ########
 
 .. py:module:: hictkpy.hic

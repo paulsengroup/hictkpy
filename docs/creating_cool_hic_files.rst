@@ -7,13 +7,15 @@ Creating .cool and .hic files
 
 hictkpy supports creating .cool and .hic files from pre-binned interactions in COO or BedGraph2 format.
 
-The example in this section use file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_, which can be downloaded from `here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
+The examples in this section use file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_,
+which can be downloaded from the 4D Nucleome Data Portal
+`here <https://4dn-open-data-public.s3.amazonaws.com/fourfront-webprod/wfoutput/7386f953-8da9-47b0-acb2-931cba810544/4DNFIOTPSS3L.hic>`_.
 
 Preparation
 -----------
 
-The first step consists of converting interactions from ``4DNFIOTPSS3L.hic`` to bedGraph2 format.
-This can be achieved using ``hictk dump`` (or alternatively with :py:meth:hictkpy.File.fetch()`.
+The first step involves converting interactions from ``4DNFIOTPSS3L.hic`` to bedGraph2 format.
+This can be achieved using ``hictk dump`` (or alternatively with :py:meth:`hictkpy.File.fetch()`).
 
 .. code-block:: console
 
@@ -39,7 +41,7 @@ Next, we also generate the list of chromosomes to use as reference.
 
   user@dev:/tmp$ hictk dump -t chroms 4DNFIOTPSS3L.hic > chrom.sizes
 
-  user@dev:/tmp$ head chrom.sizes.bg2
+  user@dev:/tmp$ head chrom.sizes
 
     2L	23513712
     2R	25286936
@@ -97,13 +99,14 @@ Ingesting interactions in a .cool file
 Ingesting interactions in a .hic file
 -------------------------------------
 
-Follow the same step as in the previous section and replace ``htk.cooler.File`` with ``htk.hic.File``.
+Follow the same steps as above for ``.cool`` files, but replace ``htk.cooler.FileWriter`` with ``htk.hic.FileWriter``.
 
 Tips and tricks
 ---------------
 
-When loading interactions into a .cool or .hic file, interactions are initially stored in a temporary file. When loading a large number of interactions, this temporary file can grow to be quite large. When this is the case, it is wise to pass a custom temporary folder where temporary files will be created:
-
+When loading interactions into a .cool or .hic file, interactions are initially stored in a temporary file.
+For a large number of interactions, this temporary file can become quite large.
+In such cases, it may be appropriate to pass a custom temporary folder where these files will be created:
 
 .. code-block:: ipythonconsole
 
@@ -115,7 +118,8 @@ When ingesting interactions in a .hic file, performance can be improved by using
 
   In [1]: f = htk.hic.FileWriter("out.hic", chroms, resolution=50_000, n_threads=8)
 
-When memory allows it, it is possible to bypass temporary files by specifying a very large chunk size and ingesting all interactions at once. This can significantly speed up file creation.
+When memory allows, it is possible to bypass temporary file creation by specifying a very large chunk size and ingesting all interactions at once.
+This can significantly speed up file creation:
 
 .. code-block:: ipythonconsole
 
