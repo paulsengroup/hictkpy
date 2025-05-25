@@ -91,6 +91,13 @@ jobs:
       - name: Build and install
         run: pip install --verbose '.[all,test]'
 
+      - name: Clean Conan cache
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          conan cache clean "*" --build
+          conan cache clean "*" --download
+          conan cache clean "*" --source
+
       - name: Save Conan cache
         uses: actions/cache/save@v4
         if: steps.cache-conan.outputs.cache-hit != 'true'
