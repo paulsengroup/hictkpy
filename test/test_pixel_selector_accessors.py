@@ -42,8 +42,8 @@ class TestClass:
         f = hictkpy.File(file, resolution)
 
         sel = f.fetch()
-        assert sel.coord1() == ("ALL", 0, len(f.bins()))
-        assert sel.coord1() == sel.coord2()
+        assert sel.coord1() is None
+        assert sel.coord2() is None
 
         sel = f.fetch("chr2L:0-10,000,000")
         assert sel.coord1() == ("chr2L", 0, 10_000_000)

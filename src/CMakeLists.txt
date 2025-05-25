@@ -27,7 +27,6 @@ nanobind_add_module(
         LTO
         MODULE
         "${CMAKE_CURRENT_SOURCE_DIR}/bin_table.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/common.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cooler_file_writer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/file.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/hic_file_writer.cpp"
@@ -38,6 +37,7 @@ nanobind_add_module(
         "${CMAKE_CURRENT_SOURCE_DIR}/reference.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/singlecell_file.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/to_pyarrow.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/type.cpp"
 )
 
 target_include_directories(

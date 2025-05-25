@@ -42,20 +42,31 @@ struct PixelSelector {
 
   PixelSelector() = default;
 
-  PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_, std::string_view type,
+  PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_, PixelVar count_type,
                 bool join, std::optional<std::int64_t> diagonal_band_width);
-  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_, std::string_view type,
+  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_, PixelVar count_type,
                 bool join, std::optional<std::int64_t> diagonal_band_width);
-  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_, std::string_view type,
+  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_, PixelVar count_type,
                 bool join, std::optional<std::int64_t> diagonal_band_width);
+
+  PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_,
+                const nanobind::type_object& type, bool join,
+                std::optional<std::int64_t> diagonal_band_width);
+  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_,
+                const nanobind::type_object& type, bool join,
+                std::optional<std::int64_t> diagonal_band_width);
+  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_,
+                const nanobind::type_object& type, bool join,
+                std::optional<std::int64_t> diagonal_band_width);
 
   [[nodiscard]] std::string repr() const;
 
   using GenomicCoordTuple = std::tuple<std::string, std::int64_t, std::int64_t>;
 
-  [[nodiscard]] auto get_coord1() const -> GenomicCoordTuple;
-  [[nodiscard]] auto get_coord2() const -> GenomicCoordTuple;
+  [[nodiscard]] auto get_coord1() const -> std::optional<GenomicCoordTuple>;
+  [[nodiscard]] auto get_coord2() const -> std::optional<GenomicCoordTuple>;
   [[nodiscard]] std::int64_t size(bool upper_triangular) const;
+  [[nodiscard]] nanobind::type_object dtype() const;
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
   [[nodiscard]] nanobind::object to_arrow(std::string_view span) const;
@@ -77,7 +88,6 @@ struct PixelSelector {
   [[nodiscard]] double kurtosis(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const;
 
   [[nodiscard]] static auto parse_span(std::string_view span) -> QuerySpan;
-  [[nodiscard]] static auto parse_count_type(std::string_view type) -> PixelVar;
   [[nodiscard]] static std::string_view count_type_to_str(const PixelVar& var);
 
   static void bind(nanobind::module_& m);

@@ -23,6 +23,7 @@
 
 #include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/type.hpp"
 
 namespace hictkpy {
 

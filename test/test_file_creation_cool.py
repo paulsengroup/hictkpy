@@ -143,7 +143,7 @@ class TestClass:
         if f.bins().type() != "fixed":
             pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
 
-        df = f.fetch(join=True, count_type="float").to_df()
+        df = f.fetch(join=True, count_type=float).to_df()
         df["count"] += 0.12345
         expected_sum = df["count"].sum()
 

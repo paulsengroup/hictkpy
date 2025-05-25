@@ -51,10 +51,10 @@ class TestClass:
         assert m.sum() == 6_029_333
         assert issymmetric(m)
 
-        m = f.fetch("chr2R:10,000,000-15,000,000", count_type="int").to_numpy()
+        m = f.fetch("chr2R:10,000,000-15,000,000", count_type="int32").to_numpy()
         assert m.dtype == np.int32
 
-        m = f.fetch("chr2R:10,000,000-15,000,000", count_type="float").to_numpy()
+        m = f.fetch("chr2R:10,000,000-15,000,000", count_type=float).to_numpy()
         assert m.dtype == np.float64
 
         m = f.fetch("chr2R\t10000000\t15000000", query_type="BED").to_numpy()
@@ -80,10 +80,10 @@ class TestClass:
         assert m.shape == (50, 100)
         assert m.sum() == 83_604
 
-        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="int").to_numpy()
+        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="int32").to_numpy()
         assert m.dtype == np.int32
 
-        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type="float").to_numpy()
+        m = f.fetch("chr2R:10,000,000-15,000,000", "chrX:0-10,000,000", count_type=float).to_numpy()
         assert m.dtype == np.float64
 
         m = f.fetch("chr2R\t10000000\t15000000", "chrX\t0\t10000000", query_type="BED").to_numpy()

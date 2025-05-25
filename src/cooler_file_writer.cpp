@@ -15,7 +15,6 @@
 #include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
-#include <hictk/type_traits.hpp>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -28,6 +27,7 @@
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/type.hpp"
 
 namespace nb = nanobind;
 
@@ -96,7 +96,7 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
 
   const auto dtype = df.attr("__getitem__")("count").attr("dtype");
   const auto dtype_str = nb::cast<std::string>(dtype.attr("__str__")());
-  const auto var = map_dtype_to_type(dtype_str);
+  const auto var = map_py_type_to_cpp_type(dtype_str);
 
   std::visit(
       [&](const auto &n) {
