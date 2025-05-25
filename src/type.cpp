@@ -75,8 +75,13 @@ namespace nb = nanobind;
 }
 
 [[nodiscard]] static std::string nb_type_object_to_str(const nb::type_object& dtype) {
+#ifdef _MSC_VER
+  const auto dtype_mod = nb::str(nb::handle(dtype.attr("__module__")));
+  const auto dtype_name = nb::str(nb::handle(dtype.attr("__name__")));
+#else
   const auto dtype_mod = nb::str(dtype.attr("__module__"));
   const auto dtype_name = nb::str(dtype.attr("__name__"));
+#endif
 
   if (std::string_view{dtype_mod.c_str()}.empty()) {
     return dtype_name.c_str();
