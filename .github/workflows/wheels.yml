@@ -107,35 +107,35 @@ jobs:
 
   build-conan-deps-linux-x86:
     name: Build Conan deps (Linux x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@84b3fe422d5f4934fd2ac969030c8c55fc21ffa6
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
     with:
       os: ubuntu-24.04
       arch: x86_64
-      image-version: 2025.04.05-1
+      image-version: 2025.05.24-1
 
   build-conan-deps-linux-arm64:
     name: Build Conan deps (Linux arm64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@84b3fe422d5f4934fd2ac969030c8c55fc21ffa6
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
     with:
       os: ubuntu-24.04-arm
       arch: aarch64
-      image-version: 2025.04.05-1
+      image-version: 2025.05.24-1
 
   build-conan-deps-macos-x86:
     name: Build Conan deps (macOS x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@84b3fe422d5f4934fd2ac969030c8c55fc21ffa6
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
     with:
       os: macos-13
 
   build-conan-deps-macos-arm64:
     name: Build Conan deps (macOS arm64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@84b3fe422d5f4934fd2ac969030c8c55fc21ffa6
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
     with:
       os: macos-14
 
   build-conan-deps-windows-x86:
     name: Build Conan deps (Windows x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-windows.yml@84b3fe422d5f4934fd2ac969030c8c55fc21ffa6
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-windows.yml@9712bdb24bdf7758de6eabac691dddd61f1daf18
     with:
       os: windows-2019
 
@@ -185,7 +185,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           key: ${{ needs.build-conan-deps-linux-x86.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}/p
+          path: |
+            ${{ env.CONAN_HOME }}/p
+            /tmp/cmake-prefix-rel.tar
           fail-on-cache-miss: true
 
       - name: Restore Conan cache (Linux; aarch64)
@@ -193,7 +195,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           key: ${{ needs.build-conan-deps-linux-arm64.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}/p
+          path: |
+            ${{ env.CONAN_HOME }}/p
+            /tmp/cmake-prefix-rel.tar
           fail-on-cache-miss: true
 
       - name: Restore Conan cache (macOS; x86_64)
@@ -201,7 +205,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           key: ${{ needs.build-conan-deps-macos-x86.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}/p
+          path: |
+            ${{ env.CONAN_HOME }}/p
+            /tmp/cmake-prefix-rel.tar
           fail-on-cache-miss: true
 
       - name: Restore Conan cache (macOS; aarch64)
@@ -209,7 +215,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           key: ${{ needs.build-conan-deps-macos-arm64.outputs.conan-key }}
-          path: ${{ env.CONAN_HOME }}/p
+          path: |
+            ${{ env.CONAN_HOME }}/p
+            /tmp/cmake-prefix-rel.tar
           fail-on-cache-miss: true
 
       - name: Restore Conan cache (Windows; AMD64)
@@ -217,8 +225,23 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           key: ${{ needs.build-conan-deps-windows-x86.outputs.conan-key }}
-          path: ${{ needs.build-conan-deps-windows-x86.outputs.conan-home }}\p
+          path: |
+            ${{ needs.build-conan-deps-windows-x86.outputs.conan-home }}\p
+            ${{ github.workspace }}\cmake-prefix-rel.tar
           fail-on-cache-miss: true
+
+      - name: Extract CMake configs
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          mkdir conan-env
+          srcdir="$(cygpath '${{ github.workspace }}')"
+          tar -xf "$srcdir/cmake-prefix-rel.tar" -C conan-env/ --strip-components=1
+
+      - name: Extract CMake configs
+        if: "!startsWith(matrix.os , 'windows')"
+        run: |
+          mkdir conan-env
+          tar -xf /tmp/cmake-prefix-rel.tar -C conan-env/ --strip-components=1
 
       - name: Build wheels
         uses: pypa/cibuildwheel@faf86a6ed7efa889faf6996aa23820831055001a # v2.23.3
@@ -235,10 +258,14 @@ jobs:
             CC=clang
             CXX=clang++
             PIP_VERBOSE=1
+            CMAKE_PREFIX_PATH='${{ github.workspace }}/conan-env'
             MACOSX_DEPLOYMENT_TARGET=10.15
             HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};-s:h os.version=${{ env.MACOSX_DEPLOYMENT_TARGET }}"
+            HICTKPY_PROJECT_TOP_LEVEL_INCLUDES=''
           CIBW_ENVIRONMENT_WINDOWS: >
             PIP_VERBOSE=1
+            CMAKE_PREFIX_PATH='${{ github.workspace }}/conan-env'
+            HICTKPY_PROJECT_TOP_LEVEL_INCLUDES=''
           CIBW_ENVIRONMENT_PASS_LINUX: >
             CONAN_HOME
             HICTKPY_CONAN_INSTALL_ARGS
