@@ -71,9 +71,48 @@ class TestClass:
 
         f = hictkpy.File(file, resolution)
 
-        assert f.fetch().dtype() is np.int32
-        assert f.fetch(count_type=float).dtype() is np.float64
-        assert f.fetch(count_type=np.int8).dtype() is np.int8
+        valid_types = {
+            int: np.int64,
+            float: np.float64,
+            np.uint8: np.uint8,
+            np.uint16: np.uint16,
+            np.uint32: np.uint32,
+            np.uint64: np.uint64,
+            np.int8: np.int8,
+            np.int16: np.int16,
+            np.int32: np.int32,
+            np.int64: np.int64,
+            "int": np.int32,
+            "uint": np.uint32,
+            "float": np.float64,
+            "uint8": np.uint8,
+            "uint16": np.uint16,
+            "uint32": np.uint32,
+            "uint64": np.uint64,
+            "int8": np.int8,
+            "int16": np.int16,
+            "int32": np.int32,
+            "int64": np.int64,
+        }
 
-        with pytest.raises(TypeError):
-            f.fetch(count_type=str)
+        invalid_types = [
+            object,
+            bool,
+            str,
+            np.array,
+            np.bool_,
+            np.float16,
+            np.float128,
+            np.complex64,
+            "str",
+            "foobar",
+        ]
+
+        assert f.fetch().dtype() is np.int32
+
+        for t1, t2 in valid_types.items():
+            assert f.fetch(count_type=t1).dtype() is t2
+
+        for t in invalid_types:
+            with pytest.raises(TypeError):
+                f.fetch(count_type=t)
