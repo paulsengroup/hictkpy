@@ -167,7 +167,7 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::str
 
   return fetch_impl(
       f, std::move(range1), std::move(range2), normalization_method,
-      std::visit([](const auto &ct) { return map_py_type_to_cpp_type(ct); }, count_type), join,
+      std::visit([](const auto &ct) { return map_py_numeric_to_cpp_type(ct); }, count_type), join,
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED,
       diagonal_band_width);
 }

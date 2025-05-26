@@ -69,8 +69,8 @@ template <typename T>
 #endif
 }
 
-[[nodiscard]] hictk::internal::NumericVariant map_py_type_to_cpp_type(
+[[nodiscard]] hictk::internal::NumericVariant map_py_numeric_to_cpp_type(
     const nanobind::type_object& dtype);
-[[nodiscard]] hictk::internal::NumericVariant map_py_type_to_cpp_type(std::string_view dtype);
+[[nodiscard]] hictk::internal::NumericVariant map_py_numeric_to_cpp_type(std::string_view dtype);
 
 }  // namespace hictkpy

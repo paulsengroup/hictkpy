@@ -96,7 +96,7 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
 
   const auto dtype = df.attr("__getitem__")("count").attr("dtype");
   const auto dtype_str = nb::cast<std::string>(dtype.attr("__str__")());
-  const auto var = map_py_type_to_cpp_type(dtype_str);
+  const auto var = map_py_numeric_to_cpp_type(dtype_str);
 
   std::visit(
       [&](const auto &n) {
