@@ -52,21 +52,6 @@ namespace nb = nanobind;
   throw_exception(dtype_object_to_str(dtype), msg);
 }
 
-template <std::size_t I>
-[[nodiscard]] static std::optional<hictk::internal::NumericVariant> map_py_type_to_cpp_type_helper(
-    const nb::object& x) {
-  using Var = hictk::internal::NumericVariant;
-  if constexpr (I < std::variant_size_v<Var>) {
-    using N = std::variant_alternative_t<I, Var>;
-    if (nb::isinstance<N>(x)) {
-      return N{};
-    }
-    return map_py_type_to_cpp_type_helper<I + 1>(x);
-  }
-
-  return {};
-}
-
 [[nodiscard]] static bool issubdtype(const nb::module_& np, const nb::type_object& dtype1,
                                      const char* dtype2) {
   return nb::cast<bool>(np.attr("issubdtype")(dtype1, np.attr(dtype2)));
