@@ -105,11 +105,15 @@ class TestClass:
                 np.array,
                 np.bool_,
                 np.float16,
-                np.float128,
                 np.complex64,
                 "str",
                 "foobar",
             ]
+
+            try:
+                invalid_types.append(np.float128)
+            except:  # noqa
+                pass
 
         assert f.fetch().dtype() is np.int32
 
