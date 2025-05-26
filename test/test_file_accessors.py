@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import pathlib
+import warnings
 
 import pytest
 
@@ -95,18 +96,20 @@ class TestClass:
             "int64": np.int64,
         }
 
-        invalid_types = [
-            object,
-            bool,
-            str,
-            np.array,
-            np.bool_,
-            np.float16,
-            np.float128,
-            np.complex64,
-            "str",
-            "foobar",
-        ]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            invalid_types = [
+                object,
+                bool,
+                str,
+                np.array,
+                np.bool_,
+                np.float16,
+                np.float128,
+                np.complex64,
+                "str",
+                "foobar",
+            ]
 
         assert f.fetch().dtype() is np.int32
 
