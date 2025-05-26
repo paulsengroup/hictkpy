@@ -57,7 +57,7 @@ namespace nb = nanobind;
   return nb::cast<bool>(np.attr("issubdtype")(dtype1, np.attr(dtype2)));
 }
 
-hictk::internal::NumericVariant map_py_type_to_cpp_type(const nb::type_object& dtype) {
+hictk::internal::NumericVariant map_py_numeric_to_cpp_type(const nb::type_object& dtype) {
   const auto np = import_module_checked("numpy");
   if (!issubdtype(np, dtype, "number")) {
     throw_exception(dtype, "Not a subdtype of numpy.number.");
@@ -99,7 +99,7 @@ hictk::internal::NumericVariant map_py_type_to_cpp_type(const nb::type_object& d
   throw_exception(dtype);
 }
 
-hictk::internal::NumericVariant map_py_type_to_cpp_type(std::string_view dtype) {
+hictk::internal::NumericVariant map_py_numeric_to_cpp_type(std::string_view dtype) {
   // NOLINTBEGIN(*-avoid-magic-numbers)
   static_assert(sizeof(unsigned) == 4);
   static_assert(sizeof(int) == 4);
@@ -109,7 +109,7 @@ hictk::internal::NumericVariant map_py_type_to_cpp_type(std::string_view dtype) 
 
   if (const auto pos = dtype.rfind('.'); pos != std::string_view::npos) {
     try {
-      return map_py_type_to_cpp_type(dtype.substr(pos + 1));
+      return map_py_numeric_to_cpp_type(dtype.substr(pos + 1));
     } catch (const std::exception& e) {
       throw_exception(dtype, e.what());
     }

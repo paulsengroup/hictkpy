@@ -88,17 +88,17 @@ PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll>
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_,
                              const nb::type_object& type, bool join,
                              std::optional<std::int64_t> diagonal_band_width)
-    : PixelSelector(std::move(sel_), map_py_type_to_cpp_type(type), join, diagonal_band_width) {}
+    : PixelSelector(std::move(sel_), map_py_numeric_to_cpp_type(type), join, diagonal_band_width) {}
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_,
                              const nb::type_object& type, bool join,
                              std::optional<std::int64_t> diagonal_band_width)
-    : PixelSelector(std::move(sel_), map_py_type_to_cpp_type(type), join, diagonal_band_width) {}
+    : PixelSelector(std::move(sel_), map_py_numeric_to_cpp_type(type), join, diagonal_band_width) {}
 
 PixelSelector::PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_,
                              const nb::type_object& type, bool join,
                              std::optional<std::int64_t> diagonal_band_width)
-    : PixelSelector(std::move(sel_), map_py_type_to_cpp_type(type), join, diagonal_band_width) {}
+    : PixelSelector(std::move(sel_), map_py_numeric_to_cpp_type(type), join, diagonal_band_width) {}
 
 std::string PixelSelector::repr() const {
   if (!coord1()) {
