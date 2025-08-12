@@ -121,7 +121,7 @@ jobs:
 
     steps:
       - name: Clone hictkpy
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Fix permissions
         run: |
@@ -221,7 +221,7 @@ jobs:
           echo "resolution=$resolution" | tee -a "$GITHUB_OUTPUT"
 
       - name: Clone hictk
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: "paulsengroup/hictk"
           path: hictk

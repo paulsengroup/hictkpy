@@ -50,7 +50,7 @@ jobs:
       conan-home: ${{ env.CONAN_HOME }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Add devtools to PATH
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
