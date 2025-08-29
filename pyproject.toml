@@ -63,10 +63,10 @@ optional-dependencies.test = [
 
 optional-dependencies.dev = [
   "hictkpy[all,test]",
-  "black>=24.10",
-  "clang-format>=19.1",
-  "isort>=5.13",
-  "gersemi>=0.15",
+  "black>=25.1",
+  "clang-format>=20.1",
+  "isort>=6.0",
+  "gersemi>=0.22",
 ]
 
 [tool.scikit-build]
