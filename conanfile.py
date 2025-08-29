@@ -31,6 +31,7 @@ class HictkpyConan(ConanFile):
     generators = "CMakeDeps"
 
     def requirements(self):
+        # Arrow 21.0.0 can't find certain kernels (e.g., sort_indices)
         self.requires("arrow/20.0.0#6e04404a336dd16f08062f6923e6f8f1")
         if is_msvc(self):
             self.requires("boost/1.88.0#14ecfc01dd5a690f15e1318e56a6b78c", force=True)  # arrow
