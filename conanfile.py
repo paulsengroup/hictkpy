@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 from conan import ConanFile
-from conan.tools.build import check_min_cppstd
+from conan.tools.microsoft import is_msvc
 
-required_conan_version = ">=1.53.0"
+
+required_conan_version = ">=2"
 
 
 class HictkpyConan(ConanFile):
@@ -30,10 +31,6 @@ class HictkpyConan(ConanFile):
 
     generators = "CMakeDeps"
 
-    @property
-    def _min_cppstd(self):
-        return 17
-
     def requirements(self):
         self.requires("arrow/19.0.1#f6937fd566ecbec1eab37b40e292dfec")
         self.requires("boost/1.87.0#53c53f3d6eeb9db4a3d68573596db0e7", force=True)
@@ -51,14 +48,8 @@ class HictkpyConan(ConanFile):
         self.requires("spdlog/1.15.1#92e99f07f134481bce4b70c1a41060e7")
         self.requires("zstd/1.5.7#f98394e178ac97e2a7b445ea0ce6bcaf", force=True)
 
-    def validate(self):
-        if self.settings.get_safe("compiler.cppstd"):
-            check_min_cppstd(self, self._min_cppstd)
 
     def configure(self):
-        if self.settings.compiler in ["clang", "gcc"] and self.settings.os == "Linux":
-            self.settings.compiler.libcxx = "libstdc++11"
-
         self.options["arrow"].compute = True
         self.options["arrow"].parquet = False
         self.options["arrow"].with_boost = True
