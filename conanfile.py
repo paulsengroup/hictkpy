@@ -40,7 +40,7 @@ class HictkpyConan(ConanFile):
         self.requires("eigen/3.4.90-unstable+git.2025.08.15#b407f03f085cdb246f6bcbadd84fe9db", force=True)
         self.requires("fast_float/8.0.2#846ad0ebab16bc265c511095c3b490e9")
         self.requires("fmt/11.2.0#579bb2cdf4a7607621beea4eb4651e0f", force=True)
-        self.requires("hdf5/1.14.6#a5cdabab5e051941b7c7a220005d1d60", force=True)
+        self.requires("hdf5/1.14.6#6f1acd01d23d00735fe97300f4d5980c", force=True)
         self.requires("highfive/2.10.0#75c849a0d940b2d4dae6055915132690")
         self.requires("libdeflate/1.23#4994bea7cf7e93789da161fac8e26a53")
         self.requires("parallel-hashmap/2.0.0#82acae64ffe2693fff5fb3f9df8e1746")
