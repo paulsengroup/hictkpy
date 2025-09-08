@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -251,7 +251,7 @@ jobs:
           tar -xf /tmp/cmake-prefix-rel.tar -C conan-env/ --strip-components=1
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@352e01339f0a173aa2a3eb57f01492e341e83865 # v3.1.3
+        uses: pypa/cibuildwheel@7c619efba910c04005a835b110b057fc28fd6e93 # v3.2.0
         with:
           only: ${{ matrix.wheel-config }}
         env:
@@ -342,7 +342,7 @@ jobs:
           rm dist.tar
 
       - name: Upload wheels to PyPI
-        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
         with:
           attestations: true
           print-hash: true
