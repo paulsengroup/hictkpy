@@ -50,7 +50,7 @@ jobs:
       conan-home: ${{ env.CONAN_HOME }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Add devtools to PATH
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -91,7 +91,7 @@ jobs:
             ${{ env.CONAN_HOME }}\p
             ${{ github.workspace }}\cmake-prefix-rel.tar
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         with:
           python-version: "3.13"
