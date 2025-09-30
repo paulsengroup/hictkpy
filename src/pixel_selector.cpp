@@ -401,29 +401,40 @@ nb::object PixelSelector::to_coo(std::string_view span) const {
   return to_csr(span).attr("tocoo")(false);
 }
 
-template <typename N, typename PixelSelector>
-[[nodiscard]] static nb::object make_numpy_matrix(
+template <typename N, typename PixelSelector,
+          typename M = std::conditional_t<std::is_same_v<N, long double>, double, N>>
+[[nodiscard]] static nb::ndarray<nb::numpy, M, nb::ndim<2>, nb::c_contig> make_numpy_matrix(
     std::shared_ptr<const PixelSelector> sel, hictk::transformers::QuerySpan span,
     std::optional<std::uint64_t> diagonal_band_width) {
-  if constexpr (std::is_same_v<N, long double>) {
-    return make_numpy_matrix<double>(std::move(sel), span, diagonal_band_width);
-  } else {
-    return nb::cast(
-        hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)());
-  }
+  static_assert(std::is_arithmetic_v<N>);
+  using Matrix =
+      typename hictk::transformers::ToDenseMatrix<M, hictk::cooler::PixelSelector>::MatrixT;
+  auto em = std::make_unique<Matrix>(
+      hictk::transformers::ToDenseMatrix(std::move(sel), M{}, span, diagonal_band_width)());
+
+  const auto num_rows = static_cast<std::size_t>(em->rows());
+  const auto num_cols = static_cast<std::size_t>(em->cols());
+  auto* data_ptr = em->data();
+
+  // NOLINTNEXTLINE
+  nb::capsule owner{em.get(), [](void* m) noexcept { delete static_cast<Matrix*>(m); }};
+  em.release();
+
+  return {data_ptr, {num_rows, num_cols}, std::move(owner)};
 }
 
-nb::object PixelSelector::to_numpy(std::string_view span) const {
+auto PixelSelector::to_numpy(std::string_view span) const -> DenseMatrix {
   std::ignore = import_module_checked("numpy");
 
   const auto query_span = parse_span(span);
 
   return std::visit(
-      [&](auto sel_ptr) -> nb::object {
+      [&](auto sel_ptr) -> DenseMatrix {
         return std::visit(
-            [&]([[maybe_unused]] auto count) -> nb::object {
+            [&]([[maybe_unused]] auto count) -> DenseMatrix {
               using N = decltype(count);
-              return make_numpy_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+              return DenseMatrix{
+                  make_numpy_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width)};
             },
             pixel_count);
       },
@@ -706,8 +717,7 @@ void PixelSelector::bind(nb::module_& m) {
           nb::sig("def to_df(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Alias to to_pandas().", nb::rv_policy::take_ownership);
   sel.def("to_numpy", &PixelSelector::to_numpy, nb::arg("query_span") = "full",
-          nb::sig("def to_numpy(self, query_span: str = \"full\") -> numpy.ndarray"),
-          "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::move);
+          "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::take_ownership);
   sel.def(
       "to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
