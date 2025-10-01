@@ -448,14 +448,73 @@ nb::object PixelSelector::to_pandas(std::string_view span) const {
   // clang-format on
 }
 
-template <typename N, typename PixelSelector>
-[[nodiscard]] static auto make_csr_matrix(std::shared_ptr<const PixelSelector> sel, QuerySpan span,
-                                          std::optional<std::uint64_t> diagonal_band_width) {
-  if constexpr (std::is_same_v<N, long double>) {
-    return make_csr_matrix<double>(std::move(sel), span, diagonal_band_width);
-  } else {
-    return ToSparseMatrix(std::move(sel), N{}, span, false, diagonal_band_width)();
-  }
+template <typename N, typename PixelSelector,
+          typename M = std::conditional_t<std::is_same_v<N, long double>, double, N>>
+[[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
+                                                hictk::transformers::QuerySpan span,
+                                                std::optional<std::uint64_t> diagonal_band_width) {
+  static_assert(std::is_arithmetic_v<N>);
+
+  using Matrix = decltype(hictk::transformers::ToSparseMatrix(sel, M{})());
+  auto ss = import_module_checked("scipy.sparse");
+
+  // This seems to be the only reliable way to construct a scipy.sparse.csr_matrix without copying
+  // data around
+  auto matrix =
+      hictk::transformers::ToSparseMatrix(std::move(sel), M{}, span, false, diagonal_band_width)();
+  matrix.makeCompressed();
+
+  // We need to make a copy of all the relevant pointers and matrix member variable before calling
+  // .release()
+  const auto nnz = static_cast<std::size_t>(matrix.nonZeros());
+  const auto indptr_size = static_cast<std::size_t>(matrix.outerSize()) + 1;
+  const auto num_rows = static_cast<std::int64_t>(matrix.rows());
+  const auto num_cols = static_cast<std::int64_t>(matrix.cols());
+
+  auto* data_ptr = matrix.valuePtr();
+  auto* indices_ptr = matrix.innerIndexPtr();
+  auto* indptr_ptr = matrix.outerIndexPtr();
+
+  struct RefCountedMatrix {
+    std::unique_ptr<Matrix> data{};
+    std::atomic<std::uint8_t> count{};
+
+    RefCountedMatrix(Matrix ptr) noexcept
+        : data(std::make_unique<Matrix>(std::move(ptr))), count(0) {}
+  };
+
+  auto rc_matrix = std::make_unique<RefCountedMatrix>(std::move(matrix));
+
+  auto make_capsule = [rc_matrix_ptr = rc_matrix.get()]() noexcept {
+    return nb::capsule{rc_matrix_ptr, [](void* ptr) noexcept {
+                         auto* m = static_cast<RefCountedMatrix*>(ptr);
+                         if (!!m && ++m->count == 3) {
+                           delete m;  // NOLINT
+                         }
+                       }};
+  };
+
+  // It's important to have one owner for each ndarray to avoid unnecessary copies
+  auto owner1 = make_capsule();
+  auto owner2 = make_capsule();
+  auto owner3 = make_capsule();
+  rc_matrix.release();
+
+  using T = const std::remove_pointer_t<decltype(data_ptr)>;
+  using I1 = const std::remove_pointer_t<decltype(indices_ptr)>;
+  using I2 = const std::remove_pointer_t<decltype(indptr_ptr)>;
+
+  // clang-format off
+  nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, T> data{data_ptr, {nnz}, std::move(owner1)};
+  nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, I1> indices{indices_ptr, {nnz}, std::move(owner2)};
+  nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, I2> indptr{indptr_ptr, {indptr_size}, std::move(owner3)};
+
+  return ss.attr("csr_matrix")(
+      std::make_tuple(std::move(data), std::move(indices), std::move(indptr)),
+      nb::arg("shape") = std::make_tuple(num_rows, num_cols),
+      nb::arg("copy") = false
+  );
+  // clang-format on
 }
 
 std::optional<nb::object> PixelSelector::to_csr(std::string_view span) const {
@@ -838,7 +897,7 @@ void PixelSelector::bind(nb::module_& m) {
       "to_csr", &PixelSelector::to_csr, nb::call_guard<nb::gil_scoped_release>(),
       nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
-      "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::move);
+      "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::take_ownership);
 
   using PixelIt = hictk::ThinPixel<int>*;
   static const std::vector<std::string> known_metrics(
