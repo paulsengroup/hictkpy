@@ -7,8 +7,6 @@
 #include <Python.h>
 #include <fmt/format.h>
 #include <fmt/std.h>
-#include <nanobind/eigen/dense.h>
-#include <nanobind/eigen/sparse.h>
 #include <nanobind/make_iterator.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
