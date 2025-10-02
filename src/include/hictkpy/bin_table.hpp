@@ -24,7 +24,7 @@ class BinTable {
   std::shared_ptr<const hictk::BinTable> _bins = std::make_shared<const hictk::BinTable>();
 
  public:
-  using BinIDsVec = nanobind::ndarray<nanobind::numpy, nanobind::shape<-1>, std::int64_t>;
+  using BinIDsVec = nanobind::ndarray<nanobind::numpy, nanobind::ndim<1>, std::int64_t>;
 
   BinTable() = default;
   explicit BinTable(std::shared_ptr<const hictk::BinTable> bins) noexcept;
