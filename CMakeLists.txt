@@ -61,6 +61,7 @@ set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_INSTALL OFF)
 set(HICTK_WITH_EIGEN ON)
 set(HICTK_ENABLE_GIT_VERSION_TRACKING OFF)
+find_package(Eigen3 5 REQUIRED QUIET) # Versions <5 are not supported (and will likely result in segfaults)
 
 # We are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
 find_package(hictk REQUIRED)
