@@ -75,7 +75,7 @@ build-dir = "build/{wheel_tag}"
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 sdist.include = ["src/_version.py"]
 wheel.expand-macos-universal-tags = true
-cmake.build-type = "Release"
+cmake.build-type = "Release"  # "Debug"
 
 [tool.scikit-build.cmake.define]
 BUILD_SHARED_LIBS = { env="HICTKPY_BUILD_SHARED_LIBS", default="OFF" }

@@ -52,6 +52,10 @@ FetchContent_Declare(
   SYSTEM
 )
 
+if(DEFINED CMAKE_BUILD_TYPE)
+  set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};--settings=build_type=${CMAKE_BUILD_TYPE}")
+endif()
+
 # Tweak hictk
 set(HICTK_BUILD_BENCHMARKS OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
