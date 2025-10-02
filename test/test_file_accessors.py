@@ -9,7 +9,7 @@ import pytest
 
 import hictkpy
 
-from .helpers import numpy_avail, pandas_avail
+from .helpers import numpy_avail, pandas_avail, pyarrow_avail
 
 testdir = pathlib.Path(__file__).resolve().parent
 
@@ -24,7 +24,6 @@ pytestmark = pytest.mark.parametrize(
 
 
 class TestClass:
-    @pytest.mark.skipif(not pandas_avail(), reason="pandas is not available")
     def test_attributes(self, file, resolution):
         f = hictkpy.File(file, resolution)
         assert f.resolution() == 100_000
@@ -41,6 +40,7 @@ class TestClass:
         else:
             assert f.attributes()["format"] == "HIC"
 
+    @pytest.mark.skipif(not pandas_avail() or not pyarrow_avail(), reason="either pandas or pyarrow are not available")
     def test_normalizations(self, file, resolution):
         f = hictkpy.File(file, resolution)
 
