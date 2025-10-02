@@ -372,7 +372,8 @@ template <typename N, typename PixelSelector,
           typename M = std::conditional_t<std::is_same_v<N, long double>, double, N>>
 [[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
                                                 hictk::transformers::QuerySpan span,
-                                                std::optional<std::uint64_t> diagonal_band_width) {
+                                                std::optional<std::uint64_t> diagonal_band_width,
+                                                bool low_memory) {
   static_assert(std::is_arithmetic_v<N>);
 
   using Matrix = decltype(hictk::transformers::ToSparseMatrix(sel, M{})());
@@ -380,8 +381,8 @@ template <typename N, typename PixelSelector,
 
   // This seems to be the only reliable way to construct a scipy.sparse.csr_matrix without copying
   // data around
-  auto matrix =
-      hictk::transformers::ToSparseMatrix(std::move(sel), M{}, span, false, diagonal_band_width)();
+  auto matrix = hictk::transformers::ToSparseMatrix(std::move(sel), M{}, span, low_memory,
+                                                    diagonal_band_width)();
   matrix.makeCompressed();
 
   // We need to make a copy of all the relevant pointers and matrix member variable before calling
@@ -437,7 +438,7 @@ template <typename N, typename PixelSelector,
   // clang-format on
 }
 
-nb::object PixelSelector::to_csr(std::string_view span) const {
+nb::object PixelSelector::to_csr(std::string_view span, bool low_memory) const {
   import_module_checked("scipy");
   const auto query_span = parse_span(span);
 
@@ -446,16 +447,17 @@ nb::object PixelSelector::to_csr(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::object {
               using N = decltype(count);
-              return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+              return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width,
+                                        low_memory);
             },
             pixel_count);
       },
       selector);
 }
 
-nb::object PixelSelector::to_coo(std::string_view span) const {
+nb::object PixelSelector::to_coo(std::string_view span, bool low_memory) const {
   import_module_checked("scipy");
-  return to_csr(span).attr("tocoo")(false);
+  return to_csr(span, low_memory).attr("tocoo")(nb::arg("copy") = false);
 }
 
 template <typename N, typename PixelSelector,
@@ -775,14 +777,22 @@ void PixelSelector::bind(nb::module_& m) {
           "Alias to to_pandas().", nb::rv_policy::take_ownership);
   sel.def("to_numpy", &PixelSelector::to_numpy, nb::arg("query_span") = "full",
           "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::take_ownership);
-  sel.def(
-      "to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
-      nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
-      "Retrieve interactions as a SciPy COO matrix.", nb::rv_policy::take_ownership);
-  sel.def(
-      "to_csr", &PixelSelector::to_csr, nb::arg("query_span") = "upper_triangle",
-      nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
-      "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::take_ownership);
+  sel.def("to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
+          nb::arg("low_memory") = false,
+          nb::sig("def to_coo(self, query_span: str = \"upper_triangle\", low_memory: bool = "
+                  "False) -> scipy.sparse.coo_matrix"),
+          "Retrieve interactions as a SciPy COO matrix. When low_memory=True, the heuristic used "
+          "to minimize the number of memory allocations is turned off, and a two-pass algorithm "
+          "that allocates a matrix with the exact shape is used instead.",
+          nb::rv_policy::take_ownership);
+  sel.def("to_csr", &PixelSelector::to_csr, nb::arg("query_span") = "upper_triangle",
+          nb::arg("low_memory") = false,
+          nb::sig("def to_csr(self, query_span: str = \"upper_triangle\", low_memory: bool = "
+                  "False) -> scipy.sparse.csr_matrix"),
+          "Retrieve interactions as a SciPy CSR matrix. When low_memory=True, the heuristic used "
+          "to minimize the number of memory allocations is turned off, and a two-pass algorithm "
+          "that allocates a matrix with the exact shape is used instead.",
+          nb::rv_policy::take_ownership);
 
   using PixelIt = hictk::ThinPixel<int>*;
   static const std::vector<std::string> known_metrics(

@@ -73,8 +73,8 @@ struct PixelSelector {
   [[nodiscard]] nanobind::object to_arrow(std::string_view span) const;
   [[nodiscard]] nanobind::object to_df(std::string_view span) const;
   [[nodiscard]] nanobind::object to_pandas(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_coo(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_csr(std::string_view span) const;
+  [[nodiscard]] nanobind::object to_coo(std::string_view span, bool low_memory) const;
+  [[nodiscard]] nanobind::object to_csr(std::string_view span, bool low_memory) const;
   [[nodiscard]] auto to_numpy(std::string_view span) const -> DenseMatrix;
 
   [[nodiscard]] nanobind::dict describe(const std::vector<std::string>& metrics, bool keep_nans,
