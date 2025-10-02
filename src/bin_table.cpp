@@ -569,8 +569,6 @@ void BinTable::bind(nb::module_& m) {
          "Get the ID of the bin overlapping the given genomic coordinate.");
   bt.def("get_ids", &BinTable::coords_to_bin_ids, nb::arg("chroms"), nb::arg("pos"),
          "Get the IDs of the bins overlapping the given genomic coordinates.",
-         nb::sig("def get_ids(self, chroms: collections.abc.Sequence[str], pos: "
-                 "collections.abc.Sequence[int]) -> numpy.ndarray[dtype=int64]"),
          nb::rv_policy::take_ownership);
 
   bt.def("merge", &BinTable::merge_coords, nb::arg("df"),
