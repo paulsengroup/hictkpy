@@ -57,11 +57,10 @@ inline Stats PixelAggregator<PixelIt>::compute(PixelIt first, PixelIt last, std:
     const auto stats =
         compute_online<keep_nans, keep_infs>(first, last, size, {"nnz", "mean"}, keep_zeros);
     assert(stats.nnz.has_value());
-    assert(stats.mean.has_value());
     reset();
-    return compute_exact<keep_nans, keep_infs>(std::move(first), std::move(last), size, metrics,
-                                               static_cast<std::uint64_t>(*stats.nnz), *stats.mean,
-                                               keep_zeros);
+    return compute_exact<keep_nans, keep_infs>(
+        std::move(first), std::move(last), size, metrics, static_cast<std::uint64_t>(*stats.nnz),
+        stats.mean.value_or(std::numeric_limits<double>::quiet_NaN()), keep_zeros);
   }
 
   return compute_online<keep_nans, keep_infs>(std::move(first), std::move(last), size, metrics,
@@ -73,9 +72,6 @@ template <bool keep_nans, bool keep_infs>
 inline Stats PixelAggregator<PixelIt>::compute_online(
     PixelIt first, PixelIt last, std::uint64_t size,
     const phmap::flat_hash_set<std::string>& metrics, bool keep_zeros) {
-  if (!keep_zeros) {
-    assert(size == 0);
-  }
   auto break_on_non_finite = [this]() constexpr noexcept {
     return _nan_found || _neg_inf_found || _pos_inf_found;
   };
@@ -104,10 +100,6 @@ inline Stats PixelAggregator<PixelIt>::compute_exact(
     PixelIt first, PixelIt last, std::uint64_t size,
     const phmap::flat_hash_set<std::string>& metrics, std::uint64_t nnz, double mean,
     bool keep_zeros) {
-  if (!keep_zeros) {
-    assert(size == 0);
-  }
-
   if (size == 0) {
     return {};
   }
@@ -260,7 +252,6 @@ Stats PixelAggregator<PixelIt>::extract(const phmap::flat_hash_set<std::string>&
 template <typename PixelIt>
 template <bool keep_nans, bool keep_infs>
 inline void PixelAggregator<PixelIt>::update(N n) noexcept {
-  assert(n != 0);
   update_finiteness_counters<keep_nans, keep_infs>(n);
   if (n != 0) {
     ++_nnz;
