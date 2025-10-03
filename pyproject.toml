@@ -23,10 +23,9 @@ readme = "README.md"
 authors = [
   {name = "Roberto Rossini", email = "roberros@uio.no"}
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -76,21 +75,16 @@ metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 sdist.include = ["src/_version.py"]
 wheel.expand-macos-universal-tags = true
 cmake.build-type = "Release"  # "Debug"
+cmake.version = "CMakeLists.txt"
 
 [tool.scikit-build.cmake.define]
 BUILD_SHARED_LIBS = { env="HICTKPY_BUILD_SHARED_LIBS", default="OFF" }
+CMAKE_C_STANDARD = { env="HICTKPY_C_STANDARD", default=11 }
+CMAKE_CXX_STANDARD = { env="HICTKPY_CXX_STANDARD", default=17 }
 CMAKE_OSX_DEPLOYMENT_TARGET = { env="HICTKPY_OSX_DEPLOYMENT_TARGET", default="10.15" }
 CMAKE_PROJECT_TOP_LEVEL_INCLUDES = { env="HICTKPY_PROJECT_TOP_LEVEL_INCLUDES", default="cmake/conan_provider.cmake" }
-CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--settings=compiler.cppstd=17;--build=missing;--update;--options=*/*:shared=False" }
+CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--build=missing;--update;--options=*/*:shared=False" }
 HICTKPY_BUILD_PORTABLE_WHEELS_WIN = { env="HICTKPY_BUILD_PORTABLE_WHEELS_WIN", default="OFF" }
-HICTK_BUILD_BENCHMARKS = "OFF"
-HICTK_BUILD_EXAMPLES = "OFF"
-HICTK_BUILD_TOOLS = "OFF"
-HICTK_ENABLE_FUZZY_TESTING = "OFF"
-HICTK_ENABLE_GIT_VERSION_TRACKING = "OFF"
-HICTK_ENABLE_TESTING = "OFF"
-HICTK_WITH_ARROW = "ON"
-HICTK_WITH_EIGEN = "ON"
 
 [tool.setuptools_scm]
 write_to = "src/_version.py"
@@ -133,7 +127,7 @@ before-build = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all = "dnf install -y clang"
+before-all = "dnf install -y clang lld"
 
 # We are using static linking, thus repairing wheels should not be necessary.
 # Exception being when building portable Linux wheels.
@@ -156,11 +150,11 @@ extend-select = [
 extend-ignore = [
   "E501", # Line too long
 ]
-target-version = "py39"
+target-version = "py310"
 
 [tool.black]
 line-length = 120
-target-version = ["py39"]
+target-version = ["py310"]
 
 [tool.isort]
 profile = "black"

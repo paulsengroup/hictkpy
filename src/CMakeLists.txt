@@ -4,7 +4,7 @@
 
 find_package(
   Python
-  3.9
+  3.10
   COMPONENTS
     Interpreter
     Development.Module
