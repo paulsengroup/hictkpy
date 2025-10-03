@@ -1,0 +1,11 @@
+# Copyright (C) 2025 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+*.xz                                binary
+
+cmake/conan_provider.cmake          linguist-vendored
+cmake/modules/FindFilesystem.cmake  linguist-vendored
+docs/**                             linguist-documentation
+external/**                         linguist-vendored
+test/data/**                        linguist-generated
