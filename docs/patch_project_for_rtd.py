@@ -108,9 +108,22 @@ def patch_conanfile(path: pathlib.Path, inplace: bool):
     pattern = "|".join(f"{p}/" for p in packages)
     pattern += "|"
     pattern += "|".join(rf"{p}\"" for p in packages)
-    pattern = re.compile(rf".*\"({pattern}).*\n")
+    pattern = re.compile(rf"^(\s*)(.*\"({pattern}).*)$")
 
-    payload = subn_checked(pattern, "", path.read_text(), 0)
+    payload = path.read_text().splitlines(keepends=True)
+
+    num_replacements = 0
+    for i, line in enumerate(payload):
+        line, n = pattern.subn(r"\1pass  # \2", line)
+
+        if n != 0:
+            payload[i] = line
+            num_replacements += n
+
+    if num_replacements == 0:
+        raise RuntimeError(f"Failed to match pattern {str(pattern)} to the given string")
+
+    payload = "".join(payload)
 
     if inplace:
         logging.info(f'Updating file "{path}" inplace...')

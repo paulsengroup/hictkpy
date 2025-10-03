@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 cmake_minimum_required(VERSION 3.25)
-cmake_policy(VERSION 3.25...3.30)
+cmake_policy(VERSION 3.25...4.1)
 set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
@@ -35,8 +35,8 @@ FetchContent_Declare(
 FetchContent_Declare(
   hictk
   URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.1.2.tar.xz"
-  URL_HASH "SHA256=82cb76d595c0760eb1dffbcd09b98141797bd231aa269aef76e1f9b63f8e0ee5"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.1.5.tar.xz"
+  URL_HASH "SHA256=5cfc87ffc73acc4bf7b236394b1865a49c137158ee122cbc96f9c485ec9c0fb6"
   EXCLUDE_FROM_ALL
   OVERRIDE_FIND_PACKAGE
   SYSTEM
@@ -45,8 +45,8 @@ FetchContent_Declare(
 FetchContent_Declare(
   nanobind
   URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.7.0.tar.xz"
-  URL_HASH "SHA256=5f871368745ce1a249cb5f296aec64e960a3a9eaee70a67d0a4926cfd99ba74c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind-v2.9.2.tar.xz"
+  URL_HASH "SHA256=1310c9e6c8801ba18dd9dbc9699e3ac823d4f36a9dcb8e06e0ab6855fbad0d81"
   EXCLUDE_FROM_ALL
   OVERRIDE_FIND_PACKAGE
   SYSTEM
@@ -61,6 +61,7 @@ set(HICTK_ENABLE_TESTING OFF)
 set(HICTK_INSTALL OFF)
 set(HICTK_WITH_EIGEN ON)
 set(HICTK_ENABLE_GIT_VERSION_TRACKING OFF)
+find_package(Eigen3 5 REQUIRED QUIET) # Versions <5 are not supported (and will likely result in segfaults)
 
 # We are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
 find_package(hictk REQUIRED)

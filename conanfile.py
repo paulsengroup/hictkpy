@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: MIT
 
 from conan import ConanFile
-from conan.tools.build import check_min_cppstd
+from conan.tools.microsoft import is_msvc
 
-required_conan_version = ">=1.53.0"
+required_conan_version = ">=2"
 
 
 class HictkpyConan(ConanFile):
@@ -30,83 +30,77 @@ class HictkpyConan(ConanFile):
 
     generators = "CMakeDeps"
 
-    @property
-    def _min_cppstd(self):
-        return 17
-
     def requirements(self):
-        self.requires("arrow/19.0.1#f6937fd566ecbec1eab37b40e292dfec")
-        self.requires("boost/1.87.0#53c53f3d6eeb9db4a3d68573596db0e7", force=True)
+        # Arrow 21.0.0 can't find certain kernels (e.g., sort_indices)
+        self.requires("arrow/20.0.0#6e04404a336dd16f08062f6923e6f8f1")
+        if is_msvc(self):
+            self.requires("boost/1.88.0#14ecfc01dd5a690f15e1318e56a6b78c", force=True)  # arrow
         self.requires("bshoshany-thread-pool/5.0.0#d94da300363f0c35b8f41b2c5490c94d")
         self.requires("concurrentqueue/1.0.4#1e48e1c712bcfd892087c9c622a51502")
-        self.requires("eigen/3.4.0#2e192482a8acff96fe34766adca2b24c")
-        self.requires("fast_float/8.0.0#edda0315516b2f1e7835972fdf5fc5ca")
-        self.requires("fmt/11.1.4#1fb24f082fabe20d28606d615ba93dfb", force=True)
-        self.requires("hdf5/1.14.5#51799cda2ba7acaa74c9651dea284ac4", force=True)
-        self.requires("highfive/2.10.0#c975a16d7fe3655c173f8a9aab16b416")
+        self.requires("eigen/5.0.0#f7561f543f4aafd6d2dc1f6d677e3075", force=True)
+        self.requires("fast_float/8.0.2#846ad0ebab16bc265c511095c3b490e9")
+        self.requires("fmt/12.0.0#dc7de7f3968e5d6b377f27b7d0f33916", force=True)
+        self.requires("hdf5/1.14.6#0b780319690d537e6cb0683244919955", force=True)
+        self.requires("highfive/3.1.1#d0c724526ebc8ce396ffa1bf7f3c7b64")
         self.requires("libdeflate/1.23#4994bea7cf7e93789da161fac8e26a53")
         self.requires("parallel-hashmap/2.0.0#82acae64ffe2693fff5fb3f9df8e1746")
         self.requires("readerwriterqueue/1.0.6#aaa5ff6fac60c2aee591e9e51b063b83")
         self.requires("span-lite/0.11.0#519fd49fff711674cfed8cd17d4ed422")
-        self.requires("spdlog/1.15.1#92e99f07f134481bce4b70c1a41060e7")
-        self.requires("zstd/1.5.7#f98394e178ac97e2a7b445ea0ce6bcaf", force=True)
-
-    def validate(self):
-        if self.settings.get_safe("compiler.cppstd"):
-            check_min_cppstd(self, self._min_cppstd)
+        self.requires("spdlog/1.15.3#3ca0e9e6b83af4d0151e26541d140c86")
+        self.requires("zstd/1.5.7#fde461c0d847a22f16d3066774f61b11", force=True)
 
     def configure(self):
-        if self.settings.compiler in ["clang", "gcc"] and self.settings.os == "Linux":
-            self.settings.compiler.libcxx = "libstdc++11"
-
         self.options["arrow"].compute = True
+        self.options["arrow"].filesystem_layer = False
         self.options["arrow"].parquet = False
-        self.options["arrow"].with_boost = True
+        self.options["arrow"].with_boost = is_msvc(self)
         self.options["arrow"].with_re2 = True
         self.options["arrow"].with_thrift = False
-        self.options["boost"].system_no_deprecated = True
-        self.options["boost"].asio_no_deprecated = True
-        self.options["boost"].filesystem_no_deprecated = True
-        self.options["boost"].filesystem_version = 4
-        self.options["boost"].zlib = False
-        self.options["boost"].bzip2 = False
-        self.options["boost"].lzma = False
-        self.options["boost"].zstd = False
-        self.options["boost"].without_atomic = False
-        self.options["boost"].without_charconv = True
-        self.options["boost"].without_chrono = True
-        self.options["boost"].without_cobalt = True
-        self.options["boost"].without_container = True
-        self.options["boost"].without_context = True
-        self.options["boost"].without_contract = True
-        self.options["boost"].without_coroutine = True
-        self.options["boost"].without_date_time = True
-        self.options["boost"].without_exception = True
-        self.options["boost"].without_fiber = True
-        self.options["boost"].without_filesystem = False
-        self.options["boost"].without_graph = True
-        self.options["boost"].without_graph_parallel = True
-        self.options["boost"].without_iostreams = True
-        self.options["boost"].without_json = True
-        self.options["boost"].without_locale = True
-        self.options["boost"].without_log = True
-        self.options["boost"].without_math = True
-        self.options["boost"].without_mpi = True
-        self.options["boost"].without_nowide = True
-        self.options["boost"].without_process = True
-        self.options["boost"].without_program_options = True
-        self.options["boost"].without_python = True
-        self.options["boost"].without_random = True
-        self.options["boost"].without_regex = True
-        self.options["boost"].without_serialization = True
-        self.options["boost"].without_stacktrace = True
-        self.options["boost"].without_system = False
-        self.options["boost"].without_test = True
-        self.options["boost"].without_thread = True
-        self.options["boost"].without_timer = True
-        self.options["boost"].without_type_erasure = True
-        self.options["boost"].without_url = True
-        self.options["boost"].without_wave = True
+        if is_msvc(self):
+            self.options["boost"].system_no_deprecated = True
+            self.options["boost"].asio_no_deprecated = True
+            self.options["boost"].filesystem_no_deprecated = True
+            self.options["boost"].filesystem_version = 4
+            self.options["boost"].zlib = False
+            self.options["boost"].bzip2 = False
+            self.options["boost"].lzma = False
+            self.options["boost"].zstd = False
+            self.options["boost"].without_atomic = False
+            self.options["boost"].without_charconv = True
+            self.options["boost"].without_chrono = True
+            self.options["boost"].without_cobalt = True
+            self.options["boost"].without_container = True
+            self.options["boost"].without_context = True
+            self.options["boost"].without_contract = True
+            self.options["boost"].without_coroutine = True
+            self.options["boost"].without_date_time = True
+            self.options["boost"].without_exception = True
+            self.options["boost"].without_fiber = True
+            self.options["boost"].without_filesystem = False
+            self.options["boost"].without_graph = True
+            self.options["boost"].without_graph_parallel = True
+            self.options["boost"].without_iostreams = True
+            self.options["boost"].without_json = True
+            self.options["boost"].without_locale = True
+            self.options["boost"].without_log = True
+            self.options["boost"].without_math = True
+            self.options["boost"].without_mpi = True
+            self.options["boost"].without_nowide = True
+            self.options["boost"].without_process = True
+            self.options["boost"].without_program_options = True
+            self.options["boost"].without_python = True
+            self.options["boost"].without_random = True
+            self.options["boost"].without_regex = True
+            self.options["boost"].without_serialization = True
+            self.options["boost"].without_stacktrace = True
+            self.options["boost"].without_system = False
+            self.options["boost"].without_test = True
+            self.options["boost"].without_thread = True
+            self.options["boost"].without_timer = True
+            self.options["boost"].without_type_erasure = True
+            self.options["boost"].without_url = True
+            self.options["boost"].without_wave = True
+        self.options["eigen"].MPL2_only = True
         self.options["fmt"].header_only = True
         self.options["hdf5"].enable_cxx = False
         self.options["hdf5"].hl = False
