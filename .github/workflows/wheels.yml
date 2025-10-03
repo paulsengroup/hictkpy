@@ -111,7 +111,7 @@ jobs:
     with:
       os: ubuntu-24.04
       arch: x86_64
-      image-version: 2025.05.24-1
+      image-version: 2025.09.28-1
 
   build-conan-deps-linux-arm64:
     name: Build Conan deps (Linux arm64)
@@ -119,7 +119,7 @@ jobs:
     with:
       os: ubuntu-24.04-arm
       arch: aarch64
-      image-version: 2025.05.24-1
+      image-version: 2025.09.28-1
 
   build-conan-deps-macos-x86:
     name: Build Conan deps (macOS x86_64)
