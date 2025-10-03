@@ -4,7 +4,7 @@
 
 find_package(
   Python
-  3.9
+  3.10
   COMPONENTS
     Interpreter
     Development.Module
@@ -19,12 +19,22 @@ find_package(phmap REQUIRED QUIET)
 find_package(spdlog REQUIRED QUIET)
 find_package(Filesystem REQUIRED QUIET)
 
+if(CMAKE_BUILD_TYPE STREQUAL Release)
+  set(
+    HICTKPY_MODULE_ARGS
+    NB_SUPPRESS_WARNINGS
+    LTO
+    NOMINSIZE
+  )
+else()
+  set(HICTKPY_MODULE_ARGS NOSTRIP)
+endif()
+
 nanobind_add_module(
         _hictkpy
-        NB_SUPPRESS_WARNINGS
-        NB_STATIC
         NB_DOMAIN hictkpy
-        LTO
+        NB_STATIC
+        ${HICTKPY_MODULE_ARGS}
         MODULE
         "${CMAKE_CURRENT_SOURCE_DIR}/bin_table.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cooler_file_writer.cpp"
