@@ -31,6 +31,7 @@ on:
 env:
   CONAN_HOME: "${{ github.workspace }}/.conan2/"
   HICTK_CI: "1"
+  UV_LINK_MODE: copy
 
 # https://stackoverflow.com/a/72408109
 concurrency:
@@ -49,10 +50,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2025, macos-latest, ubuntu-latest]
+        os: [windows-2025, macos-26, ubuntu-24.04, ubuntu-24.04-arm]
         python-version: ["3.10", "3.13"]
         include:
-          - { os: ubuntu-latest, python-version: "3.13+debug" }
+          - { os: ubuntu-24.04, python-version: "3.13+debug" }
+          - { os: ubuntu-24.04-arm, python-version: "3.13+debug" }
 
     runs-on: ${{ matrix.os }}
 

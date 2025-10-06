@@ -191,6 +191,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install uv
+        if: ${{ !startsWith(matrix.os, 'ubuntu') }}
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          activate-environment: true
+          enable-cache: true
+
       - name: Restore Conan cache (Linux; x86_64)
         if: startsWith(matrix.os, 'ubuntu') && matrix.arch == 'x86_64'
         uses: actions/cache/restore@v4
@@ -273,6 +281,7 @@ jobs:
             CMAKE_LINKER_TYPE=LLD
             CONAN_HOME='/host${{ env.CONAN_HOME }}'
             HICTKPY_CXX_STANDARD=23
+            UV_LINK_MODE=copy
           CIBW_ENVIRONMENT_MACOS: >
             CC=clang
             CXX=clang++
@@ -281,6 +290,7 @@ jobs:
             MACOSX_DEPLOYMENT_TARGET=10.15
             HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--settings:h=os.version=10.15"
             HICTKPY_CXX_STANDARD=23
+            UV_LINK_MODE=copy
           CIBW_ENVIRONMENT_WINDOWS: >
             PIP_VERBOSE=1
             CMAKE_PREFIX_PATH='${{ github.workspace }}/conan-env'
@@ -288,6 +298,7 @@ jobs:
             HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--conf:a=tools.microsoft:winsdk_version=10.0.17763.0"
             HICTKPY_CXX_STANDARD=23
             HICTKPY_PROJECT_TOP_LEVEL_INCLUDES=''
+            UV_LINK_MODE=copy
           CIBW_ENVIRONMENT_PASS_LINUX: >
             CC
             CXX
@@ -296,6 +307,7 @@ jobs:
             CONAN_HOME
             HICTKPY_CXX_STANDARD
             HICTKPY_CONAN_INSTALL_ARGS
+            UV_LINK_MODE
 
       - name: Verify clean directory
         run: git diff --exit-code
