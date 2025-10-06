@@ -278,7 +278,9 @@ jobs:
             CC=clang
             CXX=clang++
             PIP_VERBOSE=1
+            CMAKE_AR=llvm-ar
             CMAKE_LINKER_TYPE=LLD
+            CMAKE_RANLIB=llvm-ranlib
             CONAN_HOME='/host${{ env.CONAN_HOME }}'
             HICTKPY_CXX_STANDARD=23
             UV_LINK_MODE=copy
@@ -303,7 +305,9 @@ jobs:
             CC
             CXX
             PIP_VERBOSE
+            CMAKE_AR
             CMAKE_LINKER_TYPE
+            CMAKE_RANLIB
             CONAN_HOME
             HICTKPY_CXX_STANDARD
             HICTKPY_CONAN_INSTALL_ARGS

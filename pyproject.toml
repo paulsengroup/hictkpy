@@ -120,8 +120,9 @@ manylinux-pypy_i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.09.28-1"
 manylinux-pypy_aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.09.28-1"
 
 skip = ["cp314*", "*musllinux*", "pp*"]
-test-command = "python -m pytest {project}/test"
-test-extras = ["test", "numpy", "pandas", "pyarrow", "scipy"]
+test-command = "uv run pytest {project}/test -v"
+test-extras = ["all"]
+test-groups = ["test"]
 test-skip = ["cp314*", "*universal2", "pp*"]
 
 # Setuptools bug causes collision between pypy and cpython artifacts
@@ -130,7 +131,7 @@ before-build = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all = "dnf install -y clang lld"
+before-all = "dnf install -y clang lld llvm-devel"
 
 # We are using static linking, thus repairing wheels should not be necessary.
 # Exception being when building portable Linux wheels.
