@@ -56,12 +56,15 @@ optional-dependencies.all = [
   "hictkpy[numpy,pandas,pyarrow,scipy]",
 ]
 
-optional-dependencies.test = [
+[dependency-groups]
+
+test = [
   "pytest>=8.0",
 ]
 
-optional-dependencies.dev = [
-  "hictkpy[all,test]",
+dev = [
+  "hictkpy[all]",
+  {include-group = "test"},
   "black>=25.1",
   "clang-format>=20.1",
   "isort>=6.0",

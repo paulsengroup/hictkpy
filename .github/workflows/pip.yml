@@ -91,8 +91,14 @@ jobs:
           key: conan-${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}/p
 
+      - name: Override default compilers (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          echo 'CC=gcc' >> $GITHUB_ENV
+          echo 'CXX=g++' >> $GITHUB_ENV
+
       - name: Override default compilers (macOS)
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos')
         run: |
           echo 'CC=clang' >> $GITHUB_ENV
           echo 'CXX=clang++' >> $GITHUB_ENV
@@ -113,9 +119,9 @@ jobs:
       - name: Clean Conan cache
         if: steps.cache-conan.outputs.cache-hit != 'true'
         run: |
-          conan cache clean "*" --build
-          conan cache clean "*" --download
-          conan cache clean "*" --source
+          uv tool run 'conan>2' cache clean "*" --build
+          uv tool run 'conan>2' cache clean "*" --download
+          uv tool run 'conan>2' cache clean "*" --source
 
       - name: Save Conan cache
         uses: actions/cache/save@v4
