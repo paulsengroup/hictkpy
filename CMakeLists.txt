@@ -53,9 +53,9 @@ if(DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 if(DEFINED CMAKE_CXX_STANDARD)
-  set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};--settings:a=compiler.cppstd=${CMAKE_CXX_STANDARD}")
+  set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};--settings:all=compiler.cppstd=${CMAKE_CXX_STANDARD}")
 else()
-  set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};--settings:a=compiler.cppstd=17")
+  set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};--settings:all=compiler.cppstd=17")
 endif()
 
 # Tweak hictk

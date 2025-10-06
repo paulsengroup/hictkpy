@@ -76,24 +76,26 @@ target_link_libraries(
 install(TARGETS _hictkpy LIBRARY DESTINATION hictkpy)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/hictkpy")
 
-# This properly escapes Windows paths
-string(REPLACE "\\" "/" HICTKPY_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
-string(REPLACE "\\" "/" HICTKPY_CURRENT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
-string(REPLACE "\\" "/" HICTKPY_CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
-string(REPLACE "\\" "/" HICTKPY_Python_EXECUTABLE ${Python_EXECUTABLE})
+if(CMAKE_BUILD_TYPE STREQUAL Release)
+  # This properly escapes Windows paths
+  string(REPLACE "\\" "/" HICTKPY_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
+  string(REPLACE "\\" "/" HICTKPY_CURRENT_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
+  string(REPLACE "\\" "/" HICTKPY_CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
+  string(REPLACE "\\" "/" HICTKPY_Python_EXECUTABLE ${Python_EXECUTABLE})
 
-configure_file(
-  "${PROJECT_SOURCE_DIR}/cmake/NanobindStubgen.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake"
-  @ONLY
-)
-install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake")
+  configure_file(
+    "${PROJECT_SOURCE_DIR}/cmake/NanobindStubgen.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake"
+    @ONLY
+  )
+  install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/NanobindStubgen.cmake")
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/py.typed" DESTINATION hictkpy)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi" DESTINATION hictkpy)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/cooler.pyi" DESTINATION hictkpy)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hic.pyi" DESTINATION hictkpy)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/py.typed" DESTINATION hictkpy)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/__init__.pyi" DESTINATION hictkpy)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/cooler.pyi" DESTINATION hictkpy)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hictkpy/hic.pyi" DESTINATION hictkpy)
 
-# Disable clang-tidy on nanobind
-# This seems to be the only reliable way to do so...
-configure_file("${PROJECT_SOURCE_DIR}/cmake/.clang-tidy.in" "${nanobind_SOURCE_DIR}/.clang-tidy" COPYONLY)
+  # Disable clang-tidy on nanobind
+  # This seems to be the only reliable way to do so...
+  configure_file("${PROJECT_SOURCE_DIR}/cmake/.clang-tidy.in" "${nanobind_SOURCE_DIR}/.clang-tidy" COPYONLY)
+endif()
