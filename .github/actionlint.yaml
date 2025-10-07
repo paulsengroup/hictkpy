@@ -1,0 +1,5 @@
+# Copyright (C) 2025 Roberto Rossini <roberros@uio.no>
+# SPDX-License-Identifier: MIT
+
+self-hosted-runner:
+  labels: [macos-15-intel, macos-26]

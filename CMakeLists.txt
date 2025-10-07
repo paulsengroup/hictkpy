@@ -9,10 +9,6 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 project(
   hictkpy
   LANGUAGES
@@ -52,6 +48,16 @@ FetchContent_Declare(
   SYSTEM
 )
 
+if(DEFINED CMAKE_BUILD_TYPE)
+  set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};--settings=build_type=${CMAKE_BUILD_TYPE}")
+endif()
+
+if(DEFINED CMAKE_CXX_STANDARD)
+  set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};--settings:all=compiler.cppstd=${CMAKE_CXX_STANDARD}")
+else()
+  set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};--settings:all=compiler.cppstd=17")
+endif()
+
 # Tweak hictk
 set(HICTK_BUILD_BENCHMARKS OFF)
 set(HICTK_BUILD_EXAMPLES OFF)
@@ -64,28 +70,7 @@ set(HICTK_ENABLE_GIT_VERSION_TRACKING OFF)
 find_package(Eigen3 5 REQUIRED QUIET) # Versions <5 are not supported (and will likely result in segfaults)
 
 # We are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
-find_package(hictk REQUIRED)
-
-get_property(BUILDING_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(BUILDING_MULTI_CONFIG)
-  if(NOT CMAKE_BUILD_TYPE)
-    # Make sure that all supported configuration types have their associated conan packages available. You can reduce
-    # this list to only the configuration types you use, but only if one is not forced-set on the command line for VS
-    message(TRACE "Setting up multi-config build types")
-    set(
-      CMAKE_CONFIGURATION_TYPES
-      Debug
-      Release
-      RelWithDebInfo
-      CACHE STRING
-      "Enabled build types"
-      FORCE
-    )
-  else()
-    message(TRACE "User chose a specific build type, so we are using that")
-    set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE} CACHE STRING "Enabled build types" FORCE)
-  endif()
-endif()
+find_package(hictk REQUIRED QUIET)
 
 FetchContent_MakeAvailable(_hictkpy_project_options)
 
@@ -130,7 +115,11 @@ dynamic_project_options(
         "${CUDA_WARNINGS}"
 )
 
-target_compile_features(hictkpy_project_options INTERFACE "cxx_std_${CMAKE_CXX_STANDARD}")
+target_compile_features(
+  hictkpy_project_options
+  INTERFACE
+    "cxx_std_$<IF:$<BOOL:${CMAKE_CXX_STANDARD}>,17,${CMAKE_CXX_STANDARD}>"
+)
 
 option(HICTKPY_BUILD_PORTABLE_WHEELS_WIN "Build portable Windows wheels" OFF)
 
@@ -138,37 +127,33 @@ option(HICTKPY_BUILD_PORTABLE_WHEELS_WIN "Build portable Windows wheels" OFF)
 target_compile_definitions(
   hictkpy_project_options
   INTERFACE
+    # Tweak fmt
     FMT_HEADER_ONLY
-    FMT_ENFORCE_COMPILE_STRING
-)
-# Tweak spdlog
-target_compile_definitions(hictkpy_project_options INTERFACE SPDLOG_FMT_EXTERNAL)
-
-# Tweak hictk
-target_compile_definitions(
-  hictkpy_project_options
-  INTERFACE
+    # starting with fmt v12, clang-tidy breaks when FMT_ENFORCE_COMPILE_STRING is defined
+    # https://github.com/fmtlib/fmt/commit/619b3a5aa031a25e8d06fec1e03992e5e727c5a5#diff-bdc6f79e8e9f5b4331d66fb785636a87d29f55cf729865e13925b4209424c878R4223
+    $<$<NOT:$<BOOL:OPT_ENABLE_CLANG_TIDY>>:FMT_ENFORCE_COMPILE_STRING>
+    FMT_USE_FULL_CACHE_DRAGONBOX
     HICTK_WITH_ARROW
     HICTK_WITH_EIGEN
+    # Tweak spdlog
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_$<IF:$<CONFIG:Debug>,DEBUG,INFO>
+    SPDLOG_CLOCK_COARSE
+    SPDLOG_FMT_EXTERNAL
+    SPDLOG_NO_THREAD_ID
+    SPDLOG_NO_ATOMIC_LEVELS
+    # Windows-specific tweaks
+    $<$<BOOL:${WIN32}>:NOMINMAX>
+    $<$<BOOL:${WIN32}>:_CRT_SECURE_NO_WARNINGS>
+    $<$<BOOL:${WIN32}>:_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR> # https://github.com/gabime/spdlog/issues/3212
 )
 
-if(WIN32)
+if(WIN32 AND HICTKPY_BUILD_PORTABLE_WHEELS_WIN)
   target_compile_definitions(
     hictkpy_project_options
     INTERFACE
-      NOMINMAX
-      _CRT_SECURE_NO_WARNINGS
-      _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR # https://github.com/gabime/spdlog/issues/3212
+      _WIN32_WINNT=_WIN32_WINNT_WIN10
+      /FI<sdkddkver.h> # required to use _WIN32_WINNT_WIN10
   )
-
-  if(HICTKPY_BUILD_PORTABLE_WHEELS_WIN)
-    target_compile_definitions(
-      hictkpy_project_options
-      INTERFACE
-        _WIN32_WINNT=_WIN32_WINNT_WIN10
-        /FI<sdkddkver.h> # required to use _WIN32_WINNT_WIN10
-    )
-  endif()
 endif()
 
 add_subdirectory(src)
