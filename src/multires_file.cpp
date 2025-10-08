@@ -6,9 +6,13 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <hictk/cooler/validation.hpp>
 #include <hictk/multires_file.hpp>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "hictkpy/nanobind.hpp"
@@ -29,16 +33,21 @@ static std::string repr(const hictk::MultiResFile& mrf) {
 static std::filesystem::path get_path(const hictk::MultiResFile& mrf) { return mrf.path(); }
 
 [[nodiscard]] static auto get_resolutions(const hictk::MultiResFile& f) {
-  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
+  using ResolutionVector = nb::ndarray<nb::numpy, nb::ndim<1>, std::int64_t>;
 
   // NOLINTNEXTLINE
-  auto* resolutions_ptr = new std::vector<std::uint32_t>(f.resolutions());
+  auto resolutions = std::make_unique<std::vector<std::int64_t>>(f.resolutions().size());
+  auto* resolutions_ptr = resolutions.get();
 
-  auto capsule = nb::capsule(resolutions_ptr, [](void* vect_ptr) noexcept {
-    delete reinterpret_cast<std::vector<std::uint32_t>*>(vect_ptr);  // NOLINT
-  });
+  nb::capsule owner{resolutions_ptr, [](void* ptr) noexcept {
+                      delete static_cast<std::vector<std::int64_t>*>(ptr);  // NOLINT
+                    }};
+  resolutions.release();  // NOLINT
 
-  return WeightVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
+  std::transform(f.resolutions().begin(), f.resolutions().end(), resolutions_ptr->begin(),
+                 [](const auto res) { return static_cast<std::int64_t>(res); });
+
+  return ResolutionVector{resolutions_ptr->data(), {resolutions_ptr->size()}, std::move(owner)};
 }
 
 static nb::dict get_attrs(const hictk::hic::File& hf) {

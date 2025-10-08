@@ -254,7 +254,7 @@ static std::vector<std::string> avail_normalizations(const hictk::File &f) {
 }
 
 static auto weights(const hictk::File &f, std::string_view normalization, bool divisive) {
-  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, double>;
+  using WeightVector = nb::ndarray<nb::numpy, nb::ndim<1>, double>;
 
   if (normalization == "NONE") {
     return WeightVector{};
@@ -263,14 +263,16 @@ static auto weights(const hictk::File &f, std::string_view normalization, bool d
   const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
                              : hictk::balancing::Weights::Type::MULTIPLICATIVE;
 
-  // NOLINTNEXTLINE
-  auto *weights_ptr = new std::vector<double>(f.normalization(normalization).to_vector(type));
+  auto weights =
+      std::make_unique<std::vector<double>>(f.normalization(normalization).to_vector(type));
+  auto *weights_ptr = weights.get();
 
-  auto capsule = nb::capsule(weights_ptr, [](void *vect_ptr) noexcept {
-    delete reinterpret_cast<std::vector<double> *>(vect_ptr);  // NOLINT
-  });
+  nb::capsule owner{weights_ptr, [](void *ptr) noexcept {
+                      delete static_cast<std::vector<double> *>(ptr);  // NOLINT
+                    }};
+  weights.release();  // NOLINT
 
-  return WeightVector{weights_ptr->data(), {weights_ptr->size()}, capsule};
+  return WeightVector{weights_ptr->data(), {weights_ptr->size()}, std::move(owner)};
 }
 
 static nb::object weights_df(const hictk::File &f, const std::vector<std::string> &normalizations,
@@ -357,8 +359,6 @@ void declare_file_class(nb::module_ &m) {
            "Check whether a given normalization is available.");
   file.def("weights", &file::weights, nb::arg("name"), nb::arg("divisive") = true,
            "Fetch the balancing weights for the given normalization method.",
-           nb::sig("def weights(self, name: str, divisive: bool = True) -> "
-                   "numpy.ndarray[float]"),
            nb::rv_policy::take_ownership);
   file.def(
       "weights", &file::weights_df, nb::arg("names"), nb::arg("divisive") = true,

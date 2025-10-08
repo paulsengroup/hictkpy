@@ -34,6 +34,7 @@ struct PixelSelector {
   using PixelVar = hictk::internal::NumericVariant;
   using QuerySpan = hictk::transformers::QuerySpan;
   using PixelFormat = hictk::transformers::DataFrameFormat;
+  using DenseMatrix = nanobind::ndarray<nanobind::numpy, nanobind::ndim<2>, nanobind::c_contig>;
 
   SelectorVar selector{};
   PixelVar pixel_count{std::int32_t{0}};
@@ -72,9 +73,9 @@ struct PixelSelector {
   [[nodiscard]] nanobind::object to_arrow(std::string_view span) const;
   [[nodiscard]] nanobind::object to_df(std::string_view span) const;
   [[nodiscard]] nanobind::object to_pandas(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_coo(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_csr(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_numpy(std::string_view span) const;
+  [[nodiscard]] nanobind::object to_coo(std::string_view span, bool low_memory) const;
+  [[nodiscard]] nanobind::object to_csr(std::string_view span, bool low_memory) const;
+  [[nodiscard]] auto to_numpy(std::string_view span) const -> DenseMatrix;
 
   [[nodiscard]] nanobind::dict describe(const std::vector<std::string>& metrics, bool keep_nans,
                                         bool keep_infs, bool keep_zeros, bool exact) const;

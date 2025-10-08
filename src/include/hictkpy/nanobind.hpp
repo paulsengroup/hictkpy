@@ -14,8 +14,6 @@ HICTKPY_DISABLE_WARNING_PEDANTIC
 HICTKPY_DISABLE_WARNING_SHADOW
 HICTKPY_DISABLE_WARNING_SIGN_CONVERSION
 HICTKPY_DISABLE_WARNING_USELESS_CAST
-#include <nanobind/eigen/dense.h>
-#include <nanobind/eigen/sparse.h>
 #include <nanobind/make_iterator.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
