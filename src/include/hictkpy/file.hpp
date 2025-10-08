@@ -4,15 +4,52 @@
 
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
+#include <hictk/cooler/cooler.hpp>
+#include <hictk/file.hpp>
+#include <hictk/hic.hpp>
+#include <optional>
+#include <string>
+#include <string_view>
 
 #include "hictkpy/nanobind.hpp"
 
-namespace hictkpy::file {
+namespace hictkpy {
 
-[[nodiscard]] bool is_cooler(const std::filesystem::path &uri);
-[[nodiscard]] bool is_hic(const std::filesystem::path &uri);
+class File {
+  std::optional<hictk::File> _fp{};
+  std::string _uri{};
 
-void declare_file_class(nanobind::module_ &m);
+ public:
+  File() = delete;
+  explicit File(hictk::File f);
+  explicit File(hictk::cooler::File f);
+  explicit File(hictk::hic::File f);
+  File(const std::filesystem::path& path, std::optional<std::int32_t> resolution,
+       std::string_view matrix_type, std::string_view matrix_unit);
 
-}  // namespace hictkpy::file
+  File(const File&) = delete;
+  File(File&&) noexcept = default;
+
+  ~File() noexcept = default;
+
+  File& operator=(const File&) = delete;
+  File& operator=(File&&) noexcept = default;
+
+  [[nodiscard]] const hictk::File& operator*() const;
+  [[nodiscard]] hictk::File& operator*();
+
+  [[nodiscard]] const hictk::File* operator->() const;
+  [[nodiscard]] hictk::File* operator->();
+
+  void close();
+  bool try_close() noexcept;
+
+  static void bind(nanobind::module_& m);
+
+  [[nodiscard]] static bool is_cooler(const std::filesystem::path& uri);
+  [[nodiscard]] static bool is_hic(const std::filesystem::path& uri);
+};
+
+}  // namespace hictkpy
