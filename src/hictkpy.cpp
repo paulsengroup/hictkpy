@@ -40,7 +40,7 @@ NB_MODULE(_hictkpy, m) {
 
   m.def("is_cooler", &File::is_cooler, nb::arg("path"),
         "Test whether path points to a cooler file.");
-  m.def("is_mcool_file", &multires_file::is_mcool_file, nb::arg("path"),
+  m.def("is_mcool_file", &MultiResFile::is_mcool, nb::arg("path"),
         "Test whether path points to a .mcool file.");
   m.def("is_scool_file", &singlecell_file::is_scool_file, nb::arg("path"),
         "Test whether path points to a .scool file.");
@@ -51,7 +51,7 @@ NB_MODULE(_hictkpy, m) {
   PixelSelector::bind(m);
 
   File::bind(m);
-  multires_file::declare_multires_file_class(m);
+  MultiResFile::bind(m);
   singlecell_file::declare_singlecell_file_class(m);
 
   CoolerFileWriter::bind(m);
