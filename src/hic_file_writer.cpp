@@ -184,6 +184,22 @@ void HiCFileWriter::bind(nb::module_ &m) {
 
   writer.def("__repr__", &hictkpy::HiCFileWriter::repr, nb::rv_policy::move);
 
+  writer.def(
+      "__enter__", [](HiCFileWriter &w) -> HiCFileWriter & { return w; },
+      nb::rv_policy::reference_internal);
+
+  writer.def(
+      "__exit__",
+      [](HiCFileWriter &w, [[maybe_unused]] nb::handle exc_type,
+         [[maybe_unused]] nb::handle exc_value,
+         [[maybe_unused]] nb::handle traceback) { std::ignore = w.finalize("WARN"); },
+      // clang-format off
+      nb::arg("exc_type") = nb::none(),
+      nb::arg("exc_value") = nb::none(),
+      nb::arg("traceback") = nb::none()
+      // clang-format on
+  );
+
   writer.def("path", &hictkpy::HiCFileWriter::path, "Get the file path.", nb::rv_policy::move);
   writer.def("resolutions", &hictkpy::HiCFileWriter::resolutions,
              "Get the list of resolutions in bp.", nb::rv_policy::take_ownership);
