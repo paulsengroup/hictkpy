@@ -22,38 +22,43 @@ namespace hictkpy {
 
 class CoolerFileWriter {
   std::filesystem::path _path{};
-  hictk::internal::TmpDir _tmpdir{};
+  std::optional<hictk::internal::TmpDir> _tmpdir{};
   std::optional<hictk::cooler::SingleCellFile> _w{};
   std::uint32_t _compression_lvl{};
-  bool _finalized{false};
 
  public:
   CoolerFileWriter() = delete;
   CoolerFileWriter(std::filesystem::path path_, const ChromosomeDict& chromosomes_,
                    std::uint32_t resolution_, std::string_view assembly,
-                   const std::filesystem::path& tmpdir, std::uint32_t compression_lvl);
+                   const std::filesystem::path& tmpdir_, std::uint32_t compression_lvl);
   CoolerFileWriter(std::filesystem::path path_, const hictkpy::BinTable& bins_,
                    std::string_view assembly, const std::filesystem::path& tmpdir,
                    std::uint32_t compression_lvl);
 
   [[nodiscard]] const std::filesystem::path& path() const noexcept;
-  [[nodiscard]] std::uint32_t resolution() const noexcept;
+  [[nodiscard]] std::uint32_t resolution() const;
 
   [[nodiscard]] const hictk::Reference& chromosomes() const;
-  [[nodiscard]] std::shared_ptr<const hictk::BinTable> bins_ptr() const noexcept;
+  [[nodiscard]] std::shared_ptr<const hictk::BinTable> bins_ptr() const;
 
   void add_pixels(const nanobind::object& df, bool sorted, bool validate);
 
   [[nodiscard]] File finalize(std::string_view log_lvl_str, std::size_t chunk_size,
                               std::size_t update_frequency);
 
+  [[nodiscard]] bool finalized() const noexcept;
+
   [[nodiscard]] std::string repr() const;
   static void bind(nanobind::module_& m);
 
  private:
-  [[nodiscard]] static hictk::cooler::SingleCellFile create_file(
+  [[nodiscard]] static std::optional<hictk::cooler::SingleCellFile> create_file(
       std::string_view path, const hictk::BinTable& bins, std::string_view assembly,
-      const std::filesystem::path& tmpdir);
+      const std::filesystem::path& tmpdir_);
+
+  const std::filesystem::path& tmpdir() const;
+  [[nodiscard]] const hictk::cooler::SingleCellFile& w() const;
+  [[nodiscard]] hictk::cooler::SingleCellFile& w();
 };
 
 }  // namespace hictkpy
