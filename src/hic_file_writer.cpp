@@ -7,6 +7,7 @@
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -30,7 +31,16 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
-[[nodiscard]] static ChromosomeDict get_chromosomes_checked(const hictk::BinTable &bins) {
+static HiCFileWriter &ctx_enter(HiCFileWriter &w) { return w; }
+
+static void ctx_exit(HiCFileWriter &w, [[maybe_unused]] nb::handle exc_type,
+                     [[maybe_unused]] nb::handle exc_value, [[maybe_unused]] nb::handle traceback) {
+  if (!w.finalized()) {
+    std::ignore = w.finalize("WARN");
+  }
+}
+
+static ChromosomeDict get_chromosomes_checked(const hictk::BinTable &bins) {
   if (bins.type() != hictk::BinTable::Type::fixed) {
     throw std::runtime_error(
         "constructing .hic files is only supported when the BinTable has a uniform bin size");
@@ -48,66 +58,78 @@ namespace hictkpy {
   return chroms;
 }
 
+static std::uint32_t get_base_resolution(const std::vector<std::uint32_t> &resolutions) {
+  if (resolutions.empty()) {
+    throw std::invalid_argument("please provide one or more resolutions");
+  }
+
+  return resolutions.front();
+}
+
 HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const ChromosomeDict &chromosomes,
                              const std::vector<std::uint32_t> &resolutions_,
                              std::string_view assembly, std::size_t n_threads,
-                             std::size_t chunk_size, const std::filesystem::path &tmpdir,
+                             std::size_t chunk_size, const std::filesystem::path &tmpdir_,
                              std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
-    : _tmpdir(tmpdir, true),
-      _w(path_.string(), chromosome_dict_to_reference(chromosomes), resolutions_, assembly,
-         n_threads, chunk_size, _tmpdir(), compression_lvl, skip_all_vs_all_matrix) {
-  SPDLOG_INFO(FMT_STRING("using \"{}\" folder to store temporary file(s)"), _tmpdir());
+    : _path(path_.string()),
+      _base_resolution(get_base_resolution(resolutions_)),
+      _tmpdir(std::make_optional<hictk::internal::TmpDir>(tmpdir_, true)),
+      _w(std::make_optional<hictk::hic::internal::HiCFileWriter>(
+          _path, chromosome_dict_to_reference(chromosomes), resolutions_, assembly, n_threads,
+          chunk_size, tmpdir(), compression_lvl, skip_all_vs_all_matrix)) {
+  SPDLOG_INFO(FMT_STRING("using \"{}\" folder to store temporary file(s)"), tmpdir().string());
 }
 
 HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const ChromosomeDict &chromosomes,
                              std::uint32_t resolution, std::string_view assembly,
                              std::size_t n_threads, std::size_t chunk_size,
-                             const std::filesystem::path &tmpdir, std::uint32_t compression_lvl,
+                             const std::filesystem::path &tmpdir_, std::uint32_t compression_lvl,
                              bool skip_all_vs_all_matrix)
     : HiCFileWriter(path_, chromosomes, std::vector<std::uint32_t>{resolution}, assembly, n_threads,
-                    chunk_size, tmpdir, compression_lvl, skip_all_vs_all_matrix) {}
+                    chunk_size, tmpdir_, compression_lvl, skip_all_vs_all_matrix) {}
 
 HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const hictkpy::BinTable &bins_,
                              std::string_view assembly, std::size_t n_threads,
-                             std::size_t chunk_size, const std::filesystem::path &tmpdir,
+                             std::size_t chunk_size, const std::filesystem::path &tmpdir_,
                              std::uint32_t compression_lvl, bool skip_all_vs_all_matrix)
     : HiCFileWriter(path_, get_chromosomes_checked(*bins_.get()), bins_.get()->resolution(),
-                    assembly, n_threads, chunk_size, tmpdir, compression_lvl,
+                    assembly, n_threads, chunk_size, tmpdir_, compression_lvl,
                     skip_all_vs_all_matrix) {}
 
 File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
-  if (_finalized) {
+  if (finalized()) {
     throw std::runtime_error(
-        fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _w.path()));
+        fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
   }
 
   const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
 
-  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _w.path());
+  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), w().path());
   try {
-    _w.serialize();
-    _finalized = true;
+    _w->serialize();
+    _tmpdir.reset();
+    _w.reset();
   } catch (...) {
     spdlog::default_logger()->set_level(previous_lvl);
     throw;
   }
-  SPDLOG_INFO(FMT_STRING("successfully finalized \"{}\"!"), _w.path());
+  SPDLOG_INFO(FMT_STRING("successfully finalized \"{}\"!"), _path);
   spdlog::default_logger()->set_level(previous_lvl);
 
-  return File{hictk::hic::File{std::string{_w.path()}, _w.resolutions().front()}};
+  return File{hictk::hic::File{_path, _base_resolution}};
 }
 
-std::filesystem::path HiCFileWriter::path() const noexcept {
-  return std::filesystem::path{_w.path()};
-}
+bool HiCFileWriter::finalized() const noexcept { return !_w.has_value(); }
+
+std::filesystem::path HiCFileWriter::path() const noexcept { return std::filesystem::path{_path}; }
 
 auto HiCFileWriter::resolutions() const {
   using ResolutionVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
 
   // NOLINTNEXTLINE
-  auto *resolutions_ptr = new std::vector<std::uint32_t>(_w.resolutions());
+  auto *resolutions_ptr = new std::vector<std::uint32_t>(w().resolutions());
 
   auto capsule = nb::capsule(resolutions_ptr, [](void *vect_ptr) noexcept {
     delete reinterpret_cast<std::vector<std::uint32_t> *>(vect_ptr);  // NOLINT
@@ -116,30 +138,59 @@ auto HiCFileWriter::resolutions() const {
   return ResolutionVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
 }
 
-const hictk::Reference &HiCFileWriter::chromosomes() const { return _w.chromosomes(); }
+const hictk::Reference &HiCFileWriter::chromosomes() const { return w().chromosomes(); }
 
 hictkpy::BinTable HiCFileWriter::bins(std::uint32_t resolution) const {
-  return hictkpy::BinTable{_w.bins(resolution)};
+  return hictkpy::BinTable{w().bins(resolution)};
 }
 
 void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
-  if (_finalized) {
+  if (finalized()) {
     throw std::runtime_error(
-        "caught attempt to add_pixels to a .hic file that has already been finalized!");
+        "caught attempt to add_pixels() to a .hic file that has already been finalized!");
   }
 
   auto lck = std::make_optional<nb::gil_scoped_acquire>();
   const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
-  const auto pixels =
-      coo_format ? coo_df_to_thin_pixels<float>(df, false)
-                 : bg2_df_to_thin_pixels<float>(_w.bins(_w.resolutions().front()), df, false);
+  const auto pixels = coo_format
+                          ? coo_df_to_thin_pixels<float>(df, false)
+                          : bg2_df_to_thin_pixels<float>(w().bins(_base_resolution), df, false);
   lck.reset();
-  SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), _w.path());
-  _w.add_pixels(_w.resolutions().front(), pixels.begin(), pixels.end(), validate);
+  SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), w().path());
+  w().add_pixels(_base_resolution, pixels.begin(), pixels.end(), validate);
 }
 
 std::string HiCFileWriter::repr() const {
-  return fmt::format(FMT_STRING("HiCFileWriter({})"), _w.path());
+  return fmt::format(FMT_STRING("HiCFileWriter({})"), _path);
+}
+
+const std::filesystem::path &HiCFileWriter::tmpdir() const {
+  if (!_tmpdir.has_value()) {
+    assert(!_w.has_value());
+    throw std::runtime_error(fmt::format(
+        FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
+        _path));
+  }
+
+  return (*_tmpdir)();
+}
+
+hictk::hic::internal::HiCFileWriter &HiCFileWriter::w() {
+  if (!_w.has_value()) {
+    throw std::runtime_error(fmt::format(
+        FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
+        _path));
+  }
+  return *_w;
+}
+
+const hictk::hic::internal::HiCFileWriter &HiCFileWriter::w() const {
+  if (!_w.has_value()) {
+    throw std::runtime_error(fmt::format(
+        FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
+        _path));
+  }
+  return *_w;
 }
 
 void HiCFileWriter::bind(nb::module_ &m) {
@@ -183,6 +234,16 @@ void HiCFileWriter::bind(nb::module_ &m) {
   // NOLINTEND(*-avoid-magic-numbers)
 
   writer.def("__repr__", &hictkpy::HiCFileWriter::repr, nb::rv_policy::move);
+
+  writer.def("__enter__", &ctx_enter, nb::rv_policy::reference_internal);
+
+  writer.def("__exit__", &ctx_exit,
+             // clang-format off
+             nb::arg("exc_type") = nb::none(),
+             nb::arg("exc_value") = nb::none(),
+             nb::arg("traceback") = nb::none()
+             // clang-format on
+  );
 
   writer.def("path", &hictkpy::HiCFileWriter::path, "Get the file path.", nb::rv_policy::move);
   writer.def("resolutions", &hictkpy::HiCFileWriter::resolutions,
