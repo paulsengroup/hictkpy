@@ -24,6 +24,7 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/file.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
@@ -117,8 +118,8 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
       var);
 }
 
-hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_size,
-                                       std::size_t update_freq) {
+File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+                                std::size_t update_freq) {
   if (_finalized) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
@@ -162,7 +163,7 @@ hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t
   std::filesystem::remove(sclr_path);  // NOLINT
   // NOLINTEND(*-unchecked-optional-access)
 
-  return hictk::File{_path.string()};
+  return File{hictk::cooler::File{_path.string()}};
 }
 
 hictk::cooler::SingleCellFile CoolerFileWriter::create_file(std::string_view path,
