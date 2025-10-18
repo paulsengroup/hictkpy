@@ -208,6 +208,23 @@ void CoolerFileWriter::bind(nb::module_ &m) {
 
   writer.def("__repr__", &hictkpy::CoolerFileWriter::repr, nb::rv_policy::move);
 
+  writer.def(
+      "__enter__", [](CoolerFileWriter &w) -> CoolerFileWriter & { return w; },
+      nb::rv_policy::reference_internal);
+
+  writer.def(
+      "__exit__",
+      [](CoolerFileWriter &w, [[maybe_unused]] nb::handle exc_type,
+         [[maybe_unused]] nb::handle exc_value, [[maybe_unused]] nb::handle traceback) {
+        std::ignore = w.finalize("WARN", 500'000, 10'000'000);
+      },
+      // clang-format off
+      nb::arg("exc_type") = nb::none(),
+      nb::arg("exc_value") = nb::none(),
+      nb::arg("traceback") = nb::none()
+      // clang-format on
+  );
+
   writer.def("path", &hictkpy::CoolerFileWriter::path, "Get the file path.", nb::rv_policy::copy);
   writer.def("resolution", &hictkpy::CoolerFileWriter::resolution, "Get the resolution in bp.");
   writer.def("chromosomes", &get_chromosomes_from_object<hictkpy::CoolerFileWriter>,
