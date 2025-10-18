@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <hictk/cooler/singlecell_cooler.hpp>
-#include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
 #include <optional>
@@ -15,6 +14,7 @@
 #include <string_view>
 
 #include "hictkpy/bin_table.hpp"
+#include "hictkpy/file.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/reference.hpp"
 
@@ -44,8 +44,8 @@ class CoolerFileWriter {
 
   void add_pixels(const nanobind::object& df, bool sorted, bool validate);
 
-  [[nodiscard]] hictk::File finalize(std::string_view log_lvl_str, std::size_t chunk_size,
-                                     std::size_t update_frequency);
+  [[nodiscard]] File finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+                              std::size_t update_frequency);
 
   [[nodiscard]] std::string repr() const;
   static void bind(nanobind::module_& m);

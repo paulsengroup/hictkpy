@@ -75,7 +75,7 @@ HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const hictkpy::
                     assembly, n_threads, chunk_size, tmpdir, compression_lvl,
                     skip_all_vs_all_matrix) {}
 
-hictk::File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
+File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
   if (_finalized) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _w.path()));
@@ -96,7 +96,7 @@ hictk::File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_st
   SPDLOG_INFO(FMT_STRING("successfully finalized \"{}\"!"), _w.path());
   spdlog::default_logger()->set_level(previous_lvl);
 
-  return hictk::File{std::string{_w.path()}, _w.resolutions().front()};
+  return File{hictk::hic::File{std::string{_w.path()}, _w.resolutions().front()}};
 }
 
 std::filesystem::path HiCFileWriter::path() const noexcept {
