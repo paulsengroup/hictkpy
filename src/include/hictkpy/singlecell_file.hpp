@@ -5,13 +5,42 @@
 #pragma once
 
 #include <filesystem>
+#include <hictk/cooler/singlecell_cooler.hpp>
+#include <optional>
+#include <string>
 
 #include "hictkpy/nanobind.hpp"
 
-namespace hictkpy::singlecell_file {
+namespace hictkpy {
 
-[[nodiscard]] bool is_scool_file(const std::filesystem::path& path);
+class SingleCellFile {
+  std::optional<hictk::cooler::SingleCellFile> _fp{};
+  std::string _uri;
 
-void declare_singlecell_file_class(nanobind::module_& m);
+ public:
+  SingleCellFile() = delete;
+  explicit SingleCellFile(const std::filesystem::path& path);
 
-}  // namespace hictkpy::singlecell_file
+  SingleCellFile(const SingleCellFile&) = delete;
+  SingleCellFile(SingleCellFile&&) noexcept = default;
+
+  ~SingleCellFile() noexcept = default;
+
+  SingleCellFile& operator=(const SingleCellFile&) = delete;
+  SingleCellFile& operator=(SingleCellFile&&) noexcept = default;
+
+  [[nodiscard]] const hictk::cooler::SingleCellFile& operator*() const;
+  [[nodiscard]] hictk::cooler::SingleCellFile& operator*();
+
+  [[nodiscard]] const hictk::cooler::SingleCellFile* operator->() const;
+  [[nodiscard]] hictk::cooler::SingleCellFile* operator->();
+
+  void close();
+  bool try_close() noexcept;
+
+  static void bind(nanobind::module_& m);
+
+  [[nodiscard]] static bool is_scool(const std::filesystem::path& path);
+};
+
+}  // namespace hictkpy
