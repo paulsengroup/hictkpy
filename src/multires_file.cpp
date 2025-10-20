@@ -119,7 +119,8 @@ static nb::dict get_attributes(const MultiResFile& mrf) {
       FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"), path));
 }
 
-MultiResFile::MultiResFile(const std::filesystem::path& path) : _fp(path), _uri(path.string()) {}
+MultiResFile::MultiResFile(const std::filesystem::path& path)
+    : _fp(path.string()), _uri(path.string()) {}
 
 hictk::MultiResFile* MultiResFile::operator->() { return &**this; }
 
