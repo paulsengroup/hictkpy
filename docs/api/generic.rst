@@ -19,8 +19,11 @@ Generic API
 
    .. automethod:: __init__
    .. automethod:: __getitem__
+   .. automethod:: __enter__
+   .. automethod:: __exit__
    .. automethod:: attributes
    .. automethod:: chromosomes
+   .. automethod:: close
    .. automethod:: is_hic
    .. automethod:: is_mcool
    .. automethod:: path
@@ -29,10 +32,13 @@ Generic API
 .. autoclass:: File
 
    .. automethod:: __init__
+   .. automethod:: __enter__
+   .. automethod:: __exit__
    .. automethod:: attributes
    .. automethod:: avail_normalizations
    .. automethod:: bins
    .. automethod:: chromosomes
+   .. automethod:: close
    .. automethod:: fetch
    .. automethod:: has_normalization
    .. automethod:: is_cooler

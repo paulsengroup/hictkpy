@@ -12,16 +12,21 @@ Cooler API
 
    .. automethod:: __init__
    .. automethod:: __getitem__
+   .. automethod:: __enter__
+   .. automethod:: __exit__
    .. automethod:: attributes
    .. automethod:: bins
    .. automethod:: cells
    .. automethod:: chromosomes
+   .. automethod:: close
    .. automethod:: path
    .. automethod:: resolution
 
 .. autoclass:: FileWriter
 
    .. automethod:: __init__
+   .. automethod:: __enter__
+   .. automethod:: __exit__
    .. automethod:: add_pixels
    .. automethod:: bins
    .. automethod:: chromosomes

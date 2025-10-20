@@ -11,6 +11,8 @@
 .. autoclass:: FileWriter
 
    .. automethod:: __init__
+   .. automethod:: __enter__
+   .. automethod:: __exit__
    .. automethod:: add_pixels
    .. automethod:: bins
    .. automethod:: chromosomes
