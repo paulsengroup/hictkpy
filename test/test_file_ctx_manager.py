@@ -15,16 +15,17 @@ class TestClass:
     pattern = "caught an attempt to access file .*, which has already been closed"
 
     def test_single_resolution(self):
-        uri = testdir / "data" / "cooler_test_file.mcool::/resolutions/100000"
-        with hictkpy.File(uri) as f:
-            assert f.uri() == str(uri)
+        path = testdir / "data" / "cooler_test_file.mcool"
+        resolution = 100_000
+        with hictkpy.File(path, resolution) as f:
+            assert f.path() == path
 
         with pytest.raises(RuntimeError, match=self.pattern):
             f.uri()
 
-        with hictkpy.File(uri) as f:
+        with hictkpy.File(path, resolution) as f:
             f.close()
             f.close()  # no-op
 
             with pytest.raises(RuntimeError, match=self.pattern):
-                f.uri()
+                f.path()
