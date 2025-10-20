@@ -151,12 +151,11 @@ def main():
     if args["normalization"] is None:
         args["normalization"] = ["NONE"]
 
-    f = hictkpy.File(args["uri"], args["resolution"])
-
-    for norm in args["normalization"]:
-        for range1, range2 in zip(args["range"], args["range2"]):
-            process_param_combination(f, range1, range2, norm, args["metrics"])
-            print()
+    with hictkpy.File(args["uri"], args["resolution"]) as f:
+        for norm in args["normalization"]:
+            for range1, range2 in zip(args["range"], args["range2"]):
+                process_param_combination(f, range1, range2, norm, args["metrics"])
+                print()
 
 
 if __name__ == "__main__":

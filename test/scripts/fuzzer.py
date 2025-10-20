@@ -530,42 +530,47 @@ def worker(
         clr = cooler.Cooler(str(path_to_reference_file))
         sel = clr.matrix(**clr_matrix_args)
 
-        f = hictkpy.File(path_to_file, resolution)
+        with hictkpy.File(path_to_file, resolution) as f:
+            while time.time() < end_time:
+                if early_return.value:
+                    logging.debug(
+                        "[%d] early return signal received. Returning immediately!",
+                        worker_id,
+                    )
+                    break
 
-        while time.time() < end_time:
-            if early_return.value:
-                logging.debug(
-                    "[%d] early return signal received. Returning immediately!",
-                    worker_id,
-                )
-                break
+                if _1d_to_2d_query_ratio <= random.random():
+                    q1, q2 = generate_query_2d(
+                        chroms_flat,
+                        weights,
+                        chrom_ranks,
+                        mean_length=query_length_mu,
+                        stddev_length=query_length_std,
+                    )
+                else:
+                    q1 = generate_query_1d(
+                        chroms_flat,
+                        weights,
+                        mean_length=query_length_mu,
+                        stddev_length=query_length_std,
+                    )
+                    q2 = q1
 
-            if _1d_to_2d_query_ratio <= random.random():
-                q1, q2 = generate_query_2d(
-                    chroms_flat,
-                    weights,
-                    chrom_ranks,
-                    mean_length=query_length_mu,
-                    stddev_length=query_length_std,
-                )
-            else:
-                q1 = generate_query_1d(
-                    chroms_flat,
-                    weights,
-                    mean_length=query_length_mu,
-                    stddev_length=query_length_std,
-                )
-                q2 = q1
+                num_queries += 1
 
-            num_queries += 1
+                expected = cooler_dump(sel, q1, q2)
 
-            expected = cooler_dump(sel, q1, q2)
-
-            if query_type == "describe":
-                num_failures += compare_query_stats(worker_id, q1, q2, expected, f.fetch(q1, q2, normalization=balance))
-            else:
-                found = hictk_dump(f, q1, q2, balance, query_type)
-                num_failures += compare_query_results(worker_id, q1, q2, expected, found)
+                if query_type == "describe":
+                    num_failures += compare_query_stats(
+                        worker_id,
+                        q1,
+                        q2,
+                        expected,
+                        f.fetch(q1, q2, normalization=balance),
+                    )
+                else:
+                    found = hictk_dump(f, q1, q2, balance, query_type)
+                    num_failures += compare_query_results(worker_id, q1, q2, expected, found)
 
     except:  # noqa
         logging.debug(
