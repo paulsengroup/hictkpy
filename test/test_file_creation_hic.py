@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-import gc
 import logging
 import pathlib
 
@@ -32,112 +31,148 @@ class TestClass:
         logging.getLogger().setLevel("INFO")
 
     def test_accessors(self, file, resolution, tmpdir):
-        bins = hictkpy.File(file, resolution).bins()
+        with hictkpy.File(file, resolution) as f:
+            bins = f.bins()
+
         if bins.type() != "fixed":
             pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
 
         path = tmpdir / "test.hic"
-        w = hictkpy.hic.FileWriter(path, bins)
+        with hictkpy.hic.FileWriter(path, bins) as w:
+            assert str(w).startswith("HiCFileWriter(")
+            assert w.path() == path
+            assert w.resolutions() == [resolution]
+            assert w.chromosomes() == bins.chromosomes()
+            assert len(w.bins(resolution).to_df().compare(bins.to_df())) == 0
 
-        assert str(w).startswith("HiCFileWriter(")
-        assert w.path() == path
-        assert w.resolutions() == [resolution]
-        assert w.chromosomes() == bins.chromosomes()
-        assert len(w.bins(resolution).to_df().compare(bins.to_df())) == 0
+    def test_ctx_manager(self, file, resolution, tmpdir):
+        import pandas as pd
+
+        if resolution is None:
+            pytest.skip()
+
+        path = pathlib.Path(tmpdir) / "test.hic"
+        with hictkpy.hic.FileWriter(path, {"chr1": 100}, 10) as w:
+            pass
+
+        assert w.path() == path  # Shouldn't throw
+        assert path.is_file()
+
+        with pytest.raises(RuntimeError, match=r"finalize\(\) was already called.*"):
+            w.finalize()
+
+        with pytest.raises(
+            RuntimeError,
+            match=r"caught attempt to add_pixels\(\) to a \.hic file that has already been finalized",
+        ):
+            w.add_pixels(pd.DataFrame())
+
+        with pytest.raises(
+            RuntimeError,
+            match="caught an attempt to access file .*, which has already been closed",
+        ):
+            w.chromosomes()
+
+        path.unlink(missing_ok=True)
+        with hictkpy.hic.FileWriter(path, {"chr1": 100}, 10) as w:
+            w.finalize()
+            # leaving the context manager should not raise
+
+        assert path.is_file()
 
     def test_file_creation_empty(self, file, resolution, tmpdir):
         if resolution is None:
             pytest.skip()
 
         path = tmpdir / "test.hic"
-        w = hictkpy.hic.FileWriter(path, {"chr1": 100, "chr2": 50}, 10)
-        f = w.finalize("info")
+        with hictkpy.hic.FileWriter(path, {"chr1": 100, "chr2": 50}, 10) as w:
+            pass
 
-        del w
-        gc.collect()
-
-        assert f.fetch().nnz() == 0
+        with hictkpy.File(path) as f:
+            assert f.fetch().nnz() == 0
 
     def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
-        f = hictkpy.File(file, resolution)
-        if f.bins().type() != "fixed":
-            pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
+        with hictkpy.File(file, resolution) as f:
+            if f.bins().type() != "fixed":
+                pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
 
-        df = f.fetch(join=False).to_df()
-        expected_sum = df["count"].sum()
+            chroms = f.chromosomes()
+            df = f.fetch(join=False).to_df()
+            expected_sum = df["count"].sum()
 
         path = tmpdir / "test.hic"
-        w = hictkpy.hic.FileWriter(path, f.chromosomes(), f.resolution())
-
         chunk_size = 1000
-        for start in range(0, len(df), chunk_size):
-            end = start + chunk_size
-            w.add_pixels(df[start:end])
+        with hictkpy.hic.FileWriter(path, chroms, resolution) as w:
+            for start in range(0, len(df), chunk_size):
+                end = start + chunk_size
+                w.add_pixels(df[start:end])
 
-        f = w.finalize()
-        with pytest.raises(Exception):
-            w.add_pixels(df)
-        with pytest.raises(Exception):
             w.finalize()
+            with pytest.raises(
+                RuntimeError,
+                match=r"caught attempt to add_pixels\(\) to a \.hic file that has already been finalized",
+            ):
+                w.add_pixels(df)
+            with pytest.raises(RuntimeError, match=r"finalize\(\) was already called.*"):
+                w.finalize()
 
-        del w
-        gc.collect()
-
-        assert f.fetch().sum() == expected_sum
+        with hictkpy.File(path) as f:
+            assert f.fetch().sum() == expected_sum
 
     def test_file_creation(self, file, resolution, tmpdir):
-        f = hictkpy.File(file, resolution)
-        if f.bins().type() != "fixed":
-            pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
+        with hictkpy.File(file, resolution) as f:
+            if f.bins().type() != "fixed":
+                pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
 
-        df = f.fetch(join=True).to_df()
-        expected_sum = df["count"].sum()
+            chroms = f.chromosomes()
+            df = f.fetch(join=True).to_df()
+            expected_sum = df["count"].sum()
 
         path = tmpdir / "test.hic"
-        w = hictkpy.hic.FileWriter(path, f.chromosomes(), f.resolution())
-
         chunk_size = 1000
-        for start in range(0, len(df), chunk_size):
-            end = start + chunk_size
-            w.add_pixels(df[start:end])
+        with hictkpy.hic.FileWriter(path, chroms, resolution) as w:
+            for start in range(0, len(df), chunk_size):
+                end = start + chunk_size
+                w.add_pixels(df[start:end])
 
-        f = w.finalize()
-        with pytest.raises(Exception):
-            w.add_pixels(df)
-        with pytest.raises(Exception):
             w.finalize()
+            with pytest.raises(
+                RuntimeError,
+                match=r"caught attempt to add_pixels\(\) to a \.hic file that has already been finalized",
+            ):
+                w.add_pixels(df)
+            with pytest.raises(RuntimeError, match=r"finalize\(\) was already called.*"):
+                w.finalize()
 
-        del w
-        gc.collect()
-
-        assert f.fetch().sum() == expected_sum
+        with hictkpy.File(path) as f:
+            assert f.fetch().sum() == expected_sum
 
     def test_file_creation_bin_table(self, file, resolution, tmpdir):
-        f = hictkpy.File(file, resolution)
-
-        df = f.fetch(join=True).to_df()
-        expected_sum = df["count"].sum()
+        with hictkpy.File(file, resolution) as f:
+            bins = f.bins()
+            df = f.fetch(join=True).to_df()
+            expected_sum = df["count"].sum()
 
         path = tmpdir / "test.hic"
-        if f.bins().type() != "fixed":
-            with pytest.raises(Exception):
-                hictkpy.hic.FileWriter(path, f.bins())
+        if bins.type() != "fixed":
+            with pytest.raises(RuntimeError):
+                hictkpy.hic.FileWriter(path, bins)
             return
 
-        w = hictkpy.hic.FileWriter(path, f.bins())
-
         chunk_size = 1000
-        for start in range(0, len(df), chunk_size):
-            end = start + chunk_size
-            w.add_pixels(df[start:end])
+        with hictkpy.hic.FileWriter(path, bins) as w:
+            for start in range(0, len(df), chunk_size):
+                end = start + chunk_size
+                w.add_pixels(df[start:end])
 
-        f = w.finalize()
-        with pytest.raises(Exception):
-            w.add_pixels(df)
-        with pytest.raises(Exception):
             w.finalize()
+            with pytest.raises(
+                RuntimeError,
+                match=r"caught attempt to add_pixels\(\) to a \.hic file that has already been finalized",
+            ):
+                w.add_pixels(df)
+            with pytest.raises(RuntimeError, match=r"finalize\(\) was already called.*"):
+                w.finalize()
 
-        del w
-        gc.collect()
-
-        assert f.fetch().sum() == expected_sum
+        with hictkpy.File(path) as f:
+            assert f.fetch().sum() == expected_sum
