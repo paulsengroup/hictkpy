@@ -25,52 +25,49 @@ pytestmark = pytest.mark.parametrize(
 
 class TestClass:
     def test_attributes(self, file, resolution):
-        f = hictkpy.File(file, resolution)
-        assert f.resolution() == 100_000
-        assert f.nchroms() == 8
-        assert f.nbins() == 1380
+        with hictkpy.File(file, resolution) as f:
+            assert f.resolution() == 100_000
+            assert f.nchroms() == 8
+            assert f.nbins() == 1380
 
-        assert "chr2L" in f.chromosomes()
+            assert "chr2L" in f.chromosomes()
 
-        assert len(f.bins()) == 1380
-        assert len(f.chromosomes()) == 8
+            assert len(f.bins()) == 1380
+            assert len(f.chromosomes()) == 8
 
-        if f.is_cooler():
-            assert f.attributes()["format"] == "HDF5::Cooler"
-        else:
-            assert f.attributes()["format"] == "HIC"
+            if f.is_cooler():
+                assert f.attributes()["format"] == "HDF5::Cooler"
+            else:
+                assert f.attributes()["format"] == "HIC"
 
     @pytest.mark.skipif(not pandas_avail() or not pyarrow_avail(), reason="either pandas or pyarrow are not available")
     def test_normalizations(self, file, resolution):
-        f = hictkpy.File(file, resolution)
-
         cooler_weights = ["KR", "SCALE", "VC", "VC_SQRT", "weight"]
         hic_weights = ["ICE"]
 
-        if f.is_cooler():
-            assert f.avail_normalizations() == cooler_weights
-        else:
-            assert f.avail_normalizations() == hic_weights
+        with hictkpy.File(file, resolution) as f:
+            if f.is_cooler():
+                assert f.avail_normalizations() == cooler_weights
+            else:
+                assert f.avail_normalizations() == hic_weights
 
-        assert not f.has_normalization("foo")
+            assert not f.has_normalization("foo")
 
-        name = "weight" if f.is_cooler() else "ICE"
-        weights = f.weights(name)
-        assert len(weights) == f.nbins()
+            name = "weight" if f.is_cooler() else "ICE"
+            weights = f.weights(name)
+            assert len(weights) == f.nbins()
 
-        if f.is_cooler():
-            df = f.weights(cooler_weights)
-            assert len(df.columns) == len(cooler_weights)
-        else:
-            df = f.weights(hic_weights)
-            assert len(df.columns) == len(hic_weights)
-        assert len(df) == f.nbins()
+            if f.is_cooler():
+                df = f.weights(cooler_weights)
+                assert len(df.columns) == len(cooler_weights)
+            else:
+                df = f.weights(hic_weights)
+                assert len(df.columns) == len(hic_weights)
+            assert len(df) == f.nbins()
 
     @pytest.mark.skipif(not numpy_avail(), reason="numpy is not available")
     def test_fetch(self, file, resolution):
         import numpy as np
-
-        f = hictkpy.File(file, resolution)
 
         valid_types = {
             int: np.int64,
@@ -115,11 +112,12 @@ class TestClass:
             except:  # noqa
                 pass
 
-        assert f.fetch().dtype() is np.int32
+        with hictkpy.File(file, resolution) as f:
+            assert f.fetch().dtype() is np.int32
 
-        for t1, t2 in valid_types.items():
-            assert f.fetch(count_type=t1).dtype() is t2
+            for t1, t2 in valid_types.items():
+                assert f.fetch(count_type=t1).dtype() is t2
 
-        for t in invalid_types:
-            with pytest.raises(TypeError):
-                f.fetch(count_type=t)
+            for t in invalid_types:
+                with pytest.raises(TypeError):
+                    f.fetch(count_type=t)

@@ -21,22 +21,24 @@ pytestmark = pytest.mark.parametrize(
 
 class TestClass:
     def test_resolution_mismatch(self, file, resolution):
-        f = hictkpy.MultiResFile(file)
+        with hictkpy.MultiResFile(file) as f:
 
-        if not f[resolution].is_cooler():
-            pytest.skip(f'File "{file}" is not in .mcool format')
+            if not f[resolution].is_cooler():
+                pytest.skip(f'File "{file}" is not in .mcool format')
 
-        assert 1_000_000 in f.resolutions()
+            assert 1_000_000 in f.resolutions()
+
         with pytest.raises(RuntimeError, match="found an unexpected resolution"):
             hictkpy.File(f"{file}::/resolutions/{resolution}", 1_000_000)
 
     def test_missing_resolution_param(self, file, resolution):
-        f = hictkpy.MultiResFile(file)
+        with hictkpy.MultiResFile(file) as f:
 
-        if len(f.resolutions()) == 1:
-            pytest.skip("file contains a single resolution")
+            if len(f.resolutions()) == 1:
+                pytest.skip("file contains a single resolution")
 
         with pytest.raises(
-            RuntimeError, match=f"resolution is required when opening .* files with more than one resolution"
+            RuntimeError,
+            match=f"resolution is required when opening .* files with more than one resolution",
         ):
             hictkpy.File(file)
