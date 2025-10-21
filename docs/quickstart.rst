@@ -7,7 +7,7 @@ Quickstart
 
 hictkpy provides Python bindings for hictk through `nanobind <https://github.com/wjakob/nanobind>`_.
 
-``hictk.File()`` can open .cool and .hic files and can be used to fetch interactions as well as file metadata.
+:py:class:`hictkpy.File` can open .cool and .hic files and can be used to fetch interactions as well as file metadata.
 
 The examples in this section use the file `4DNFIOTPSS3L.hic <https://data.4dnucleome.org/files-processed/4DNFIOTPSS3L>`_,
 which can be downloaded from the 4D Nucleome Data Portal
@@ -25,6 +25,17 @@ Opening files
 
   In [3]: f.path()
   Out[3]: '4DNFIOTPSS3L.hic'
+
+
+.. important::
+
+  The above example assigns the :py:class:`hictkpy.File` directly to variable ``f`` for simplicity.
+  Always prefer using context managers (e.g., the :keyword:`with` keyword) when opening files using :py:mod:`hictkpy`:
+
+  .. code-block:: python
+
+    with htk.File("4DNFIOTPSS3L.hic", 10_000) as f:
+      # use the file
 
 
 Reading file metadata
