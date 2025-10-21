@@ -51,8 +51,9 @@ class HiCFileWriter {
   void add_pixels(const nanobind::object& df, bool validate);
 
   [[nodiscard]] File finalize(std::string_view log_lvl_str);
-
   [[nodiscard]] bool finalized() const noexcept;
+
+  void try_cleanup() noexcept;
 
   [[nodiscard]] std::string repr() const;
 

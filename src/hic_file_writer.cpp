@@ -33,8 +33,13 @@ namespace hictkpy {
 
 static HiCFileWriter &ctx_enter(HiCFileWriter &w) { return w; }
 
-static void ctx_exit(HiCFileWriter &w, [[maybe_unused]] nb::handle exc_type,
-                     [[maybe_unused]] nb::handle exc_value, [[maybe_unused]] nb::handle traceback) {
+static void ctx_exit(HiCFileWriter &w, nb::handle exc_type, [[maybe_unused]] nb::handle exc_value,
+                     [[maybe_unused]] nb::handle traceback) {
+  if (!exc_type.is_none()) {
+    w.try_cleanup();
+    return;
+  }
+
   if (!w.finalized()) {
     std::ignore = w.finalize("WARN");
   }
@@ -122,6 +127,15 @@ File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
 }
 
 bool HiCFileWriter::finalized() const noexcept { return !_w.has_value(); }
+
+void HiCFileWriter::try_cleanup() noexcept {
+  try {
+    SPDLOG_DEBUG("HiCFileWriter::try_cleanup()");
+    _w.reset();
+    _tmpdir.reset();
+  } catch (...) {  // NOLINT
+  }
+}
 
 std::filesystem::path HiCFileWriter::path() const noexcept { return std::filesystem::path{_path}; }
 

@@ -36,8 +36,13 @@ namespace hictkpy {
 
 static CoolerFileWriter &ctx_enter(CoolerFileWriter &w) { return w; }
 
-static void ctx_exit(CoolerFileWriter &w, [[maybe_unused]] nb::handle exc_type,
+static void ctx_exit(CoolerFileWriter &w, nb::handle exc_type,
                      [[maybe_unused]] nb::handle exc_value, [[maybe_unused]] nb::handle traceback) {
+  if (!exc_type.is_none()) {
+    w.try_cleanup();
+    return;
+  }
+
   if (!w.finalized()) {
     std::ignore = w.finalize("WARN", 500'000, 10'000'000);
   }
@@ -157,6 +162,15 @@ File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_
 }
 
 bool CoolerFileWriter::finalized() const noexcept { return !_w.has_value(); }
+
+void CoolerFileWriter::try_cleanup() noexcept {
+  try {
+    SPDLOG_DEBUG("CoolerFileWriter::try_cleanup()");
+    _w.reset();
+    _tmpdir.reset();
+  } catch (...) {  // NOLINT
+  }
+}
 
 std::optional<hictk::cooler::SingleCellFile> CoolerFileWriter::create_file(
     std::string_view path, const hictk::BinTable &bins, std::string_view assembly,

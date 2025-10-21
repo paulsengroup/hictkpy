@@ -45,8 +45,9 @@ class CoolerFileWriter {
 
   [[nodiscard]] File finalize(std::string_view log_lvl_str, std::size_t chunk_size,
                               std::size_t update_frequency);
-
   [[nodiscard]] bool finalized() const noexcept;
+
+  void try_cleanup() noexcept;
 
   [[nodiscard]] std::string repr() const;
   static void bind(nanobind::module_& m);
