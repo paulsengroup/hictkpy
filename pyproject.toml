@@ -65,10 +65,9 @@ test = [
 dev = [
   "hictkpy[all]",
   {include-group = "test"},
-  "black>=25.1",
-  "clang-format>=20.1",
-  "isort>=6.0",
-  "gersemi>=0.22",
+  "clang-format==21.*",
+  "gersemi==0.22.*",
+  "ruff==0.14.*",
 ]
 
 [tool.scikit-build]
@@ -143,22 +142,39 @@ repair-wheel-command = ""
 repair-wheel-command = ""
 
 [tool.ruff]
-extend-select = [
-  "B", # flake8-bugbear
-  "B904",
-  "I", # isort
-  "PGH", # pygrep-hooks
-  "RUF", # Ruff-specific
-  "UP", # pyupgrade
-]
-extend-ignore = [
-  "E501", # Line too long
-]
+# Set the target Python version (important for format/lint rules)
 target-version = "py310"
-
-[tool.black]
 line-length = 120
-target-version = ["py310"]
+indent-width = 4
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "AIR", # airflow
+  "FAST", # fastapi
+  "ANN", # flake8-annotations
+  "FBT", # flake8-boolean-trap
+  "DJ", # flake8-django
+  "EM", # flake8-errmsg
+  "INT", # flake8-fixme
+  "T20", # flake8-print
+  "TD", # flake8-todos
+  "C90", # maccabe
+  "DOC", # pydoclint
+  "D", # pydocstyle
+  "PGH", # pygrep-hooks
+  "TRY", # tryceratops
+  "LOG015",
+  "PLR2004",
+  "S603",
+  "S607",
+]
+exclude = []
+
+[tool.roof.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "LF"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
