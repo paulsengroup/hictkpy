@@ -79,6 +79,15 @@ class TestClass:
             # leaving the context manager should not raise
 
         assert path.is_file()
+        path.unlink(missing_ok=True)
+
+        tmpdir_ = pathlib.Path(tmpdir) / "tmp"
+        tmpdir_.mkdir()
+        with pytest.raises(RuntimeError, match="foo"):
+            with hictkpy.hic.FileWriter(path, {"chr1": 100}, 10, tmpdir=tmpdir_):
+                raise RuntimeError("foo")
+        assert len(list(tmpdir_.iterdir())) == 0
+        assert not hictkpy.is_hic(path)
 
     def test_file_creation_empty(self, file, resolution, tmpdir):
         if resolution is None:
