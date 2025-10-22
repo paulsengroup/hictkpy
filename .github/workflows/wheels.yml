@@ -8,7 +8,6 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/build-conan-deps-*.yml"
       - ".github/workflows/wheels.yml"
       - "cmake/**"
       - "src/**"
@@ -20,7 +19,6 @@ on:
 
   pull_request:
     paths:
-      - ".github/workflows/build-conan-deps-*.yml"
       - ".github/workflows/wheels.yml"
       - "cmake/**"
       - "src/**"
@@ -86,13 +84,13 @@ jobs:
           CIBW_ARCHS_MACOS=x86_64 cibuildwheel \
             --print-build-identifiers \
             --platform macos |
-          jq -nRc '{"wheel-config": inputs, "os": "macos-13", "arch": "x86_64"}' |
+          jq -nRc '{"wheel-config": inputs, "os": "macos-15-intel", "arch": "x86_64"}' |
           tee -a configs.json
 
           CIBW_ARCHS_MACOS=arm64 cibuildwheel \
             --print-build-identifiers \
             --platform macos |
-          jq -nRc '{"wheel-config": inputs, "os": "macos-14", "arch": "arm64"}' |
+          jq -nRc '{"wheel-config": inputs, "os": "macos-26", "arch": "arm64"}' |
           tee -a configs.json
 
           CIBW_ARCHS_WINDOWS=AMD64 cibuildwheel \
@@ -105,45 +103,49 @@ jobs:
 
           echo "matrix={\"include\": $MATRIX }" | tee -a "$GITHUB_OUTPUT"
 
-  build-conan-deps-linux-x86:
+  build-deps-linux-x86:
     name: Build Conan deps (Linux x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@2c883a9bbe06bd727acc0b786f31db60944c96b9
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@303d9520747458a2112bb8c4ab9dee5462d303c8
     with:
       os: ubuntu-24.04
       arch: x86_64
       cppstd: 23
       conan-version: "2.21.*"
       image-version: 2025.09.28-1
+      ref: ci/refactor # main
 
-  build-conan-deps-linux-arm64:
-    name: Build Conan deps (Linux arm64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@2c883a9bbe06bd727acc0b786f31db60944c96b9
+  build-deps-linux-arm64:
+    name: Build Conan deps (Linux; arm64)
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-linux.yml@303d9520747458a2112bb8c4ab9dee5462d303c8
     with:
       os: ubuntu-24.04-arm
       arch: aarch64
       cppstd: 23
       conan-version: "2.21.*"
       image-version: 2025.09.28-1
+      ref: ci/refactor # main
 
-  build-conan-deps-macos-x86:
-    name: Build Conan deps (macOS x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@2c883a9bbe06bd727acc0b786f31db60944c96b9
+  build-deps-macos-x86:
+    name: Build Conan deps (macOS; x86_64)
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@303d9520747458a2112bb8c4ab9dee5462d303c8
     with:
       conan-version: "2.21.*"
       cppstd: 23
-      os: macos-13
+      os: macos-15-intel
+      ref: ci/refactor # main
 
-  build-conan-deps-macos-arm64:
-    name: Build Conan deps (macOS arm64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@2c883a9bbe06bd727acc0b786f31db60944c96b9
+  build-deps-macos-arm64:
+    name: Build Conan deps (macOS; arm64)
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-macos.yml@303d9520747458a2112bb8c4ab9dee5462d303c8
     with:
       conan-version: "2.21.*"
       cppstd: 23
-      os: macos-14
+      os: macos-26
+      ref: ci/refactor # main
 
-  build-conan-deps-windows-x86:
-    name: Build Conan deps (Windows x86_64)
-    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-windows.yml@2c883a9bbe06bd727acc0b786f31db60944c96b9
+  build-deps-windows-x86:
+    name: Build Conan deps (Windows; x86_64)
+    uses: paulsengroup/hictkpy/.github/workflows/build-conan-deps-windows.yml@303d9520747458a2112bb8c4ab9dee5462d303c8
     with:
       conan-version: "2.21.*"
       cppstd: 23
@@ -174,20 +176,16 @@ jobs:
     name: Build Wheels
     needs:
       - matrix-factory
-      - build-conan-deps-linux-x86
-      - build-conan-deps-linux-arm64
-      - build-conan-deps-macos-x86
-      - build-conan-deps-macos-arm64
-      - build-conan-deps-windows-x86
+      - build-deps-linux-x86
+      - build-deps-linux-arm64
+      - build-deps-macos-x86
+      - build-deps-macos-arm64
+      - build-deps-windows-x86
     runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix-factory.outputs.matrix) }}
-
-    env:
-      CONAN_HOME: "${{ github.workspace }}/.conan2"
-      HICTKPY_CONAN_INSTALL_ARGS: "--settings:a=compiler.cppstd=23;--build=never;--options=*/*:shared=False"
 
     steps:
       - uses: actions/checkout@v5
@@ -198,7 +196,7 @@ jobs:
         if: startsWith(matrix.os, 'windows')
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
-          sdk: "10.0.17763.0"
+          sdk: ${{ needs.build-deps-windows-x86.outputs.winsdk-version }}
 
       - name: Install uv
         if: ${{ !startsWith(matrix.os, 'ubuntu') }}
@@ -208,74 +206,75 @@ jobs:
           activate-environment: true
           enable-cache: true
 
-      - name: Restore Conan cache (Linux; x86_64)
-        if: startsWith(matrix.os, 'ubuntu') && matrix.arch == 'x86_64'
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ needs.build-conan-deps-linux-x86.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
-          fail-on-cache-miss: true
+      - name: Set TMPDIR (UNIX)
+        if: ${{ !startsWith(matrix.os, 'windows') }}
+        run: echo 'TMPDIR=/tmp' | tee -a "$GITHUB_ENV"
 
-      - name: Restore Conan cache (Linux; aarch64)
-        if: startsWith(matrix.os, 'ubuntu') && matrix.arch == 'aarch64'
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ needs.build-conan-deps-linux-arm64.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
-          fail-on-cache-miss: true
-
-      - name: Restore Conan cache (macOS; x86_64)
-        if: startsWith(matrix.os, 'macos') && matrix.arch == 'x86_64'
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ needs.build-conan-deps-macos-x86.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
-          fail-on-cache-miss: true
-
-      - name: Restore Conan cache (macOS; aarch64)
-        if: startsWith(matrix.os, 'macos') && matrix.arch == 'arm64'
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ needs.build-conan-deps-macos-arm64.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
-          fail-on-cache-miss: true
-
-      - name: Restore Conan cache (Windows; AMD64)
-        if: startsWith(matrix.os, 'windows') && matrix.arch == 'AMD64'
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ needs.build-conan-deps-windows-x86.outputs.conan-key }}
-          path: |
-            ${{ needs.build-conan-deps-windows-x86.outputs.conan-home }}\p
-            ${{ github.workspace }}\cmake-prefix-rel.tar
-          fail-on-cache-miss: true
-
-      - name: Add devtools to PATH (Windows)
-        if: startsWith(matrix.os, 'windows')
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
-        with:
-          sdk: "10.0.17763.0"
-
-      - name: Extract CMake configs
+      - name: Set TMPDIR (Windows)
         if: startsWith(matrix.os, 'windows')
         run: |
-          mkdir conan-env
-          srcdir="$(cygpath '${{ github.workspace }}')"
-          tar -xf "$srcdir/cmake-prefix-rel.tar" -C conan-env/ --strip-components=1
+          cat << EOF >> get_tmpdir.py
+          import pathlib
+          import tempfile
 
-      - name: Extract CMake configs
-        if: "!startsWith(matrix.os , 'windows')"
+          path = pathlib.Path(tempfile.gettempdir())
+          print(path.as_posix())
+          EOF
+
+          echo "TMPDIR=$(python get_tmpdir.py)" | tee -a "$GITHUB_ENV"
+
+      - name: Generate cache key
+        id: cache-key
         run: |
-          mkdir conan-env
-          tar -xf /tmp/cmake-prefix-rel.tar -C conan-env/ --strip-components=1
+          set -e
+          set -u
+
+          arch='${{ matrix.arch }}'
+          os='${{ matrix.os }}'
+
+          if [[ "$os" == ubuntu-* && "$arch" == x86_64 ]]; then
+            deps_cache_key='${{ needs.build-deps-linux-x86.outputs.cache-key }}'
+            deps_cache_path='${{ needs.build-deps-linux-x86.outputs.tar }}'
+          elif [[ "$os" == ubuntu-* && "$arch" == aarch64 ]]; then
+            deps_cache_key='${{ needs.build-deps-linux-arm64.outputs.cache-key }}'
+            deps_cache_path='${{ needs.build-deps-linux-arm64.outputs.tar }}'
+          elif [[ "$os" == macos-* && "$arch" == x86_64 ]]; then
+            deps_cache_key='${{ needs.build-deps-macos-x86.outputs.cache-key }}'
+            deps_cache_path='${{ needs.build-deps-macos-x86.outputs.tar }}'
+          elif [[ "$os" == macos-* && "$arch" == arm64 ]]; then
+            deps_cache_key='${{ needs.build-deps-macos-arm64.outputs.cache-key }}'
+            deps_cache_path='${{ needs.build-deps-macos-arm64.outputs.tar }}'
+          elif [[ "$os" == windows-* && "$arch" == AMD64 ]]; then
+            deps_cache_key='${{ needs.build-deps-windows-x86.outputs.cache-key }}'
+            deps_cache_path='${{ needs.build-deps-windows-x86.outputs.tar }}'
+          else
+            1>&2 echo 'Unknown OS "${{ matrix.os }}" and/or architecture "${{ matrix.arch }}"'
+            exit 1
+          fi
+
+          {
+            echo "deps-key=${deps_cache_key}"
+            echo "deps-path=${deps_cache_path}"
+          } | tee -a "$GITHUB_OUTPUT"
+
+      - name: Restore cached dependencies
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ steps.cache-key.outputs.deps-key }}
+          path: ${{ steps.cache-key.outputs.deps-path }}
+          fail-on-cache-miss: true
+
+      - name: Unpack dependencies (Linux)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: tar -C "$TMPDIR" -xf '${{ steps.cache-key.outputs.deps-path }}'
+
+      - name: Unpack dependencies (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: gtar -C "$TMPDIR" -xf '${{ steps.cache-key.outputs.deps-path }}'
+
+      - name: Unpack dependencies (Windows)
+        if: startsWith(matrix.os, 'windows')
+        run: tar -C "$TMPDIR" -xf "$(cygpath -u '${{ steps.cache-key.outputs.deps-path }}')"
 
       - name: Build wheels
         uses: pypa/cibuildwheel@7c619efba910c04005a835b110b057fc28fd6e93 # v3.2.0
@@ -289,24 +288,24 @@ jobs:
             PIP_VERBOSE=1
             CMAKE_AR=llvm-ar
             CMAKE_LINKER_TYPE=LLD
+            CMAKE_PREFIX_PATH='/host/${{ env.TMPDIR }}/deps/cmake'
             CMAKE_RANLIB=llvm-ranlib
-            CONAN_HOME='/host${{ env.CONAN_HOME }}'
             HICTKPY_CXX_STANDARD=23
+            HICTKPY_PROJECT_TOP_LEVEL_INCLUDES=''
             UV_LINK_MODE=copy
           CIBW_ENVIRONMENT_MACOS: >
             CC=clang
             CXX=clang++
             PIP_VERBOSE=1
-            CMAKE_PREFIX_PATH='${{ github.workspace }}/conan-env'
-            MACOSX_DEPLOYMENT_TARGET=10.15
-            HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--settings:h=os.version=10.15"
+            CMAKE_PREFIX_PATH='${{ env.TMPDIR }}/deps/cmake'
             HICTKPY_CXX_STANDARD=23
+            HICTKPY_OSX_DEPLOYMENT_TARGET=14.0
+            HICTKPY_PROJECT_TOP_LEVEL_INCLUDES=''
             UV_LINK_MODE=copy
           CIBW_ENVIRONMENT_WINDOWS: >
             PIP_VERBOSE=1
-            CMAKE_PREFIX_PATH='${{ github.workspace }}/conan-env'
+            CMAKE_PREFIX_PATH='${{ env.TMPDIR }}\\deps\\cmake'
             HICTKPY_BUILD_PORTABLE_WHEELS_WIN=ON
-            HICTKPY_CONAN_INSTALL_ARGS="${{ env.HICTKPY_CONAN_INSTALL_ARGS }};--conf:a=tools.microsoft:winsdk_version=10.0.17763.0"
             HICTKPY_CXX_STANDARD=23
             HICTKPY_PROJECT_TOP_LEVEL_INCLUDES=''
             UV_LINK_MODE=copy
@@ -316,10 +315,10 @@ jobs:
             PIP_VERBOSE
             CMAKE_AR
             CMAKE_LINKER_TYPE
+            CMAKE_PREFIX_PATH
             CMAKE_RANLIB
-            CONAN_HOME
             HICTKPY_CXX_STANDARD
-            HICTKPY_CONAN_INSTALL_ARGS
+            HICTKPY_PROJECT_TOP_LEVEL_INCLUDES
             UV_LINK_MODE
 
       - name: Verify clean directory

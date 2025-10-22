@@ -84,7 +84,7 @@ cmake.version = "CMakeLists.txt"
 BUILD_SHARED_LIBS = { env="HICTKPY_BUILD_SHARED_LIBS", default="OFF" }
 CMAKE_C_STANDARD = { env="HICTKPY_C_STANDARD", default=11 }
 CMAKE_CXX_STANDARD = { env="HICTKPY_CXX_STANDARD", default=17 }
-CMAKE_OSX_DEPLOYMENT_TARGET = { env="HICTKPY_OSX_DEPLOYMENT_TARGET", default="10.15" }
+CMAKE_OSX_DEPLOYMENT_TARGET = { env="HICTKPY_OSX_DEPLOYMENT_TARGET", default="14.0" }
 CMAKE_PROJECT_TOP_LEVEL_INCLUDES = { env="HICTKPY_PROJECT_TOP_LEVEL_INCLUDES", default="cmake/conan_provider.cmake" }
 CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--build=missing;--update;--options=*/*:shared=False" }
 HICTKPY_BUILD_PORTABLE_WHEELS_WIN = { env="HICTKPY_BUILD_PORTABLE_WHEELS_WIN", default="OFF" }
@@ -131,7 +131,7 @@ before-build = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all = "dnf install -y clang lld llvm-devel"
+before-all = "dnf install -y --setopt=install_weak_deps=False clang lld llvm-devel"
 
 # We are using static linking, thus repairing wheels should not be necessary.
 # Exception being when building portable Linux wheels.
