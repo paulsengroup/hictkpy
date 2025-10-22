@@ -1,28 +1,26 @@
 # Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
 # SPDX-License-Identifier: MIT
 
-name: Build dependencies with Conan
+name: Build dependencies with Conan (Linux)
 
 on:
   workflow_call:
     outputs:
-      conan-key:
-        description: "Conan packages"
-        value: ${{ jobs.build-deps.outputs.conan-key }}
-      conan-home:
-        description: "Conan home folder"
-        value: ${{ jobs.build-deps.outputs.conan-home }}
+      cache-key:
+        description: "Cache key"
+        value: ${{ jobs.build-deps.outputs.cache-key }}
+      tar:
+        description: "Archive path"
+        value: ${{ jobs.build-deps.outputs.tar }}
 
     inputs:
       conan-version:
-        default: "2.16.*"
         type: string
-        required: false
+        required: true
         description: "Conan version to be installed with pip."
       cppstd:
-        default: "17"
         type: string
-        required: false
+        required: true
         description: "Value to pass to compiler.cppstd."
       os:
         type: string
@@ -36,6 +34,10 @@ on:
         type: string
         required: true
         description: "Image version for the manylinux_2_28_* Docker image."
+      ref:
+        type: string
+        required: true
+        description: "Reference used to clone the conanfile.py and build script."
 
 defaults:
   run:
@@ -49,13 +51,19 @@ jobs:
     env:
       CONAN_HOME: "${{ github.workspace }}/.conan2"
       IMAGE: quay.io/pypa/manylinux_2_28_${{ inputs.arch }}:${{ inputs.image-version }}
+      TMPDIR: /host/tmp/
 
     outputs:
-      conan-key: ${{ steps.generate-cache-key.outputs.conan-key }}
-      conan-home: ${{ env.CONAN_HOME }}
+      cache-key: ${{ steps.generate-cache-key.outputs.cache-key }}
+      tar: ${{ steps.generate-cache-key.outputs.tar }}
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Create TMPDIR
+        run: sudo mkdir -p "$TMPDIR"
 
       - name: Generate cache key
         id: generate-cache-key
@@ -65,99 +73,45 @@ jobs:
           set -u
           set -e
 
-          dnf install -y clang &> /dev/null
+          dnf install -y clang
 
-          hash="${{ hashFiles('conanfile.py') }}"
+          hash="${{ hashFiles('conanfile.py', 'utils/devel/build_dependencies.py') }}"
 
-          compiler="$(clang --version | head -n 1 | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g' | sed 's/-$//')"
-          image="$(echo "$IMAGE" | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g' | sed 's/-$//')"
+          compiler="$(clang --version | head -n 1)"
+          suffix="${{ inputs.os }}-$IMAGE-$compiler-cxx${{ inputs.cppstd }}-$hash"
+          suffix="$(echo "$suffix" |
+                    tr -c '[:alnum:]._-' '-' |
+                    sed 's/-\+/-/g' |
+                    sed 's/-$//' |
+                    tr '[:upper:]' '[:lower:]'
+                  )"
 
-          suffix="${{ inputs.os }}-$image-$compiler-c++${{ inputs.cppstd }}-$hash"
+          dest='/tmp/dependencies.conan.tar.zst'
 
-          echo "conan-key=conan-$suffix"
+          echo "cache-key=conan-$suffix" | tee -a "$GITHUB_OUTPUT"
+          echo "tar=$dest" | tee -a "$GITHUB_OUTPUT"
           EOF
 
           chmod 755 script.sh
 
           docker run \
             -e "IMAGE=$IMAGE" \
+            -e "GITHUB_OUTPUT=$GITHUB_OUTPUT" \
+            -v "$GITHUB_OUTPUT:$GITHUB_OUTPUT" \
             -v "$PWD/script.sh:/tmp/script.sh:ro" \
-            "$IMAGE" /tmp/script.sh | tee -a "$GITHUB_OUTPUT"
+            "$IMAGE" /tmp/script.sh
 
-      - name: Restore package cache
+      - name: Lookup package cache
         id: lookup-conan-cache
         uses: actions/cache/restore@v4
         with:
-          key: ${{ steps.generate-cache-key.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
+          key: ${{ steps.generate-cache-key.outputs.cache-key }}
+          path: ${{ steps.generate-cache-key.outputs.tar }}
           lookup-only: true
 
-      - name: Restore package cache
-        uses: actions/cache/restore@v4
+      - name: Clean Conan cache
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
-        with:
-          key: ${{ steps.generate-cache-key.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
-
-      - name: Configure Conan
-        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
-        run: |
-          cat << 'EOF' | tee script.sh > /dev/null
-          #!usr/bin/env bash
-          set -u
-          set -e
-
-          conan_version="$1"
-
-          dnf install -y clang
-
-          PATH="/opt/python/cp312-cp312/bin:$PATH"
-          pip install "conan==$conan_version"
-
-          CC=clang CXX=clang++ conan profile detect --name clang --force
-          CC=gcc CXX=g++ conan profile detect --name gcc --force
-
-          conan remote update conancenter --url https://center2.conan.io
-          EOF
-
-          chmod 755 script.sh
-
-          docker run \
-            -e "CONAN_HOME=$CONAN_HOME" \
-            -v "$PWD/script.sh:/tmp/script.sh:ro" \
-            -v "$CONAN_HOME:$CONAN_HOME" \
-            "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
-
-      - name: Clean Conan cache (pre-build)
-        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
-        run: |
-          cat << 'EOF' | tee script.sh > /dev/null
-          #!usr/bin/env bash
-          set -u
-          set -e
-
-          conan_version="$1"
-
-          PATH="/opt/python/cp312-cp312/bin:$PATH"
-          pip install "conan==$conan_version"
-
-          conan cache clean "*" --build
-          conan cache clean "*" --download
-          conan cache clean "*" --source
-          conan remove --confirm "*"
-          EOF
-
-          chmod 755 script.sh
-
-          docker run \
-            -e "CONAN_HOME=$CONAN_HOME" \
-            -v "$PWD/script.sh:/tmp/script.sh:ro" \
-            -v "$CONAN_HOME:$CONAN_HOME" \
-            "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
+        run: rm -rf "$CONAN_HOME/p"
 
       - name: Install dependencies
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
@@ -173,71 +127,44 @@ jobs:
 
           cppstd="$2"
 
-          PATH="/opt/python/cp312-cp312/bin:$PATH"
+          PATH="/opt/python/cp313-cp313/bin:$PATH"
           pip install "conan==$conan_version"
 
-          # Workaround ABI problems
-          conan install --requires 'b2/5.3.1' --build='*' -pr:b=gcc -pr:h=gcc
+          CC=clang
+          CXX=clang++
+          CMAKE_POLICY_VERSION_MINIMUM=3.5
 
-          export CC=clang
-          export CXX=clang++
-          export CMAKE_POLICY_VERSION_MINIMUM=3.5
-
-          conan install /tmp/conanfile.py   \
-             --build='*'                    \
-             -pr:b=clang                    \
-             -pr:h=clang                    \
-             -s build_type=Release          \
-             -s:a compiler.cppstd="$cppstd" \
-             --options='*/*:shared=False'   \
-             --output-folder cmake-prefix-rel
-
-          tar -cf /tmp/cmake-prefix-rel.tar cmake-prefix-rel
+          cd /tmp/
+          ./build_dependencies.py --cppstd='${{ inputs.cppstd }}' --ci
           EOF
 
           chmod 755 script.sh
 
           docker run \
             -e "CONAN_HOME=$CONAN_HOME" \
+            -e "TMPDIR=$TMPDIR" \
             -v "$PWD/script.sh:/tmp/script.sh:ro" \
             -v "$PWD/conanfile.py:/tmp/conanfile.py:ro" \
+            -v "$PWD/utils/devel/build_dependencies.py:/tmp/build_dependencies.py:ro" \
             -v "$CONAN_HOME:$CONAN_HOME" \
-            -v /tmp/:/tmp/ \
+            -v "$TMPDIR:$TMPDIR" \
             "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}' '${{ inputs.cppstd }}'
 
-      - name: Clean Conan cache (post-build)
+      - name: Archive dependencies
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
-          cat << 'EOF' | tee script.sh > /dev/null
-          #!usr/bin/env bash
-          set -u
-          set -e
+          src='deps/'
+          dest='${{ steps.generate-cache-key.outputs.tar }}'
+          tar -C "$TMPDIR" -cf - "$src" |
+            zstd -T0 -22 --long --ultra -v -o "$dest"
 
-          conan_version="$1"
+          echo "tar=$dest" | tee -a "$GITHUB_OUTPUT"
 
-          PATH="/opt/python/cp312-cp312/bin:$PATH"
-          pip install "conan==$conan_version"
-
-          conan cache clean "*" --build
-          conan cache clean "*" --download
-          conan cache clean "*" --source
-          EOF
-
-          chmod 755 script.sh
-
-          docker run \
-            -e "CONAN_HOME=$CONAN_HOME" \
-            -v "$PWD/script.sh:/tmp/script.sh:ro" \
-            -v "$CONAN_HOME:$CONAN_HOME" \
-            "$IMAGE" /tmp/script.sh '${{ inputs.conan-version }}'
-
-      - name: Save Conan cache
+      - name: Export dependencies
         uses: actions/cache/save@v4
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         with:
-          key: ${{ steps.generate-cache-key.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
+          key: ${{ steps.generate-cache-key.outputs.cache-key }}
+          path: ${{ steps.generate-cache-key.outputs.tar }}
         env:
-          ZSTD_CLEVEL: 19
+          ZSTD_CLEVEL: 0
