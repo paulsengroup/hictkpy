@@ -305,9 +305,7 @@ static bool has_normalization(const File &f, std::string_view name) {
   return f->has_normalization(name);
 }
 
-static std::string repr(const hictk::File &f) {
-  return fmt::format(FMT_STRING("File({})"), f.uri());
-}
+static std::string repr(const File &f) { return fmt::format(FMT_STRING("File({})"), f->uri()); }
 
 static File &ctx_enter(File &f) { return f; }
 
