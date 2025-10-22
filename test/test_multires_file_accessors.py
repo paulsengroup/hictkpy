@@ -21,29 +21,28 @@ pytestmark = pytest.mark.parametrize(
 
 class TestClass:
     def test_accessors(self, file, format):
-        f = hictkpy.MultiResFile(file)
+        with hictkpy.MultiResFile(file) as f:
+            assert str(f).startswith("MultiResFile(")
 
-        assert str(f).startswith("MultiResFile(")
+            assert f.path() == file
+            assert f.is_mcool() == (format == "mcool")
+            assert f.is_hic() == (format == "hic")
+            assert len(f.chromosomes()) == 8
 
-        assert f.path() == file
-        assert f.is_mcool() == (format == "mcool")
-        assert f.is_hic() == (format == "hic")
-        assert len(f.chromosomes()) == 8
+            if f.is_hic():
+                resolutions = [100_000]
+                assert (f.resolutions() == resolutions).all()
+                assert f.attributes()["format"] == "HIC"
+                assert f.attributes()["format-version"] == 9
+                assert (f.attributes()["resolutions"] == resolutions).all()
+            else:
+                resolutions = [100_000, 1_000_000]
+                assert (f.resolutions() == resolutions).all()
+                assert f.attributes()["format"] == "HDF5::MCOOL"
+                assert f.attributes()["format-version"] == 2
+                assert (f.attributes()["resolutions"] == resolutions).all()
 
-        if f.is_hic():
-            resolutions = [100_000]
-            assert (f.resolutions() == resolutions).all()
-            assert f.attributes()["format"] == "HIC"
-            assert f.attributes()["format-version"] == 9
-            assert (f.attributes()["resolutions"] == resolutions).all()
-        else:
-            resolutions = [100_000, 1_000_000]
-            assert (f.resolutions() == resolutions).all()
-            assert f.attributes()["format"] == "HDF5::MCOOL"
-            assert f.attributes()["format-version"] == 2
-            assert (f.attributes()["resolutions"] == resolutions).all()
+            assert f[100_000].resolution() == 100_000
 
-        assert f[100_000].resolution() == 100_000
-
-        with pytest.raises(Exception):
-            f[1234]  # noqa
+            with pytest.raises(Exception):
+                f[1234]  # noqa

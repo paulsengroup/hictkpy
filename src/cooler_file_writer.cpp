@@ -24,6 +24,7 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/file.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
@@ -33,19 +34,33 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
+static CoolerFileWriter &ctx_enter(CoolerFileWriter &w) { return w; }
+
+static void ctx_exit(CoolerFileWriter &w, nb::handle exc_type,
+                     [[maybe_unused]] nb::handle exc_value, [[maybe_unused]] nb::handle traceback) {
+  if (!exc_type.is_none()) {
+    w.try_cleanup();
+    return;
+  }
+
+  if (!w.finalized()) {
+    std::ignore = w.finalize("WARN", 500'000, 10'000'000);
+  }
+}
+
 CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const hictkpy::BinTable &bins_,
-                                   std::string_view assembly, const std::filesystem::path &tmpdir,
+                                   std::string_view assembly, const std::filesystem::path &tmpdir_,
                                    std::uint32_t compression_lvl)
     : _path(std::move(path_)),
-      _tmpdir(tmpdir, true),
-      _w(create_file(_path.string(), *bins_.get(), assembly, _tmpdir())),
+      _tmpdir(std::make_optional<hictk::internal::TmpDir>(tmpdir_, true)),
+      _w(create_file(_path.string(), *bins_.get(), assembly, tmpdir())),
       _compression_lvl(compression_lvl) {
   if (std::filesystem::exists(_path)) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("unable to create .cool file \"{}\": file already exists"), path()));
   }
 
-  SPDLOG_INFO(FMT_STRING("using \"{}\" folder to store temporary file(s)"), _tmpdir());
+  SPDLOG_INFO(FMT_STRING("using \"{}\" folder to store temporary file(s)"), tmpdir().string());
 }
 
 CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const ChromosomeDict &chromosomes_,
@@ -57,39 +72,21 @@ CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const Chromosome
 
 const std::filesystem::path &CoolerFileWriter::path() const noexcept { return _path; }
 
-std::uint32_t CoolerFileWriter::resolution() const noexcept {
-  if (_w.has_value()) {
-    return _w->resolution();
-  }
-  return 0;
-}
+std::uint32_t CoolerFileWriter::resolution() const { return w().resolution(); }
 
-const hictk::Reference &CoolerFileWriter::chromosomes() const {
-  if (_w.has_value()) {
-    return _w->chromosomes();
-  }
+const hictk::Reference &CoolerFileWriter::chromosomes() const { return w().chromosomes(); }
 
-  const static hictk::Reference ref{};
-  return ref;
-}
-
-std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const noexcept {
-  if (!_w) {
-    return {};
-  }
-
-  return _w->bins_ptr();
-}
+std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const { return w().bins_ptr(); }
 
 void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool validate) {
-  if (!_w.has_value()) {
+  if (finalized()) {
     throw std::runtime_error(
-        "caught attempt to add_pixels to a .cool file that has already been finalized!");
+        "caught attempt to add_pixels() to a .cool file that has already been finalized!");
   }
 
-  const auto cell_id = fmt::to_string(_w->cells().size());
-  auto attrs = hictk::cooler::Attributes::init(_w->resolution());
-  attrs.assembly = _w->attributes().assembly;
+  const auto cell_id = fmt::to_string(w().cells().size());
+  auto attrs = hictk::cooler::Attributes::init(resolution());
+  attrs.assembly = w().attributes().assembly;
 
   auto lck = std::make_optional<nb::gil_scoped_acquire>();
   const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
@@ -117,26 +114,25 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
       var);
 }
 
-hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_size,
-                                       std::size_t update_freq) {
-  if (_finalized) {
+File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+                                std::size_t update_freq) {
+  if (finalized()) {
     throw std::runtime_error(
-        fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
+        fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path.string()));
   }
 
   if (chunk_size == 0) {
     throw std::runtime_error("chunk_size must be greater than 0");
   }
 
-  assert(_w.has_value());
   // NOLINTBEGIN(*-unchecked-optional-access)
   const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);
 
-  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path);
+  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path.string());
   hictk::internal::NumericVariant count_type{};
-  if (_w->cells().empty()) {
+  if (w().cells().empty()) {
     count_type = std::int32_t{};
   } else {
     count_type = _w->open("0").pixel_variant();
@@ -145,7 +141,7 @@ hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t
     std::visit(
         [&](const auto &num) {
           using N = remove_cvref_t<decltype(num)>;
-          _w->aggregate<N>(_path.string(), false, _compression_lvl, chunk_size, update_freq);
+          w().aggregate<N>(_path.string(), false, _compression_lvl, chunk_size, update_freq);
         },
         count_type);
   } catch (...) {
@@ -153,33 +149,70 @@ hictk::File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t
     throw;
   }
 
-  _finalized = true;
-  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), _w->cells().size(), _path);
+  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), w().cells().size(), _path);
   spdlog::default_logger()->set_level(previous_lvl);
 
   const std::string sclr_path{_w->path()};
   _w.reset();
+  _tmpdir.reset();
   std::filesystem::remove(sclr_path);  // NOLINT
   // NOLINTEND(*-unchecked-optional-access)
 
-  return hictk::File{_path.string()};
+  return File{hictk::cooler::File{_path.string()}};
 }
 
-hictk::cooler::SingleCellFile CoolerFileWriter::create_file(std::string_view path,
-                                                            const hictk::BinTable &bins,
-                                                            std::string_view assembly,
-                                                            const std::filesystem::path &tmpdir) {
-  auto attrs = hictk::cooler::SingleCellAttributes::init(bins.resolution());
+bool CoolerFileWriter::finalized() const noexcept { return !_w.has_value(); }
+
+void CoolerFileWriter::try_cleanup() noexcept {
+  try {
+    SPDLOG_DEBUG("CoolerFileWriter::try_cleanup()");
+    _w.reset();
+    _tmpdir.reset();
+  } catch (...) {  // NOLINT
+  }
+}
+
+std::optional<hictk::cooler::SingleCellFile> CoolerFileWriter::create_file(
+    std::string_view path, const hictk::BinTable &bins, std::string_view assembly,
+    const std::filesystem::path &tmpdir) {
+  using namespace hictk::cooler;
+  auto attrs = SingleCellAttributes::init(bins.resolution());
   attrs.assembly = assembly;
-  return hictk::cooler::SingleCellFile::create(tmpdir / std::filesystem::path{path}.filename(),
-                                               bins, false, std::move(attrs));
+  return std::make_optional<SingleCellFile>(SingleCellFile::create(
+      tmpdir / std::filesystem::path{path}.filename(), bins, false, std::move(attrs)));
+}
+
+const std::filesystem::path &CoolerFileWriter::tmpdir() const {
+  if (!_tmpdir.has_value()) {
+    assert(!_w.has_value());
+    throw std::runtime_error(fmt::format(
+        FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
+        _path));
+  }
+
+  return (*_tmpdir)();
+}
+
+hictk::cooler::SingleCellFile &CoolerFileWriter::w() {
+  if (!_w.has_value()) {
+    throw std::runtime_error(fmt::format(
+        FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
+        _path));
+  }
+  return *_w;
+}
+
+const hictk::cooler::SingleCellFile &CoolerFileWriter::w() const {
+  if (!_w.has_value()) {
+    throw std::runtime_error(fmt::format(
+        FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
+        _path));
+  }
+  return *_w;
 }
 
 std::string CoolerFileWriter::repr() const {
-  if (!_w.has_value()) {
-    return "CoolFileWriter()";
-  }
-  return fmt::format(FMT_STRING("CoolFileWriter({})"), _w->path());
+  return fmt::format(FMT_STRING("CoolFileWriter({})"), _path.string());
 }
 
 void CoolerFileWriter::bind(nb::module_ &m) {
@@ -206,6 +239,16 @@ void CoolerFileWriter::bind(nb::module_ &m) {
   // NOLINTEND(*-avoid-magic-numbers)
 
   writer.def("__repr__", &hictkpy::CoolerFileWriter::repr, nb::rv_policy::move);
+
+  writer.def("__enter__", &ctx_enter, nb::rv_policy::reference_internal);
+
+  writer.def("__exit__", &ctx_exit,
+             // clang-format off
+             nb::arg("exc_type") = nb::none(),
+             nb::arg("exc_value") = nb::none(),
+             nb::arg("traceback") = nb::none()
+             // clang-format on
+  );
 
   writer.def("path", &hictkpy::CoolerFileWriter::path, "Get the file path.", nb::rv_policy::copy);
   writer.def("resolution", &hictkpy::CoolerFileWriter::resolution, "Get the resolution in bp.");

@@ -44,7 +44,8 @@ class TestClass:
                 _ = getattr(p, attr)
 
     def test_bg2_int_pixel(self):
-        bins = hictkpy.File(file, resolution).bins()
+        with hictkpy.File(file, resolution) as f:
+            bins = f.bins()
 
         bin1 = bins.get(0)
         bin2 = bins.get(1)
@@ -67,7 +68,8 @@ class TestClass:
         assert p.count == 123
 
     def test_bg2_float_pixel(self):
-        bins = hictkpy.File(file, resolution).bins()
+        with hictkpy.File(file, resolution) as f:
+            bins = f.bins()
 
         bin1 = bins.get(0)
         bin2 = bins.get(1)

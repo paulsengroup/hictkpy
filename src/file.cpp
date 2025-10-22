@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
+#include "hictkpy/file.hpp"
+
 #ifdef _WIN32
 // Workaround bug several symbol redefinition errors due to something including <winsock.h>
 #include <winsock2.h>
@@ -42,34 +44,7 @@
 
 namespace nb = nanobind;
 
-namespace hictkpy::file {
-static void ctor(hictk::File *fp, const std::filesystem::path &path,
-                 std::optional<std::int32_t> resolution, std::string_view matrix_type,
-                 std::string_view matrix_unit) {
-  if (resolution.value_or(0) < 0) {
-    throw std::invalid_argument("resolution must be non-negative");
-  }
-
-  std::optional<std::uint32_t> resolution_{};
-  if (resolution.has_value()) {
-    resolution_ = static_cast<std::uint32_t>(*resolution);
-  }
-
-  new (fp) hictk::File{path.string(), resolution_,
-                       hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
-                       hictk::hic::ParseUnitStr(std::string{matrix_unit})};
-}
-
-static std::string repr(const hictk::File &f) {
-  return fmt::format(FMT_STRING("File({})"), f.uri());
-}
-
-bool is_cooler(const std::filesystem::path &uri) {
-  return bool(hictk::cooler::utils::is_cooler(uri.string()));
-}
-
-bool is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
-
+namespace hictkpy {
 static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
                                             const hictk::balancing::Method &normalization,
                                             hictk::internal::NumericVariant count_type, bool join,
@@ -149,7 +124,7 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
   );
 }
 
-static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::string_view> range1,
+static hictkpy::PixelSelector fetch(const File &f, std::optional<std::string_view> range1,
                                     std::optional<std::string_view> range2,
                                     std::optional<std::string_view> normalization,
                                     std::variant<nb::type_object, std::string_view> count_type,
@@ -166,7 +141,7 @@ static hictkpy::PixelSelector fetch(const hictk::File &f, std::optional<std::str
   }
 
   return fetch_impl(
-      f, std::move(range1), std::move(range2), normalization_method,
+      *f, std::move(range1), std::move(range2), normalization_method,
       std::visit([](const auto &ct) { return map_py_numeric_to_cpp_type(ct); }, count_type), join,
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED,
       diagonal_band_width);
@@ -237,15 +212,15 @@ static nb::dict get_hic_attrs(const hictk::hic::File &hf) {
   return py_attrs;
 }
 
-static nb::dict attributes(const hictk::File &f) {
-  if (f.is_cooler()) {
-    return get_cooler_attrs(f.get<hictk::cooler::File>());
+static nb::dict get_attributes(const File &f) {
+  if (f->is_cooler()) {
+    return get_cooler_attrs(f->get<hictk::cooler::File>());
   }
-  return get_hic_attrs(f.get<hictk::hic::File>());
+  return get_hic_attrs(f->get<hictk::hic::File>());
 }
 
-static std::vector<std::string> avail_normalizations(const hictk::File &f) {
-  const auto norms_ = f.avail_normalizations();
+static std::vector<std::string> avail_normalizations(const File &f) {
+  const auto norms_ = f->avail_normalizations();
   std::vector<std::string> norms{norms_.size()};
   std::transform(norms_.begin(), norms_.end(), norms.begin(),
                  [](const auto &norm) { return norm.to_string(); });
@@ -253,7 +228,22 @@ static std::vector<std::string> avail_normalizations(const hictk::File &f) {
   return norms;
 }
 
-static auto weights(const hictk::File &f, std::string_view normalization, bool divisive) {
+// macro used to reduce boilerplate required to call methods on File objects
+#define HICTKPY_CALL_METHOD_CHECKED(method) [](const File &x) { return x->method(); }
+
+static auto get_chromosomes(const File &f, bool include_ALL) {
+  return get_chromosomes_from_object(*f, include_ALL);
+}
+
+static auto get_bins(const File &f) { return get_bins_from_object(*f); }
+
+static std::int64_t get_nchroms(const File &f, bool include_ALL) {
+  return static_cast<std::int64_t>(f->nchroms(include_ALL));
+}
+
+static std::filesystem::path get_path(const File &f) { return std::filesystem::path{f->path()}; }
+
+static auto get_weights(const File &f, std::string_view normalization, bool divisive) {
   using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, double>;
 
   if (normalization == "NONE") {
@@ -264,7 +254,7 @@ static auto weights(const hictk::File &f, std::string_view normalization, bool d
                              : hictk::balancing::Weights::Type::MULTIPLICATIVE;
 
   // NOLINTNEXTLINE
-  auto *weights_ptr = new std::vector<double>(f.normalization(normalization).to_vector(type));
+  auto *weights_ptr = new std::vector<double>(f->normalization(normalization).to_vector(type));
 
   auto capsule = nb::capsule(weights_ptr, [](void *vect_ptr) noexcept {
     delete reinterpret_cast<std::vector<double> *>(vect_ptr);  // NOLINT
@@ -273,8 +263,8 @@ static auto weights(const hictk::File &f, std::string_view normalization, bool d
   return WeightVector{weights_ptr->data(), {weights_ptr->size()}, capsule};
 }
 
-static nb::object weights_df(const hictk::File &f, const std::vector<std::string> &normalizations,
-                             bool divisive) {
+static nb::object get_weights_df(const File &f, const std::vector<std::string> &normalizations,
+                                 bool divisive) {
   phmap::flat_hash_set<std::string_view> names(normalizations.size());
   arrow::FieldVector fields(normalizations.size());
   std::vector<std::shared_ptr<arrow::Array>> columns(normalizations.size());
@@ -301,7 +291,7 @@ static nb::object weights_df(const hictk::File &f, const std::vector<std::string
     names.emplace(normalization);
     fields.emplace_back(arrow::field(normalization, arrow::float64(), false));
     columns.emplace_back(std::make_shared<arrow::DoubleArray>(
-        f.nbins(), arrow::Buffer::FromVector(f.normalization(normalization).to_vector(type)),
+        f->nbins(), arrow::Buffer::FromVector(f->normalization(normalization).to_vector(type)),
         nullptr, 0, 0));
   }
 
@@ -311,57 +301,161 @@ static nb::object weights_df(const hictk::File &f, const std::vector<std::string
       .attr("to_pandas")(nb::arg("self_destruct") = true);
 }
 
-static std::filesystem::path get_path(const hictk::File &f) { return f.path(); }
+static bool has_normalization(const File &f, std::string_view name) {
+  return f->has_normalization(name);
+}
 
-void declare_file_class(nb::module_ &m) {
-  auto file = nb::class_<hictk::File>(m, "File",
-                                      "Class representing a file handle to a .cool or .hic file.");
+static std::string repr(const File &f) { return fmt::format(FMT_STRING("File({})"), f->uri()); }
 
-  file.def("__init__", &file::ctor, nb::arg("path"), nb::arg("resolution") = nb::none(),
-           nb::arg("matrix_type") = "observed", nb::arg("matrix_unit") = "BP",
+static File &ctx_enter(File &f) { return f; }
+
+static void ctx_exit(File &f, [[maybe_unused]] nb::handle exc_type,
+                     [[maybe_unused]] nb::handle exc_value, [[maybe_unused]] nb::handle traceback) {
+  f.try_close();
+}
+
+[[noreturn]] static void throw_closed_file_exc(std::string_view uri) {
+  throw std::runtime_error(fmt::format(
+      FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"), uri));
+}
+
+[[nodiscard]] static std::optional<std::uint32_t> sanitize_resolution(
+    std::optional<std::int32_t> resolution) {
+  if (!resolution.has_value()) {
+    return {};
+  }
+
+  if (resolution < 0) {
+    throw std::invalid_argument("resolution must be non-negative");
+  }
+
+  return static_cast<std::uint32_t>(*resolution);
+}
+
+File::File(hictk::File f) : _fp(std::move(f)), _uri(_fp->uri()) {}
+
+File::File(hictk::cooler::File f) : File(hictk::File(std::move(f))) {}
+
+File::File(hictk::hic::File f) : File(hictk::File(std::move(f))) {}
+
+File::File(const std::filesystem::path &path, std::optional<std::int32_t> resolution,
+           std::string_view matrix_type, std::string_view matrix_unit)
+    : File(hictk::File{path.string(), sanitize_resolution(resolution),
+                       hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
+                       hictk::hic::ParseUnitStr(std::string{matrix_unit})}) {}
+
+hictk::File *File::operator->() { return &**this; }
+
+const hictk::File *File::operator->() const { return &**this; }
+
+hictk::File &File::operator*() {
+  if (_fp.has_value()) {
+    return *_fp;
+  }
+  throw_closed_file_exc(_uri);
+}
+
+const hictk::File &File::operator*() const {
+  if (_fp.has_value()) {
+    return *_fp;
+  }
+  throw_closed_file_exc(_uri);
+}
+
+void File::close() { _fp.reset(); }
+
+bool File::try_close() noexcept {
+  if (!_fp) {
+    return true;
+  }
+
+  try {
+    try {
+      close();
+      return true;
+    } catch (const std::exception &e) {
+      nanobind::module_::import_("warnings").attr("warn")(e.what());
+    } catch (...) {
+      nanobind::module_::import_("warnings")
+          .attr("warn")(fmt::format(
+              FMT_STRING("an error occurred while closing file \"{}\": unknown error"), _uri));
+    }
+  } catch (...) {  // NOLINT
+  }
+
+  return false;
+}
+
+bool File::is_cooler(const std::filesystem::path &uri) {
+  return bool(hictk::cooler::utils::is_cooler(uri.string()));
+}
+
+bool File::is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
+
+void File::bind(nb::module_ &m) {
+  auto file =
+      nb::class_<File>(m, "File", "Class representing a file handle to a .cool or .hic file.");
+
+  file.def(nb::init<const std::filesystem::path &, std::optional<std::int32_t>, std::string_view,
+                    std::string_view>(),
+           nb::arg("path"), nb::arg("resolution") = nb::none(), nb::arg("matrix_type") = "observed",
+           nb::arg("matrix_unit") = "BP",
            "Construct a file object to a .hic, .cool or .mcool file given the file path and "
            "resolution.\n"
            "Resolution is ignored when opening single-resolution Cooler files.");
 
-  file.def("__repr__", &file::repr, nb::rv_policy::move);
+  file.def("__repr__", &repr, nb::rv_policy::move);
 
-  file.def("uri", &hictk::File::uri, "Return the file URI.", nb::rv_policy::move);
-  file.def("path", &file::get_path, "Return the file path.", nb::rv_policy::move);
+  file.def("__enter__", &ctx_enter, nb::rv_policy::reference_internal);
 
-  file.def("is_hic", &hictk::File::is_hic, "Test whether file is in .hic format.");
-  file.def("is_cooler", &hictk::File::is_cooler, "Test whether file is in .cool format.");
+  file.def("__exit__", &ctx_exit,
+           // clang-format off
+           nb::arg("exc_type") = nb::none(),
+           nb::arg("exc_value") = nb::none(),
+           nb::arg("traceback") = nb::none()
+           // clang-format on
+  );
 
-  file.def("chromosomes", &get_chromosomes_from_object<hictk::File>, nb::arg("include_ALL") = false,
+  file.def("uri", HICTKPY_CALL_METHOD_CHECKED(uri), "Return the file URI.", nb::rv_policy::move);
+  file.def("path", &get_path, "Return the file path.", nb::rv_policy::move);
+
+  file.def("is_hic", HICTKPY_CALL_METHOD_CHECKED(is_hic), "Test whether file is in .hic format.");
+  file.def("is_cooler", HICTKPY_CALL_METHOD_CHECKED(is_cooler),
+           "Test whether file is in .cool format.");
+
+  file.def("close", &File::close, "Manually close the file handle.");
+
+  file.def("chromosomes", &get_chromosomes, nb::arg("include_ALL") = false,
            "Get chromosome sizes as a dictionary mapping names to sizes.",
            nb::rv_policy::take_ownership);
-  file.def("bins", &get_bins_from_object<hictk::File>, "Get table of bins.",
-           nb::sig("def bins(self) -> hictkpy.BinTable"), nb::rv_policy::move);
+  file.def("bins", &get_bins, "Get table of bins.", nb::sig("def bins(self) -> hictkpy.BinTable"),
+           nb::rv_policy::move);
 
-  file.def("resolution", &hictk::File::resolution, "Get the bin size in bp.");
-  file.def("nbins", &hictk::File::nbins, "Get the total number of bins.");
-  file.def("nchroms", &hictk::File::nchroms, nb::arg("include_ALL") = false,
+  file.def("resolution", HICTKPY_CALL_METHOD_CHECKED(resolution), "Get the bin size in bp.");
+  file.def("nbins", HICTKPY_CALL_METHOD_CHECKED(nbins), "Get the total number of bins.");
+  file.def("nchroms", &get_nchroms, nb::arg("include_ALL") = false,
            "Get the total number of chromosomes.");
 
-  file.def("attributes", &file::attributes, "Get file attributes as a dictionary.",
+  file.def("attributes", &get_attributes, "Get file attributes as a dictionary.",
            nb::rv_policy::take_ownership);
 
-  file.def("fetch", &file::fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = nb::none(),
+  file.def("fetch", &fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = nb::none(),
            nb::arg("range2") = nb::none(), nb::arg("normalization") = nb::none(),
            nb::arg("count_type") = "int32", nb::arg("join") = false, nb::arg("query_type") = "UCSC",
            nb::arg("diagonal_band_width") = nb::none(),
            "Fetch interactions overlapping a region of interest.", nb::rv_policy::move);
 
-  file.def("avail_normalizations", &file::avail_normalizations,
+  file.def("avail_normalizations", &avail_normalizations,
            "Get the list of available normalizations.", nb::rv_policy::move);
-  file.def("has_normalization", &hictk::File::has_normalization, nb::arg("normalization"),
+  file.def("has_normalization", &has_normalization, nb::arg("normalization"),
            "Check whether a given normalization is available.");
-  file.def("weights", &file::weights, nb::arg("name"), nb::arg("divisive") = true,
+  file.def("weights", &get_weights, nb::arg("name"), nb::arg("divisive") = true,
            "Fetch the balancing weights for the given normalization method.",
            nb::sig("def weights(self, name: str, divisive: bool = True) -> "
                    "numpy.ndarray[float]"),
            nb::rv_policy::take_ownership);
   file.def(
-      "weights", &file::weights_df, nb::arg("names"), nb::arg("divisive") = true,
+      "weights", &get_weights_df, nb::arg("names"), nb::arg("divisive") = true,
       "Fetch the balancing weights for the given normalization methods."
       "Weights are returned as a pandas.DataFrame.",
       nb::sig("def weights(self, names: collections.abc.Sequence[str], divisive: bool = True) -> "
@@ -369,4 +463,4 @@ void declare_file_class(nb::module_ &m) {
       nb::rv_policy::take_ownership);
 }
 
-}  // namespace hictkpy::file
+}  // namespace hictkpy

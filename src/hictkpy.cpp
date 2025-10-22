@@ -38,24 +38,21 @@ NB_MODULE(_hictkpy, m) {
 
   m.doc() = "Blazing fast toolkit to work with .hic and .cool files.";
 
-  m.def("is_cooler", &file::is_cooler, nb::arg("path"),
+  m.def("is_cooler", &File::is_cooler, nb::arg("path"),
         "Test whether path points to a cooler file.");
-  m.def("is_mcool_file", &multires_file::is_mcool_file, nb::arg("path"),
+  m.def("is_mcool_file", &MultiResFile::is_mcool, nb::arg("path"),
         "Test whether path points to a .mcool file.");
-  m.def("is_scool_file", &singlecell_file::is_scool_file, nb::arg("path"),
+  m.def("is_scool_file", &SingleCellFile::is_scool, nb::arg("path"),
         "Test whether path points to a .scool file.");
-  m.def("is_hic", &file::is_hic, nb::arg("path"), "Test whether path points to a .hic file.");
+  m.def("is_hic", &File::is_hic, nb::arg("path"), "Test whether path points to a .hic file.");
 
   BinTable::bind(m);
-
   Pixel::bind(m);
-
   PixelSelector::bind(m);
 
-  file::declare_file_class(m);
-
-  multires_file::declare_multires_file_class(m);
-  singlecell_file::declare_singlecell_file_class(m);
+  File::bind(m);
+  MultiResFile::bind(m);
+  SingleCellFile::bind(m);
 
   CoolerFileWriter::bind(m);
   HiCFileWriter::bind(m);

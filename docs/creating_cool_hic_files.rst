@@ -63,8 +63,8 @@ Ingesting interactions in a .cool file
 
   # Create a dictionary mapping chromosome names to chromosome sizes
   In [3]: chroms = pd.read_table("chrom.sizes", names=["name", "length"])
-      ...            .set_index("name")["length"]
-      ...            .to_dict()
+     ...:            .set_index("name")["length"]
+     ...:            .to_dict()
 
   In [4]: chroms
   Out[4]:
@@ -76,24 +76,28 @@ Ingesting interactions in a .cool file
    'X': 23542271,
    'Y': 3667352}
 
+  # Define the name of the columns for later use
+  In [5]: cols = ["chrom1", "start1", "end1",
+     ...:         "chrom2", "start2", "end2",
+     ...:         "count"]
+
   # Initialize an empty .cool file
-  In [5]: f = htk.cooler.FileWriter("out.cool", chroms, resolution=50_000)
-
-  In [6]: cols = ["chrom1", "start1", "end1",
-      ...         "chrom2", "start2", "end2",
-      ...         "count"]
-
-  # Loop over chunks of interactions and progressively add them to "out.cool"
-  In [7]: for df in pd.read_table("pixels.bg2", names=cols, chunksize=1_000_000):
-    ...:      f.add_pixels(df)
-    ...:
-
-  # Important! If you forget to call f.finalize() the resulting .cool file will be empty
-  In [8]: f.finalize()
+  In [6]: with htk.cooler.FileWriter("out.cool", chroms, resolution=50_000) as writer:
+     ...:     # Lazily load pixels in chunks to reduce memory usage
+     ...:     pixels = pd.read_table("pixels.bg2", names=cols, chunksize=1_000_000)
+     ...:     # Add chunks of pixels one by one
+     ...:     for i, df in enumerate(pixels):
+     ...:         print(f"adding chunk #{i}...")
+     ...:         writer.add_pixels(df)
+     ...:
+  adding chunk #0...
+  adding chunk #1...
+  adding chunk #2...
+  adding chunk #3...
 
   # Check that the resulting file has some interactions
-  In [9]: htk.File("out.cool").attributes()["nnz"]
-  Out[9]: 3118456
+  In [7]: htk.File("out.cool").attributes()["nnz"]
+  Out[7]: 3118456
 
 
 Ingesting interactions in a .hic file
@@ -126,13 +130,11 @@ This can significantly speed up file creation:
   # Initialize an empty .cool file
 
   In [1]: cols = ["chrom1", "start1", "end1",
-      ...         "chrom2", "start2", "end2",
-      ...         "count"]
+     ...:         "chrom2", "start2", "end2",
+     ...:         "count"]
 
   In [2]: df = pd.read_table("pixels.bg2", names=cols)
 
-  In [3]: f = htk.cooler.FileWriter("out.cool", chroms, resolution=50_000, chunk_size=len(df) + 1)
-
-  In [4]: f.add_pixels(df)
-
-  In [5]: f.finalize()
+  In [3]: with htk.cooler.FileWriter("out.cool", chroms, resolution=50_000, chunk_size=len(df) + 1) as writer:
+     ...:     writer.add_pixels(df)
+     ...:
