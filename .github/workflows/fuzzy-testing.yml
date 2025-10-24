@@ -124,15 +124,14 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Fix permissions
-        run: |
-          chown -R $(id -u):$(id -g) $PWD
+        run: chown -R "$(id -u):$(id -g)" "$PWD"
 
       - name: Generate cache key
         id: cache-key
         run: |
           hash="${{ hashFiles('conanfile.py') }}"
 
-          echo "key=fuzzer-$hash" >> $GITHUB_OUTPUT
+          echo "key=fuzzer-$hash" >> "$GITHUB_OUTPUT"
 
       - name: Install Python
         run: |
@@ -182,10 +181,10 @@ jobs:
       - name: Detect CI type
         id: ci-type
         run: |
-          if git log --format=%B -n 1 ${{ github.event.after }} | grep -qF '[ci full]'; then
-            echo "type=full" >> $GITHUB_OUTPUT
+          if git log --format=%B -n 1 '${{ github.event.after }}' | grep -qF '[ci full]'; then
+            echo 'type=full' >> "$GITHUB_OUTPUT"
           else
-            echo "type=short" >> $GITHUB_OUTPUT
+            echo 'type=short' >> "$GITHUB_OUTPUT"
           fi
 
       - name: Prepare for test
@@ -231,54 +230,54 @@ jobs:
           hictk/test/fuzzer/scripts/download_test_datasets.py \
             hictk/test/fuzzer/test_files.json \
             . \
-            --format cool "${{ matrix.format }}" \
-            --resolution "${{ steps.test-params.outputs.resolution }}" \
-            --dataset "${{ matrix.dataset }}" \
+            --format cool '${{ matrix.format }}' \
+            --resolution '${{ steps.test-params.outputs.resolution }}' \
+            --dataset '${{ matrix.dataset }}' \
             --nproc 2
 
       - name: Run test (df)
         run: |
           test/scripts/fuzzer.py \
-            --resolution ${{ steps.test-params.outputs.resolution }} \
+            --resolution '${{ steps.test-params.outputs.resolution }}' \
             --duration '${{ steps.test-params.outputs.duration }}' \
-            --normalization ${{ matrix.normalization }} \
-            --nproc $(nproc) \
+            --normalization '${{ matrix.normalization }}' \
+            --nproc "$(nproc)" \
             --format df \
-            *".${{ matrix.format }}" \
-            *.cool
+            ./*'.${{ matrix.format }}' \
+            ./*.cool
 
       - name: Run test (numpy)
         run: |
           test/scripts/fuzzer.py \
-            --resolution ${{ steps.test-params.outputs.resolution }} \
+            --resolution '${{ steps.test-params.outputs.resolution }}' \
             --duration '${{ steps.test-params.outputs.duration }}' \
-            --normalization ${{ matrix.normalization }} \
-            --nproc $(nproc) \
+            --normalization '${{ matrix.normalization }}' \
+            --nproc "$(nproc)" \
             --format numpy \
-            *".${{ matrix.format }}" \
-            *.cool
+            ./*'.${{ matrix.format }}' \
+            ./*.cool
 
       - name: Run test (coo)
         run: |
           test/scripts/fuzzer.py \
-            --resolution ${{ steps.test-params.outputs.resolution }} \
+            --resolution '${{ steps.test-params.outputs.resolution }}' \
             --duration '${{ steps.test-params.outputs.duration }}' \
-            --normalization ${{ matrix.normalization }} \
-            --nproc $(nproc) \
+            --normalization '${{ matrix.normalization }}' \
+            --nproc "$(nproc)" \
             --format csr \
-            *".${{ matrix.format }}" \
-            *.cool
+            ./*'.${{ matrix.format }}' \
+            ./*.cool
 
       - name: Run test (describe)
         run: |
           test/scripts/fuzzer.py \
-            --resolution ${{ steps.test-params.outputs.resolution }} \
+            --resolution '${{ steps.test-params.outputs.resolution }}' \
             --duration '${{ steps.test-params.outputs.duration }}' \
-            --normalization ${{ matrix.normalization }} \
-            --nproc $(nproc) \
+            --normalization '${{ matrix.normalization }}' \
+            --nproc "$(nproc)" \
             --format describe \
-            *".${{ matrix.format }}" \
-            *.cool \
+            ./*'.${{ matrix.format }}' \
+            ./*.cool \
             --excluded-chroms chrY chrM
 
   fuzzy-testing-status-check:
