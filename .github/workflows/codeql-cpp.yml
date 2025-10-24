@@ -53,7 +53,7 @@ jobs:
         run: |
           hash="${{ hashFiles('.github/workflows/codeql-cpp.yml', 'conanfile.py') }}"
 
-          echo "conan-key=codeql-cpp-$hash" >> $GITHUB_OUTPUT
+          echo "conan-key=codeql-cpp-$hash" >> "$GITHUB_OUTPUT"
 
       - name: Configure Conan
         run: |
@@ -115,7 +115,10 @@ jobs:
             --build=never
             --options='*/*:shared=False'
           )
-          export HICTKPY_CONAN_INSTALL_ARGS="$(printf "%s;" "${HICTKPY_CONAN_INSTALL_ARGS[@]}")"
+
+          # shellcheck disable=SC2178
+          HICTKPY_CONAN_INSTALL_ARGS="$(printf "%s;" "${HICTKPY_CONAN_INSTALL_ARGS[@]}")"
+          export HICTKPY_CONAN_INSTALL_ARGS
 
           pip install . -v
 
