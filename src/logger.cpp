@@ -56,7 +56,6 @@ std::shared_ptr<spdlog::logger> Logger::get_logger() { return _logger; }
 
 std::shared_ptr<spdlog::logger> Logger::init_cpp_logger(
     [[maybe_unused]] spdlog::level::level_enum level_) {
-#ifndef _WIN32
   auto sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
       [logger = get_py_logger()](const spdlog::details::log_msg& msg) mutable {
         [[maybe_unused]] const nb::gil_scoped_acquire gil{};
@@ -71,9 +70,6 @@ std::shared_ptr<spdlog::logger> Logger::init_cpp_logger(
   logger->set_level(level_);
 
   return logger;
-#else
-  return nullptr;
-#endif
 }
 
 }  // namespace hictkpy
