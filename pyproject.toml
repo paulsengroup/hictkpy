@@ -63,8 +63,16 @@ test = [
   "pytest>=8.0",
 ]
 
+docs = [
+  "furo==2024.8.6",
+  "ipython==9.4.0",
+  "sphinx==8.2.3",
+  "sphinx-copybutton==0.5.2",
+]
+
 dev = [
   "hictkpy[all]",
+  {include-group = "docs"},
   {include-group = "test"},
   "black>=25.1",
   "clang-format>=20.1",
