@@ -1,33 +1,35 @@
 # Copyright (C) 2024 Roberto Rossini <roberros@uio.no>
 # SPDX-License-Identifier: MIT
 
-name: Build dependencies with Conan
+name: Build dependencies with Conan (macOS)
 
 on:
   workflow_call:
     outputs:
-      conan-key:
-        description: "Conan packages"
-        value: ${{ jobs.build-deps.outputs.conan-key }}
-      conan-home:
-        description: "Conan home folder"
-        value: ${{ jobs.build-deps.outputs.conan-home }}
+      cache-key:
+        description: "Cache key"
+        value: ${{ jobs.build-deps.outputs.cache-key }}
+      tar:
+        description: "Archive path"
+        value: ${{ jobs.build-deps.outputs.tar }}
 
     inputs:
       conan-version:
-        default: "2.16.*"
         type: string
-        required: false
+        required: true
         description: "Conan version to be installed with pip."
       cppstd:
-        default: "17"
         type: string
-        required: false
+        required: true
         description: "Value to pass to compiler.cppstd."
       os:
         type: string
         required: true
         description: "OS used to build Conan deps."
+      ref:
+        type: string
+        required: true
+        description: "Reference used to clone the conanfile.py and build script."
 
 defaults:
   run:
@@ -40,15 +42,18 @@ jobs:
 
     env:
       CONAN_HOME: "${{ github.workspace }}/.conan2"
-      MACOSX_DEPLOYMENT_TARGET: "10.15"
+      CMAKE_POLICY_VERSION_MINIMUM: 3.5
       HOMEBREW_NO_AUTO_UPDATE: "1"
+      TMPDIR: "/tmp/"
 
     outputs:
-      conan-key: ${{ steps.generate-cache-key.outputs.conan-key }}
-      conan-home: ${{ env.CONAN_HOME }}
+      cache-key: ${{ steps.generate-cache-key.outputs.cache-key }}
+      tar: ${{ steps.generate-cache-key.outputs.tar }}
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
 
       - name: Generate cache key
         id: generate-cache-key
@@ -56,32 +61,30 @@ jobs:
           set -u
           set -e
 
-          hash="${{ hashFiles('conanfile.py') }}"
+          hash="${{ hashFiles('conanfile.py', 'utils/devel/build_dependencies.py') }}"
 
-          compiler="$(cc --version | head -n 1 | tr -c '[:alnum:]._-' '-' | sed 's/-\+/-/g' | sed 's/-$//')"
+          compiler="$(cc --version | head -n 1)"
 
-          suffix="${{ inputs.os }}-$compiler-c++${{ inputs.cppstd }}-$hash"
+          suffix="${{ inputs.os }}-$compiler-cxx${{ inputs.cppstd }}-$hash"
+          suffix="$(echo "$suffix" |
+                    tr -c '[:alnum:]._-' '-' |
+                    sed -E 's/-+/-/g' |
+                    sed 's/-$//' |
+                    tr '[:upper:]' '[:lower:]'
+                  )"
 
-          echo "conan-key=conan-$suffix" | tee -a "$GITHUB_OUTPUT"
+          dest='/tmp/dependencies.conan.tar.zst'
 
-      - name: Restore package cache
+          echo "cache-key=conan-$suffix" | tee -a "$GITHUB_OUTPUT"
+          echo "tar=$dest" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Lookup package cache
         id: lookup-conan-cache
         uses: actions/cache/restore@v4
         with:
-          key: ${{ steps.generate-cache-key.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
+          key: ${{ steps.generate-cache-key.outputs.cache-key }}
+          path: ${{ steps.generate-cache-key.outputs.tar }}
           lookup-only: true
-
-      - name: Restore package cache
-        uses: actions/cache/restore@v4
-        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
-        with:
-          key: ${{ steps.generate-cache-key.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
 
       - uses: actions/setup-python@v6
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
@@ -92,48 +95,32 @@ jobs:
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: pip install "conan==${{ inputs.conan-version }}"
 
-      - name: Configure Conan
+      - name: Clean Conan cache
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
-        run: |
-          conan profile detect --force
-          conan remote update conancenter --url https://center2.conan.io
-
-      - name: Clean Conan cache (pre-build)
-        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
-        run: |
-          conan cache clean "*" --build
-          conan cache clean "*" --download
-          conan cache clean "*" --source
-          conan remove --confirm "*"
+        run: rm -rf "$CONAN_HOME/p"
 
       - name: Install dependencies
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
-          conan install conanfile.py                     \
-             --build='*'                                 \
-             -s build_type=Release                       \
-             -s:a compiler.cppstd=${{ inputs.cppstd }}   \
-             -s:h os.version="$MACOSX_DEPLOYMENT_TARGET" \
-             --options='*/*:shared=False'                \
-             --output-folder cmake-prefix-rel
+          utils/devel/build_dependencies.py \
+            --cppstd='${{ inputs.cppstd }}' \
+            --ci
 
-          tar -cf /tmp/cmake-prefix-rel.tar cmake-prefix-rel
-          rm -r cmake-prefix-rel
-
-      - name: Clean Conan cache (post-build)
+      - name: Archive dependencies
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
-          conan cache clean "*" --build
-          conan cache clean "*" --download
-          conan cache clean "*" --source
+          src='deps/'
+          dest='${{ steps.generate-cache-key.outputs.tar }}'
+          gtar -C "$TMPDIR" -cf - "$src" |
+            zstd -T0 -22 --long --ultra -v -o "$dest"
 
-      - name: Save Conan cache
+          echo "tar=$dest" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Export dependencies
         uses: actions/cache/save@v4
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         with:
-          key: ${{ steps.generate-cache-key.outputs.conan-key }}
-          path: |
-            ${{ env.CONAN_HOME }}/p
-            /tmp/cmake-prefix-rel.tar
+          key: ${{ steps.generate-cache-key.outputs.cache-key }}
+          path: ${{ steps.generate-cache-key.outputs.tar }}
         env:
-          ZSTD_CLEVEL: 19
+          ZSTD_CLEVEL: 0

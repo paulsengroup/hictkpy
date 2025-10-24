@@ -84,7 +84,7 @@ cmake.version = "CMakeLists.txt"
 BUILD_SHARED_LIBS = { env="HICTKPY_BUILD_SHARED_LIBS", default="OFF" }
 CMAKE_C_STANDARD = { env="HICTKPY_C_STANDARD", default=11 }
 CMAKE_CXX_STANDARD = { env="HICTKPY_CXX_STANDARD", default=17 }
-CMAKE_OSX_DEPLOYMENT_TARGET = { env="HICTKPY_OSX_DEPLOYMENT_TARGET", default="10.15" }
+CMAKE_OSX_DEPLOYMENT_TARGET = { env="HICTKPY_OSX_DEPLOYMENT_TARGET", default="14.0" }
 CMAKE_PROJECT_TOP_LEVEL_INCLUDES = { env="HICTKPY_PROJECT_TOP_LEVEL_INCLUDES", default="cmake/conan_provider.cmake" }
 CONAN_INSTALL_ARGS = { env="HICTKPY_CONAN_INSTALL_ARGS", default="--build=missing;--update;--options=*/*:shared=False" }
 HICTKPY_BUILD_PORTABLE_WHEELS_WIN = { env="HICTKPY_BUILD_PORTABLE_WHEELS_WIN", default="OFF" }
@@ -110,14 +110,14 @@ testpaths = [
 
 [tool.cibuildwheel]
 build-frontend = "build[uv]"
-manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.09.28-1"
-manylinux-i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.09.28-1"
-manylinux-aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.09.28-1"
-manylinux-ppc64le-image = "quay.io/pypa/manylinux_2_28_ppc64le:2025.09.28-1"
-manylinux-s390x-image = "quay.io/pypa/manylinux_2_28_s390x:2025.09.28-1"
-manylinux-pypy_x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.09.28-1"
-manylinux-pypy_i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.09.28-1"
-manylinux-pypy_aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.09.28-1"
+manylinux-x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.10.19-2"
+manylinux-i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.10.19-2"
+manylinux-aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.10.19-2"
+manylinux-ppc64le-image = "quay.io/pypa/manylinux_2_28_ppc64le:2025.10.19-2"
+manylinux-s390x-image = "quay.io/pypa/manylinux_2_28_s390x:2025.10.19-2"
+manylinux-pypy_x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.10.19-2"
+manylinux-pypy_i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.10.19-2"
+manylinux-pypy_aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.10.19-2"
 
 skip = ["cp314*", "*musllinux*", "pp*"]
 test-command = "uv run pytest {project}/test -v"
@@ -131,16 +131,10 @@ before-build = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all = "dnf install -y clang lld llvm-devel"
-
-# We are using static linking, thus repairing wheels should not be necessary.
-# Exception being when building portable Linux wheels.
-# See https://github.com/scikit-build/scikit-build-core/pull/698#issuecomment-2082991257
-[tool.cibuildwheel.macos]
-repair-wheel-command = ""
-
-[tool.cibuildwheel.windows]
-repair-wheel-command = ""
+before-all = [
+  "dnf install -y --setopt=install_weak_deps=False clang lld llvm-devel zstd",
+  "tar -C /tmp/ -xf /host/tmp/dependencies.conan.tar",
+]
 
 [tool.ruff]
 extend-select = [

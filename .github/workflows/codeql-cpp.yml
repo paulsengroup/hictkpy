@@ -7,11 +7,14 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/build-conan-deps-linux.yml"
       - ".github/workflows/codeql-cpp.yml"
       - "cmake/**"
       - "src/**"
+      - "conanfile.py"
       - "CMakeLists.txt"
+  pull_request:
+    paths:
+      - ".github/workflows/codeql-cpp.yml"
   schedule:
     - cron: "0 5 1 * *" # run monthly at 05:00
 
@@ -53,7 +56,7 @@ jobs:
         run: |
           hash="${{ hashFiles('.github/workflows/codeql-cpp.yml', 'conanfile.py') }}"
 
-          echo "conan-key=codeql-cpp-$hash" >> $GITHUB_OUTPUT
+          echo "conan-key=codeql-cpp-$hash" >> "$GITHUB_OUTPUT"
 
       - name: Configure Conan
         run: |
@@ -115,7 +118,10 @@ jobs:
             --build=never
             --options='*/*:shared=False'
           )
-          export HICTKPY_CONAN_INSTALL_ARGS="$(printf "%s;" "${HICTKPY_CONAN_INSTALL_ARGS[@]}")"
+
+          # shellcheck disable=SC2178
+          HICTKPY_CONAN_INSTALL_ARGS="$(printf "%s;" "${HICTKPY_CONAN_INSTALL_ARGS[@]}")"
+          export HICTKPY_CONAN_INSTALL_ARGS
 
           pip install . -v
 

@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/pip.yml"
+      - ".github/workflows/ci.yml"
       - "cmake/**"
       - "src/**"
       - "test/*.py"
@@ -19,7 +19,7 @@ on:
 
   pull_request:
     paths:
-      - ".github/workflows/pip.yml"
+      - ".github/workflows/ci.yml"
       - "cmake/**"
       - "src/**"
       - "test/*.py"
@@ -71,20 +71,21 @@ jobs:
       - name: Collect build metadata
         id: build-meta
         run: |
+          # shellcheck disable=SC2193
           if [[ '${{ matrix.python-version }}' == *'+debug' ]]; then
             build_type=Debug
           else
             build_type=Release
           fi
 
-          echo "build-type=$build_type" >> $GITHUB_OUTPUT
+          echo "build-type=$build_type" >> "$GITHUB_OUTPUT"
 
       - name: Generate cache key
         id: cache-key
         run: |
           hash="${{ hashFiles('conanfile.py') }}"
 
-          echo "conan-key=pip-${{ matrix.os }}-${{ steps.build-meta.outputs.build-type }}-$hash" >> $GITHUB_OUTPUT
+          echo "conan-key=pip-${{ matrix.os }}-${{ steps.build-meta.outputs.build-type }}-$hash" >> "$GITHUB_OUTPUT"
 
       - name: Restore Conan cache
         id: cache-conan
@@ -96,14 +97,14 @@ jobs:
       - name: Override default compilers (Ubuntu)
         if: startsWith(matrix.os, 'ubuntu')
         run: |
-          echo 'CC=gcc' >> $GITHUB_ENV
-          echo 'CXX=g++' >> $GITHUB_ENV
+          echo 'CC=gcc' >> "$GITHUB_ENV"
+          echo 'CXX=g++' >> "$GITHUB_ENV"
 
       - name: Override default compilers (macOS)
         if: startsWith(matrix.os, 'macos')
         run: |
-          echo 'CC=clang' >> $GITHUB_ENV
-          echo 'CXX=clang++' >> $GITHUB_ENV
+          echo 'CC=clang' >> "$GITHUB_ENV"
+          echo 'CXX=clang++' >> "$GITHUB_ENV"
 
       - name: Configure Conan
         if: steps.cache-conan.outputs.cache-hit != 'true'
