@@ -86,13 +86,13 @@ jobs:
           CIBW_ARCHS_MACOS=x86_64 cibuildwheel \
             --print-build-identifiers \
             --platform macos |
-          jq -nRc '{"wheel-config": inputs, "os": "macos-13", "arch": "x86_64"}' |
+          jq -nRc '{"wheel-config": inputs, "os": "macos-15-intel", "arch": "x86_64"}' |
           tee -a configs.json
 
           CIBW_ARCHS_MACOS=arm64 cibuildwheel \
             --print-build-identifiers \
             --platform macos |
-          jq -nRc '{"wheel-config": inputs, "os": "macos-14", "arch": "arm64"}' |
+          jq -nRc '{"wheel-config": inputs, "os": "macos-26", "arch": "arm64"}' |
           tee -a configs.json
 
           CIBW_ARCHS_WINDOWS=AMD64 cibuildwheel \
