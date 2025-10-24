@@ -131,16 +131,10 @@ before-build = [
 ]
 
 [tool.cibuildwheel.linux]
-before-all = "dnf install -y clang lld llvm-devel"
-
-# We are using static linking, thus repairing wheels should not be necessary.
-# Exception being when building portable Linux wheels.
-# See https://github.com/scikit-build/scikit-build-core/pull/698#issuecomment-2082991257
-[tool.cibuildwheel.macos]
-repair-wheel-command = ""
-
-[tool.cibuildwheel.windows]
-repair-wheel-command = ""
+before-all = [
+  "dnf install -y --setopt=install_weak_deps=False clang lld llvm-devel zstd",
+  "tar -C /tmp/ -xf /host/tmp/dependencies.conan.tar",
+]
 
 [tool.ruff]
 extend-select = [
