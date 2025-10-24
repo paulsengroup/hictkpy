@@ -19,7 +19,7 @@ CONDA_PREFIX="$(
     tr -d '\n'
 )"
 
-mamba install -c conda-forge --file docs/requirements.conda.txt --file docs/requirements.txt
+mamba install -c conda-forge --file docs/requirements.conda.txt
 
 docs/patch_project_for_rtd.py conanfile.py --root-dir "$PWD" --inplace
 docs/patch_project_for_rtd.py pyproject.toml --root-dir "$PWD" --inplace
