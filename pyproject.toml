@@ -132,7 +132,8 @@ before-build = [
 
 [tool.cibuildwheel.linux]
 before-all = [
-  "dnf install -y --setopt=install_weak_deps=False clang lld llvm-devel zstd",
+  "dnf install -y --setopt=install_weak_deps=False clang lld llvm-devel zstd findutils",
+  "find / -type f -name dependencies.conan.tar.zst",
   "tar -C /tmp/ -xf /host/tmp/dependencies.conan.tar.zst",
 ]
 
