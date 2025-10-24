@@ -7,11 +7,14 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/build-conan-deps-linux.yml"
       - ".github/workflows/codeql-cpp.yml"
       - "cmake/**"
       - "src/**"
+      - "conanfile.py"
       - "CMakeLists.txt"
+  pull_request:
+    paths:
+      - ".github/workflows/codeql-cpp.yml"
   schedule:
     - cron: "0 5 1 * *" # run monthly at 05:00
 
