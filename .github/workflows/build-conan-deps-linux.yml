@@ -8,10 +8,10 @@ on:
     outputs:
       cache-key:
         description: "Cache key"
-        value: ${{ jobs.build-deps.outputs.cache-key }}
+        value: ${{ jobs.generate-cache-key.outputs.cache-key }}
       tar:
         description: "Archive path"
-        value: ${{ jobs.build-deps.outputs.tar }}
+        value: ${{ jobs.generate-cache-key.outputs.tar }}
 
     inputs:
       conan-version:
@@ -44,19 +44,12 @@ defaults:
     shell: bash
 
 jobs:
-  build-deps:
-    name: Build dependencies with Conan (manylinux_2_28; ${{ inputs.arch }})
+  generate-cache-key:
+    name: Generate Cache key
     runs-on: ${{ inputs.os }}
     container:
       image: quay.io/pypa/manylinux_2_28_${{ inputs.arch }}:${{ inputs.image-version }}
       options: "--user=root"
-
-    env:
-      CC: "clang"
-      CXX: "clang++"
-      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
-      CONAN_HOME: "/tmp/.conan2"
-      TMPDIR: "/tmp/"
 
     outputs:
       cache-key: ${{ steps.generate-cache-key.outputs.cache-key }}
@@ -67,6 +60,9 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Install clang
+        run: dnf install -y --setopt=install_weak_deps=False clang
+
       - name: Generate cache key
         id: generate-cache-key
         run: |
@@ -74,8 +70,6 @@ jobs:
           set -e
 
           hash='${{ hashFiles('conanfile.py', 'pyproject.toml', 'utils/devel/build_dependencies.py') }}'
-
-          dnf install -y --setopt=install_weak_deps=False clang
 
           compiler_version="$(clang --version | head -n 1)"
 
@@ -92,43 +86,83 @@ jobs:
           echo "cache-key=conan-$suffix" | tee -a "$GITHUB_OUTPUT"
           echo "tar=$dest" | tee -a "$GITHUB_OUTPUT"
 
+  build-deps:
+    name: Build dependencies with Conan (manylinux_2_28; ${{ inputs.arch }})
+    runs-on: ${{ inputs.os }}
+    needs: [generate-cache-key]
+
+    env:
+      CC: "clang"
+      CXX: "clang++"
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+      CONAN_HOME: "/tmp/.conan2"
+      TMPDIR: "/tmp/"
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
       - name: Lookup package cache
         id: lookup-conan-cache
         uses: actions/cache/restore@v4
         with:
-          key: ${{ steps.generate-cache-key.outputs.cache-key }}
-          path: ${{ steps.generate-cache-key.outputs.tar }}
+          key: ${{ needs.generate-cache-key.outputs.cache-key }}
+          path: ${{ needs.generate-cache-key.outputs.tar }}
           lookup-only: true
 
       - name: Clean Conan cache
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: rm -rf "$CONAN_HOME/p"
 
-      - name: Install build dependencies
+      - name: Generate build script
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
-          PATH="/opt/python/cp313-cp313/bin:$PATH"
-          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          cat << 'EOF' | tee /tmp/script.sh
+          #!usr/bin/env bash
+          set -u
+          set -e
 
           dnf install -y \
             --setopt=install_weak_deps=False \
             clang \
-            llvm-devel \
-            zstd
+            llvm-devel
 
+          PATH="/opt/python/cp313-cp313/bin:$PATH"
           pip install 'conan==${{ inputs.conan-version }}'
 
-      - name: Install dependencies
-        run: |
+          export CC='clang'
+          export CXX='clang++'
+          export CMAKE_POLICY_VERSION_MINIMUM='3.5'
+          export CONAN_HOME="$HOME/.conan2"
+          export TMPDIR='/tmp/'
+
+          cd /tmp/
+
           utils/devel/build_dependencies.py \
             --cppstd='${{ inputs.cppstd }}' \
             --ci
+          EOF
+
+          chmod 500 /tmp/script.sh
+
+      - name: Install dependencies
+        if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
+        run: |
+          IMAGE='quay.io/pypa/manylinux_2_28_${{ inputs.arch }}:${{ inputs.image-version }}'
+
+          docker run \
+            -v '/tmp/script.sh:/tmp/script.sh:ro' \
+            -v "$PWD/conanfile.py:/tmp/conanfile.py:ro" \
+            -v "$PWD/utils/devel/build_dependencies.py:/tmp/utils/devel/build_dependencies.py:ro" \
+            -v /tmp/:/tmp/ \
+            "$IMAGE" /tmp/script.sh
 
       - name: Archive dependencies
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         run: |
           src='deps/'
-          dest='${{ steps.generate-cache-key.outputs.tar }}'
+          dest='${{ needs.generate-cache-key.outputs.tar }}'
           tar -C "$TMPDIR" -cf - "$src" |
             zstd -T0 -22 --long --ultra -v -o "$dest"
 
@@ -138,7 +172,7 @@ jobs:
         uses: actions/cache/save@v4
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         with:
-          key: ${{ steps.generate-cache-key.outputs.cache-key }}
-          path: ${{ steps.generate-cache-key.outputs.tar }}
+          key: ${{ needs.generate-cache-key.outputs.cache-key }}
+          path: ${{ needs.generate-cache-key.outputs.tar }}
         env:
           ZSTD_CLEVEL: 0
