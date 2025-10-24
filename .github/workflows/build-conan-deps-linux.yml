@@ -69,7 +69,7 @@ jobs:
           set -u
           set -e
 
-          hash='${{ hashFiles('conanfile.py', 'pyproject.toml', 'utils/devel/build_dependencies.py') }}'
+          hash='${{ hashFiles('conanfile.py', 'utils/devel/build_dependencies.py') }}'
 
           compiler_version="$(clang --version | head -n 1)"
 

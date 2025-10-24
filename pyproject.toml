@@ -132,9 +132,8 @@ before-build = [
 
 [tool.cibuildwheel.linux]
 before-all = [
-  "dnf install -y --setopt=install_weak_deps=False clang lld llvm-devel zstd findutils",
-  "find / -type f -name dependencies.conan.tar.zst",
-  "tar -C /tmp/ -xf /host/tmp/dependencies.conan.tar.zst",
+  "dnf install -y --setopt=install_weak_deps=False clang lld llvm-devel zstd",
+  "tar -C /tmp/ -xf /host/tmp/dependencies.conan.tar",
 ]
 
 # We are using static linking, thus repairing wheels should not be necessary.
