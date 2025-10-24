@@ -75,17 +75,11 @@ jobs:
 
           hash='${{ hashFiles('conanfile.py', 'pyproject.toml', 'utils/devel/build_dependencies.py') }}'
 
-          image='quay.io/pypa/manylinux_2_28_${{ inputs.arch }}:${{ inputs.image-version }}'
-          clang_pkg="$(dnf repoquery \
-                           --refresh \
-                           --latest-limit 1 \
-                           --setopt=install_weak_deps=False \
-                           --queryformat \
-                           '%{name}-%{version}-%{release}' \
-                           clang
-                     )"
+          dnf install -y --setopt=install_weak_deps=False clang
 
-          suffix="$image-$clang_pkg-cxx${{ inputs.cppstd }}-$hash"
+          compiler_version="$(clang --version | head -n 1)"
+
+          suffix="$compiler_version-${{ inputs.arch }}-cxx${{ inputs.cppstd }}-$hash"
           suffix="$(echo "$suffix" |
                     tr -c '[:alnum:]._-' '-' |
                     sed 's/-\+/-/g' |
@@ -95,7 +89,6 @@ jobs:
 
           dest='/tmp/dependencies.conan.tar.zst'
 
-          echo "clang-package-id=$clang_pkg" | tee -a "$GITHUB_OUTPUT"
           echo "cache-key=conan-$suffix" | tee -a "$GITHUB_OUTPUT"
           echo "tar=$dest" | tee -a "$GITHUB_OUTPUT"
 
@@ -119,7 +112,8 @@ jobs:
 
           dnf install -y \
             --setopt=install_weak_deps=False \
-            '${{ steps.generate-cache-key.outputs.clang-package-id }}' \
+            clang \
+            llvm-devel \
             zstd
 
           pip install 'conan==${{ inputs.conan-version }}'
