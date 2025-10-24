@@ -8,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/wheels.yml"
+      - ".github/workflows/build-wheels.yml"
       - "cmake/**"
       - "src/**"
       - "test/*.py"
@@ -19,7 +19,7 @@ on:
 
   pull_request:
     paths:
-      - ".github/workflows/wheels.yml"
+      - ".github/workflows/build-wheels.yml"
       - "cmake/**"
       - "src/**"
       - "test/*.py"
