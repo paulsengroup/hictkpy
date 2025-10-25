@@ -23,9 +23,7 @@ namespace hictkpy {
 
 [[nodiscard]] static hictkpy::Logger init_logger() {
   hictkpy::Logger logger{spdlog::level::debug};
-#ifndef _WIN32
   spdlog::set_default_logger(logger.get_logger());
-#endif
   return logger;
 }
 
