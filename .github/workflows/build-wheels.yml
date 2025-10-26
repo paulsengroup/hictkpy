@@ -167,7 +167,7 @@ jobs:
       - name: Check metadata
         run: pipx run twine check dist/*
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -200,7 +200,7 @@ jobs:
 
       - name: Install uv
         if: ${{ !startsWith(matrix.os, 'ubuntu') }}
-        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        uses: astral-sh/setup-uv@2ddd2b9cb38ad8efd50337e8ab201519a34c9f24 # v7.1.1
         with:
           python-version: ${{ matrix.python-version }}
           activate-environment: true
@@ -277,7 +277,7 @@ jobs:
         run: tar -C "$TMPDIR" -xf "$(cygpath -u '${{ steps.cache-key.outputs.deps-path }}')"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@7c619efba910c04005a835b110b057fc28fd6e93 # v3.2.0
+        uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2.1
         with:
           only: ${{ matrix.wheel-config }}
         env:
@@ -326,7 +326,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: "wheels-${{ matrix.wheel-config }}"
           path: wheelhouse/*.whl
@@ -342,7 +342,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           path: artifacts
 
@@ -355,7 +355,7 @@ jobs:
           tar -cf dist.tar dist/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: dist
           path: dist.tar
@@ -375,7 +375,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: dist
           merge-multiple: true
