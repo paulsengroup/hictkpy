@@ -8,13 +8,13 @@
 
 #include <cstdint>
 #include <exception>
+#include <hictk/cooler/multires_cooler.hpp>
 #include <hictk/cooler/validation.hpp>
 #include <hictk/hic.hpp>
-#include <hictk/cooler/multires_cooler.hpp>
 #include <limits>
+#include <memory>
 #include <string>
 #include <string_view>
-#include <memory>
 #include <utility>
 #include <vector>
 
