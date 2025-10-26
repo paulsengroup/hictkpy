@@ -51,10 +51,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2025, macos-26, ubuntu-24.04, ubuntu-24.04-arm]
-        python-version: ["3.10", "3.13"]
+        python-version: ["3.10", "3.14"]
         # include:
-        #   - { os: ubuntu-24.04, python-version: "3.13+debug" }
-        #   - { os: ubuntu-24.04-arm, python-version: "3.13+debug" }
+        #   - { os: ubuntu-24.04, python-version: "3.14+debug" }
+        #   - { os: ubuntu-24.04-arm, python-version: "3.14+debug" }
 
     runs-on: ${{ matrix.os }}
 
