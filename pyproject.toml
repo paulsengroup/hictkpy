@@ -109,6 +109,7 @@ filterwarnings = [
   "error",
   "ignore:(ast.Str|Attribute s|ast.NameConstant|ast.Num) is deprecated:DeprecationWarning:_pytest",
   "ignore:datetime\\.datetime\\.utcfromtimestamp\\(\\)*:DeprecationWarning",  # https://github.com/pytest-dev/pytest/issues/11528
+  "ignore:The global interpreter lock \\(GIL\\) has been enabled to load module*:RuntimeWarning",
 ]
 python_files = [
   "test/test*.py"
