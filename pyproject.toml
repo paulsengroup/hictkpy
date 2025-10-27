@@ -65,9 +65,9 @@ test = [
 
 docs = [
   "furo==2024.8.6",
-  "ipython==9.4.0",
-  "sphinx==8.2.3",
-  "sphinx-copybutton==0.5.2",
+  "ipython>=8.37,<10",
+  "sphinx>=8.1,<9",
+  "sphinx-copybutton>=0.5.2,<0.6",
 ]
 
 dev = [
