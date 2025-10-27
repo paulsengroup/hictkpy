@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 cmake-build-*/
-conan_build/
+conan-envs/
 docs/_build
+external/
 src/_version.py
+scratch/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -116,6 +118,9 @@ ipython_config.py
 #   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
 #   in version control.
 #   https://pdm.fming.dev/#use-with-ide
+
+uv.lock
+
 .pdm.toml
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
@@ -131,11 +136,9 @@ celerybeat.pid
 # Environments
 .env
 .venv
-env/
-venv/
+env*/
+venv*/
 ENV/
-env.bak/
-venv.bak/
 
 # Spyder project settings
 .spyderproject
