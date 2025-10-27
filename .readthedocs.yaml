@@ -11,7 +11,8 @@ build:
 
   commands:
     - docs/setup_build_env_rtd.sh
-    - CC=clang CXX=clang++ pip install . -v
+    - pip install --upgrade pip
+    - CC=clang CXX=clang++ pip install . --group docs -v
     - make -C docs linkcheck html latexpdf
     - mkdir -p "$READTHEDOCS_OUTPUT/pdf"
     - cp -r docs/_build/html "$READTHEDOCS_OUTPUT/"
