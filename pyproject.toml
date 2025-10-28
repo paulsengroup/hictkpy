@@ -31,6 +31,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Free Threading :: 1 - Unstable",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
@@ -109,6 +110,7 @@ filterwarnings = [
   "error",
   "ignore:(ast.Str|Attribute s|ast.NameConstant|ast.Num) is deprecated:DeprecationWarning:_pytest",
   "ignore:datetime\\.datetime\\.utcfromtimestamp\\(\\)*:DeprecationWarning",  # https://github.com/pytest-dev/pytest/issues/11528
+  "ignore:The global interpreter lock \\(GIL\\) has been enabled to load module*:RuntimeWarning",
 ]
 python_files = [
   "test/test*.py"
@@ -128,7 +130,7 @@ manylinux-pypy_x86_64-image = "quay.io/pypa/manylinux_2_28_x86_64:2025.10.19-2"
 manylinux-pypy_i686-image = "quay.io/pypa/manylinux_2_28_i686:2025.10.19-2"
 manylinux-pypy_aarch64-image = "quay.io/pypa/manylinux_2_28_aarch64:2025.10.19-2"
 
-skip = ["cp3??t*", "cp315*", "*musllinux*", "pp*"]
+skip = ["cp3??t-win*", "cp315*", "*musllinux*", "pp*"]
 test-command = "uv run pytest {project}/test -v"
 test-extras = ["all"]
 test-groups = ["test"]
