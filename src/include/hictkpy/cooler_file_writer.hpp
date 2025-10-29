@@ -57,9 +57,11 @@ class CoolerFileWriter {
       std::string_view path, const hictk::BinTable& bins, std::string_view assembly,
       const std::filesystem::path& tmpdir_);
 
-  const std::filesystem::path& tmpdir() const;
-  [[nodiscard]] const hictk::cooler::SingleCellFile& w() const;
-  [[nodiscard]] hictk::cooler::SingleCellFile& w();
+  void reset();
+
+  [[nodiscard]] const std::filesystem::path& tmpdir() const;
+  [[nodiscard]] const hictk::cooler::SingleCellFile& get() const;
+  [[nodiscard]] hictk::cooler::SingleCellFile& get();
 };
 
 }  // namespace hictkpy

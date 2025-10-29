@@ -24,6 +24,7 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/cooler_mtx.hpp"
 #include "hictkpy/file.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
@@ -38,7 +39,12 @@ static CoolerFileWriter &ctx_enter(CoolerFileWriter &w) { return w; }
 
 static void ctx_exit(CoolerFileWriter &w, nb::handle exc_type,
                      [[maybe_unused]] nb::handle exc_value, [[maybe_unused]] nb::handle traceback) {
-  if (!exc_type.is_none()) {
+  const auto exc_raised = [exc_type]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return !exc_type.is_none();
+  }();
+
+  if (exc_raised) {
     w.try_cleanup();
     return;
   }
@@ -72,11 +78,13 @@ CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const Chromosome
 
 const std::filesystem::path &CoolerFileWriter::path() const noexcept { return _path; }
 
-std::uint32_t CoolerFileWriter::resolution() const { return w().resolution(); }
+std::uint32_t CoolerFileWriter::resolution() const { return get().resolution(); }
 
-const hictk::Reference &CoolerFileWriter::chromosomes() const { return w().chromosomes(); }
+const hictk::Reference &CoolerFileWriter::chromosomes() const { return get().chromosomes(); }
 
-std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const { return w().bins_ptr(); }
+std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const {
+  return get().bins_ptr();
+}
 
 void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool validate) {
   if (finalized()) {
@@ -84,15 +92,21 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
         "caught attempt to add_pixels() to a .cool file that has already been finalized!");
   }
 
-  const auto cell_id = fmt::to_string(w().cells().size());
+  const auto cell_id = fmt::to_string(get().cells().size());
   auto attrs = hictk::cooler::Attributes::init(resolution());
-  attrs.assembly = w().attributes().assembly;
+  attrs.assembly = get().attributes().assembly;
 
-  auto lck = std::make_optional<nb::gil_scoped_acquire>();
-  const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
+  const auto coo_format = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
+  }();
 
-  const auto dtype = df.attr("__getitem__")("count").attr("dtype");
-  const auto dtype_str = nb::cast<std::string>(dtype.attr("__str__")());
+  const auto dtype_str = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    auto dtype = df.attr("__getitem__")("count").attr("dtype");
+    return nb::cast<std::string>(dtype.attr("__str__")());
+  }();
+
   const auto var = map_py_numeric_to_cpp_type(dtype_str);
 
   std::visit(
@@ -100,16 +114,20 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
         using N = remove_cvref_t<decltype(n)>;
         const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, !sorted)
                                        : bg2_df_to_thin_pixels<N>(_w->bins(), df, !sorted);
-        lck.reset();
 
-        auto clr = _w->create_cell<N>(cell_id, std::move(attrs),
+        auto clr = [&]() {
+          HICTKPY_LOCK_COOLER_MTX_SCOPED
+          return get().create_cell<N>(cell_id, std::move(attrs),
                                       hictk::cooler::DEFAULT_HDF5_CACHE_SIZE * 4, 1);
+        }();
 
         SPDLOG_INFO(FMT_STRING("adding {} pixels of type {} to file \"{}\"..."), pixels.size(),
                     dtype_str, clr.uri());
-        clr.append_pixels(pixels.begin(), pixels.end(), validate);
-
-        clr.flush();
+        {
+          HICTKPY_LOCK_COOLER_MTX_SCOPED
+          clr.append_pixels(pixels.begin(), pixels.end(), validate);
+          clr.flush();
+        }
       },
       var);
 }
@@ -125,40 +143,44 @@ File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_
     throw std::runtime_error("chunk_size must be greater than 0");
   }
 
-  // NOLINTBEGIN(*-unchecked-optional-access)
-  const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
-  const auto previous_lvl = spdlog::default_logger()->level();
-  spdlog::default_logger()->set_level(log_lvl);
+  // TODO changing log levels in this way is problematic. Need to keep 1 logger per thread?
+  // const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
+  // const auto previous_lvl = spdlog::default_logger()->level();
+  // spdlog::default_logger()->set_level(log_lvl);
 
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path.string());
-  hictk::internal::NumericVariant count_type{};
-  if (w().cells().empty()) {
-    count_type = std::int32_t{};
-  } else {
-    count_type = _w->open("0").pixel_variant();
+  hictk::internal::NumericVariant count_type{std::int32_t{}};
+  if (!get().cells().empty()) {
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
+    count_type = get().open("0").pixel_variant();
   }
+
   try {
     std::visit(
         [&](const auto &num) {
           using N = remove_cvref_t<decltype(num)>;
-          w().aggregate<N>(_path.string(), false, _compression_lvl, chunk_size, update_freq);
+          SPDLOG_DEBUG(FMT_STRING("aggregating file \"{}\" and writing results to file \"{}\"..."),
+                       get().path(), _path.string());
+          HICTKPY_LOCK_COOLER_MTX_SCOPED
+          std::ignore =  // NOLINTNEXTLINE(*-unchecked-optional-access)
+              get().aggregate<N>(_path.string(), false, _compression_lvl, chunk_size, update_freq);
         },
         count_type);
+
   } catch (...) {
-    spdlog::default_logger()->set_level(previous_lvl);
+    // spdlog::default_logger()->set_level(previous_lvl);
     throw;
   }
 
-  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), w().cells().size(), _path);
-  spdlog::default_logger()->set_level(previous_lvl);
+  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), get().cells().size(), _path);
+  // spdlog::default_logger()->set_level(previous_lvl);
 
-  const std::string sclr_path{_w->path()};
-  _w.reset();
-  _tmpdir.reset();
-  std::filesystem::remove(sclr_path);  // NOLINT
-  // NOLINTEND(*-unchecked-optional-access)
+  reset();
 
-  return File{hictk::cooler::File{_path.string()}};
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  hictk::cooler::File clr{_path.string()};
+
+  return File{std::move(clr)};
 }
 
 bool CoolerFileWriter::finalized() const noexcept { return !_w.has_value(); }
@@ -166,8 +188,7 @@ bool CoolerFileWriter::finalized() const noexcept { return !_w.has_value(); }
 void CoolerFileWriter::try_cleanup() noexcept {
   try {
     SPDLOG_DEBUG("CoolerFileWriter::try_cleanup()");
-    _w.reset();
-    _tmpdir.reset();
+    reset();
   } catch (...) {  // NOLINT
   }
 }
@@ -178,8 +199,20 @@ std::optional<hictk::cooler::SingleCellFile> CoolerFileWriter::create_file(
   using namespace hictk::cooler;
   auto attrs = SingleCellAttributes::init(bins.resolution());
   attrs.assembly = assembly;
+
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
   return std::make_optional<SingleCellFile>(SingleCellFile::create(
       tmpdir / std::filesystem::path{path}.filename(), bins, false, std::move(attrs)));
+}
+
+void CoolerFileWriter::reset() {
+  const std::string tmpfile{get().path()};
+  {
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
+    _w.reset();
+  }
+  _tmpdir.reset();
+  std::filesystem::remove(tmpfile);  // NOLINT
 }
 
 const std::filesystem::path &CoolerFileWriter::tmpdir() const {
@@ -193,7 +226,7 @@ const std::filesystem::path &CoolerFileWriter::tmpdir() const {
   return (*_tmpdir)();
 }
 
-hictk::cooler::SingleCellFile &CoolerFileWriter::w() {
+hictk::cooler::SingleCellFile &CoolerFileWriter::get() {
   if (!_w.has_value()) {
     throw std::runtime_error(fmt::format(
         FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
@@ -202,7 +235,7 @@ hictk::cooler::SingleCellFile &CoolerFileWriter::w() {
   return *_w;
 }
 
-const hictk::cooler::SingleCellFile &CoolerFileWriter::w() const {
+const hictk::cooler::SingleCellFile &CoolerFileWriter::get() const {
   if (!_w.has_value()) {
     throw std::runtime_error(fmt::format(
         FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
@@ -224,15 +257,16 @@ void CoolerFileWriter::bind(nb::module_ &m) {
   // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def(nb::init<std::filesystem::path, const ChromosomeDict &, std::uint32_t,
                       std::string_view, const std::filesystem::path &, std::uint32_t>(),
-             nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
-             nb::arg("assembly") = "unknown",
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("chromosomes"),
+             nb::arg("resolution"), nb::arg("assembly") = "unknown",
              nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 6,
              "Open a .cool file for writing given a list of chromosomes with their sizes and a "
              "resolution.");
   writer.def(nb::init<std::filesystem::path, const hictkpy::BinTable &, std::string_view,
                       const std::filesystem::path &, std::uint32_t>(),
-             nb::arg("path"), nb::arg("bins"), nb::arg("assembly") = "unknown",
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("bins"),
+             nb::arg("assembly") = "unknown",
              nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 6,
              "Open a .cool file for writing given a table of bins.");
@@ -244,6 +278,7 @@ void CoolerFileWriter::bind(nb::module_ &m) {
 
   writer.def("__exit__", &ctx_exit,
              // clang-format off
+             nb::call_guard<nb::gil_scoped_release>(),
              nb::arg("exc_type") = nb::none(),
              nb::arg("exc_value") = nb::none(),
              nb::arg("traceback") = nb::none()
