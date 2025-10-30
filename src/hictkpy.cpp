@@ -22,7 +22,7 @@ namespace nb = nanobind;
 namespace hictkpy {
 
 [[nodiscard]] static hictkpy::Logger init_logger() {
-  hictkpy::Logger logger{spdlog::level::debug};
+  hictkpy::Logger logger{spdlog::level::trace};
   spdlog::set_default_logger(logger.get_logger());
   return logger;
 }

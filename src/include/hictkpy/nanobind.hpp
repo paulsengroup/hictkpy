@@ -33,6 +33,11 @@ HICTKPY_DISABLE_WARNING_POP
 #include <mutex>
 #include <string>
 
+#define HICTKPY_GIL_SCOPED_ACQUIRE \
+  [[maybe_unused]] const nanobind::gil_scoped_acquire hictkpy_gil{};
+#define HICTKPY_GIL_SCOPED_RELEASE \
+  [[maybe_unused]] const nanobind::gil_scoped_release hictkpy_gil{};
+
 inline nanobind::module_ import_module_checked(const std::string& module_name) {
   try {
     return nanobind::module_::import_(module_name.c_str());

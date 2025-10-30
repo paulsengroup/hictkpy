@@ -35,7 +35,12 @@ static HiCFileWriter &ctx_enter(HiCFileWriter &w) { return w; }
 
 static void ctx_exit(HiCFileWriter &w, nb::handle exc_type, [[maybe_unused]] nb::handle exc_value,
                      [[maybe_unused]] nb::handle traceback) {
-  if (!exc_type.is_none()) {
+  const auto exc_raised = [exc_type]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return !exc_type.is_none();
+  }();
+
+  if (exc_raised) {
     w.try_cleanup();
     return;
   }
@@ -101,7 +106,7 @@ HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const hictkpy::
                     assembly, n_threads, chunk_size, tmpdir_, compression_lvl,
                     skip_all_vs_all_matrix) {}
 
-File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
+File HiCFileWriter::finalize(std::string_view log_lvl_str) {
   if (finalized()) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
@@ -113,9 +118,15 @@ File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
 
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), w().path());
   try {
-    _w->serialize();
+    auto writer = [&]() {
+      HICTKPY_GIL_SCOPED_ACQUIRE
+      hictk::hic::internal::HiCFileWriter w{std::move(*_w)};
+      _w.reset();
+      return w;
+    }();
+
+    writer.serialize();
     _tmpdir.reset();
-    _w.reset();
   } catch (...) {
     spdlog::default_logger()->set_level(previous_lvl);
     throw;
@@ -164,12 +175,15 @@ void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
         "caught attempt to add_pixels() to a .hic file that has already been finalized!");
   }
 
-  auto lck = std::make_optional<nb::gil_scoped_acquire>();
-  const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
+  const auto coo_format = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
+  }();
+
   const auto pixels = coo_format
                           ? coo_df_to_thin_pixels<float>(df, false)
                           : bg2_df_to_thin_pixels<float>(w().bins(_base_resolution), df, false);
-  lck.reset();
+
   SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), w().path());
   w().add_pixels(_base_resolution, pixels.begin(), pixels.end(), validate);
 }
@@ -217,8 +231,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
   writer.def(nb::init<const std::filesystem::path &, const ChromosomeDict &, std::uint32_t,
                       std::string_view, std::size_t, std::size_t, const std::filesystem::path &,
                       std::uint32_t, bool>(),
-             nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
-             nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("chromosomes"),
+             nb::arg("resolution"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
              nb::arg("chunk_size") = 10'000'000,
              nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
@@ -229,8 +243,9 @@ void HiCFileWriter::bind(nb::module_ &m) {
       nb::init<const std::filesystem::path &, const ChromosomeDict &,
                const std::vector<std::uint32_t> &, std::string_view, std::size_t, std::size_t,
                const std::filesystem::path &, std::uint32_t, bool>(),
-      nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolutions"),
-      nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1, nb::arg("chunk_size") = 10'000'000,
+      nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("chromosomes"),
+      nb::arg("resolutions"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
+      nb::arg("chunk_size") = 10'000'000,
       nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
       nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
       "Open a .hic file for writing given a list of chromosomes with their sizes and one or more "
@@ -239,8 +254,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
   writer.def(
       nb::init<const std::filesystem::path &, const hictkpy::BinTable &, std::string_view,
                std::size_t, std::size_t, const std::filesystem::path &, std::uint32_t, bool>(),
-      nb::arg("path"), nb::arg("bins"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
-      nb::arg("chunk_size") = 10'000'000,
+      nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("bins"),
+      nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1, nb::arg("chunk_size") = 10'000'000,
       nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
       nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
       "Open a .hic file for writing given a BinTable. Only BinTable with a fixed bin size are "
@@ -253,6 +268,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
 
   writer.def("__exit__", &ctx_exit,
              // clang-format off
+             nb::call_guard<nb::gil_scoped_release>(),
              nb::arg("exc_type") = nb::none(),
              nb::arg("exc_value") = nb::none(),
              nb::arg("traceback") = nb::none()
