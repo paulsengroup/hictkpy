@@ -140,7 +140,6 @@ target_compile_definitions(
     SPDLOG_CLOCK_COARSE
     SPDLOG_FMT_EXTERNAL
     SPDLOG_NO_THREAD_ID
-    SPDLOG_NO_ATOMIC_LEVELS
     # Windows-specific tweaks
     $<$<BOOL:${WIN32}>:NOMINMAX>
     $<$<BOOL:${WIN32}>:_CRT_SECURE_NO_WARNINGS>
