@@ -112,6 +112,7 @@ File HiCFileWriter::finalize(std::string_view log_lvl_str) {
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
   }
 
+  // TODO changing log levels in this way is problematic. Need to keep 1 logger per thread?
   const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
   const auto previous_lvl = spdlog::default_logger()->level();
   spdlog::default_logger()->set_level(log_lvl);

@@ -26,6 +26,7 @@
 #include <hictk/hic/common.hpp>
 #include <hictk/hic/validation.hpp>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -36,6 +37,7 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/reference.hpp"
@@ -45,29 +47,31 @@
 namespace nb = nanobind;
 
 namespace hictkpy {
-static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
+static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f, File::Lock lck,
                                             const hictk::balancing::Method &normalization,
                                             hictk::internal::NumericVariant count_type, bool join,
                                             std::optional<std::int64_t> diagonal_band_width) {
   return std::visit(
       [&](const auto &ff) -> hictkpy::PixelSelector {
         using FileT = remove_cvref_t<decltype(ff)>;
+        lck.lock();
         if constexpr (std::is_same_v<FileT, hictk::cooler::File>) {
           auto sel = ff.fetch(normalization, diagonal_band_width.has_value());
           using SelT = decltype(sel);
-          return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
+          return {std::make_shared<const SelT>(std::move(sel)), std::move(lck), count_type, join,
                   diagonal_band_width};
         } else {
           auto sel = ff.fetch(normalization, diagonal_band_width);
           using SelT = decltype(sel);
-          return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
+          return {std::make_shared<const SelT>(std::move(sel)), std::move(lck), count_type, join,
                   diagonal_band_width};
         }
       },
       f.get());
 }
 
-static hictkpy::PixelSelector fetch_impl(const hictk::File &f, const hictk::GenomicInterval &range1,
+static hictkpy::PixelSelector fetch_impl(const hictk::File &f, File::Lock lck,
+                                         const hictk::GenomicInterval &range1,
                                          const hictk::GenomicInterval &range2,
                                          const hictk::balancing::Method &normalization,
                                          hictk::internal::NumericVariant count_type, bool join,
@@ -82,25 +86,28 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f, const hictk::Geno
   return std::visit(
       [&](const auto &ff) -> hictkpy::PixelSelector {
         using FileT = remove_cvref_t<decltype(ff)>;
+        lck.lock();
         if constexpr (std::is_same_v<FileT, hictk::hic::File>) {
           auto sel = ff.fetch(chrom1, start1, end1, chrom2, start2, end2, normalization,
                               diagonal_band_width);
 
           using SelT = decltype(sel);
-          return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
+          return {std::make_shared<const SelT>(std::move(sel)),
+                  std::make_shared<File::Lock>(std::move(lck)), count_type, join,
                   diagonal_band_width};
         } else {
           auto sel = ff.fetch(chrom1, start1, end1, chrom2, start2, end2, normalization);
 
           using SelT = decltype(sel);
-          return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
+          return {std::make_shared<const SelT>(std::move(sel)),
+                  std::make_shared<File::Lock>(std::move(lck)), count_type, join,
                   diagonal_band_width};
         }
       },
       f.get());
 }
 
-static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
+static hictkpy::PixelSelector fetch_impl(const hictk::File &f, File::Lock lck,
                                          std::optional<std::string_view> range1,
                                          std::optional<std::string_view> range2,
                                          const hictk::balancing::Method &normalization,
@@ -109,7 +116,7 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
                                          std::optional<std::int64_t> diagonal_band_width) {
   if (!range1.has_value() || range1->empty()) {
     assert(!range2.has_value() || range2->empty());
-    return fetch_gw_impl(f, normalization, count_type, join, diagonal_band_width);
+    return fetch_gw_impl(f, std::move(lck), normalization, count_type, join, diagonal_band_width);
   }
 
   if (!range2.has_value() || range2->empty()) {
@@ -117,7 +124,8 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
   }
 
   return fetch_impl(
-      f, hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range1}, query_type),
+      f, std::move(lck),
+      hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range1}, query_type),
       hictk::GenomicInterval::parse(f.chromosomes(), std::string{*range2}, query_type),
       normalization, count_type, join, diagonal_band_width
 
@@ -141,7 +149,7 @@ static hictkpy::PixelSelector fetch(const File &f, std::optional<std::string_vie
   }
 
   return fetch_impl(
-      *f, std::move(range1), std::move(range2), normalization_method,
+      *f, f.lock(false), std::move(range1), std::move(range2), normalization_method,
       std::visit([](const auto &ct) { return map_py_numeric_to_cpp_type(ct); }, count_type), join,
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED,
       diagonal_band_width);
@@ -332,17 +340,26 @@ static void ctx_exit(File &f, [[maybe_unused]] nb::handle exc_type,
   return static_cast<std::uint32_t>(*resolution);
 }
 
-File::File(hictk::File f) : _fp(std::move(f)), _uri(_fp->uri()) {}
+File::File(hictk::File f)
+    : _fp(std::move(f)), _uri(_fp->uri()), _mtx(std::make_unique<std::recursive_mutex>()) {}
 
 File::File(hictk::cooler::File f) : File(hictk::File(std::move(f))) {}
 
 File::File(hictk::hic::File f) : File(hictk::File(std::move(f))) {}
 
+[[nodiscard]] static hictk::File open_file_ts(const std::filesystem::path &path,
+                                              std::optional<std::int32_t> resolution,
+                                              std::string_view matrix_type,
+                                              std::string_view matrix_unit) {
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return hictk::File{path.string(), sanitize_resolution(resolution),
+                     hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
+                     hictk::hic::ParseUnitStr(std::string{matrix_unit})};
+}
+
 File::File(const std::filesystem::path &path, std::optional<std::int32_t> resolution,
            std::string_view matrix_type, std::string_view matrix_unit)
-    : File(hictk::File{path.string(), sanitize_resolution(resolution),
-                       hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
-                       hictk::hic::ParseUnitStr(std::string{matrix_unit})}) {}
+    : File(open_file_ts(path, resolution, matrix_type, matrix_unit)) {}
 
 hictk::File *File::operator->() { return &**this; }
 
@@ -387,10 +404,57 @@ bool File::try_close() noexcept {
 }
 
 bool File::is_cooler(const std::filesystem::path &uri) {
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
   return bool(hictk::cooler::utils::is_cooler(uri.string()));
 }
 
 bool File::is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
+
+auto File::lock(bool acquire) const -> Lock { return {_mtx, CoolerGlobalLock::mtx(), acquire}; }
+
+File::Lock::Lock(std::shared_ptr<std::recursive_mutex> mtx, bool acquire)
+    : _mtx1(std::move(mtx)),
+      _lck1(_mtx1 ? std::unique_lock{*_mtx1, std::defer_lock}
+                  : std::unique_lock<std::recursive_mutex>{}) {
+  if (acquire) {
+    lock();
+  }
+}
+
+File::Lock::Lock(GlobalCoolerMutex &mtx, bool acquire)
+    : _lck2(std::unique_lock{mtx, std::defer_lock}) {
+  if (acquire) {
+    lock();
+  }
+}
+
+File::Lock::Lock(std::shared_ptr<std::recursive_mutex> mtx1, GlobalCoolerMutex &mtx2, bool acquire)
+    : _mtx1(std::move(mtx1)),
+      _lck1(_mtx1 ? std::unique_lock{*_mtx1, std::defer_lock}
+                  : std::unique_lock<std::recursive_mutex>{}),
+      _lck2(std::unique_lock{mtx2, std::defer_lock}) {
+  if (acquire) {
+    lock();
+  }
+}
+
+void File::Lock::lock() {
+  if (_lck1.mutex()) {
+    _lck1.lock();
+  }
+  if (_lck2.mutex()) {
+    _lck2.lock();
+  }
+}
+
+void File::Lock::unlock() {
+  if (_lck1.mutex()) {
+    _lck1.unlock();
+  }
+  if (_lck2.mutex()) {
+    _lck2.unlock();
+  }
+}
 
 void File::bind(nb::module_ &m) {
   auto file =
@@ -439,9 +503,10 @@ void File::bind(nb::module_ &m) {
   file.def("attributes", &get_attributes, "Get file attributes as a dictionary.",
            nb::rv_policy::take_ownership);
 
-  file.def("fetch", &fetch, nb::keep_alive<0, 1>(), nb::arg("range1") = nb::none(),
-           nb::arg("range2") = nb::none(), nb::arg("normalization") = nb::none(),
-           nb::arg("count_type") = "int32", nb::arg("join") = false, nb::arg("query_type") = "UCSC",
+  file.def("fetch", &fetch, nb::call_guard<nb::gil_scoped_release>(), nb::keep_alive<0, 1>(),
+           nb::arg("range1") = nb::none(), nb::arg("range2") = nb::none(),
+           nb::arg("normalization") = nb::none(), nb::arg("count_type") = "int32",
+           nb::arg("join") = false, nb::arg("query_type") = "UCSC",
            nb::arg("diagonal_band_width") = nb::none(),
            "Fetch interactions overlapping a region of interest.", nb::rv_policy::move);
 

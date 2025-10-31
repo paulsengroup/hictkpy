@@ -9,17 +9,20 @@
 #include <hictk/cooler/cooler.hpp>
 #include <hictk/file.hpp>
 #include <hictk/hic.hpp>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
 
 #include "hictkpy/nanobind.hpp"
+#include "locking.hpp"
 
 namespace hictkpy {
 
 class File {
   std::optional<hictk::File> _fp{};
   std::string _uri{};
+  mutable std::shared_ptr<std::recursive_mutex> _mtx{};
 
  public:
   File() = delete;
@@ -50,6 +53,7 @@ class File {
 
   [[nodiscard]] static bool is_cooler(const std::filesystem::path& uri);
   [[nodiscard]] static bool is_hic(const std::filesystem::path& uri);
+  [[nodiscard]] FileLock lock(bool acquire = true) const;
 };
 
 }  // namespace hictkpy

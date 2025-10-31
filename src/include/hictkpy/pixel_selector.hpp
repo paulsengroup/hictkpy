@@ -20,9 +20,12 @@
 #include <variant>
 #include <vector>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy {
+
+class File;
 
 struct PixelSelector {
   // clang-format off
@@ -42,21 +45,24 @@ struct PixelSelector {
 
   PixelSelector() = default;
 
-  PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_, PixelVar count_type,
-                bool join, std::optional<std::int64_t> diagonal_band_width);
-  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_, PixelVar count_type,
-                bool join, std::optional<std::int64_t> diagonal_band_width);
-  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_, PixelVar count_type,
-                bool join, std::optional<std::int64_t> diagonal_band_width);
-
   PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_,
-                const nanobind::type_object& type, bool join,
+                std::shared_ptr<File::Lock> lck, PixelVar count_type, bool join,
                 std::optional<std::int64_t> diagonal_band_width);
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_,
-                const nanobind::type_object& type, bool join,
+                std::shared_ptr<File::Lock> lck, PixelVar count_type, bool join,
                 std::optional<std::int64_t> diagonal_band_width);
   PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_,
-                const nanobind::type_object& type, bool join,
+                std::shared_ptr<File::Lock> lck, PixelVar count_type, bool join,
+                std::optional<std::int64_t> diagonal_band_width);
+
+  PixelSelector(std::shared_ptr<const hictk::cooler::PixelSelector> sel_,
+                std::shared_ptr<File::Lock> lck, const nanobind::type_object& type, bool join,
+                std::optional<std::int64_t> diagonal_band_width);
+  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelector> sel_,
+                std::shared_ptr<File::Lock> lck, const nanobind::type_object& type, bool join,
+                std::optional<std::int64_t> diagonal_band_width);
+  PixelSelector(std::shared_ptr<const hictk::hic::PixelSelectorAll> sel_,
+                std::shared_ptr<File::Lock> lck, const nanobind::type_object& type, bool join,
                 std::optional<std::int64_t> diagonal_band_width);
 
   [[nodiscard]] std::string repr() const;

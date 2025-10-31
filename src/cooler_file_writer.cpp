@@ -24,8 +24,8 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
-#include "hictkpy/cooler_mtx.hpp"
 #include "hictkpy/file.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
