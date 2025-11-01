@@ -38,6 +38,7 @@
 #include <variant>
 #include <vector>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/pixel_aggregator.hpp"
@@ -231,6 +232,7 @@ class PixelIteratorWrapper {
   bool operator!=(const PixelIteratorWrapper& other) const { return !(*this == other); }
 
   const Pixel& operator*() {
+    // TODO should lock when appropriate
     _value = *_it;
     return _value;
   }
@@ -301,6 +303,7 @@ nb::iterator PixelSelector::make_iterable() const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::iterator {
               using N = decltype(count);
+              [[maybe_unused]] const auto lck = lock();
               if (pixel_format == PixelFormat::BG2) {
                 return make_bg2_iterable<N>(*sel_ptr, _diagonal_band_width);
               }
@@ -319,6 +322,7 @@ template <typename N, typename PixelSelector>
   if constexpr (std::is_same_v<N, long double>) {
     return make_bg2_arrow_df<double>(sel, span, diagonal_band_width);
   } else {
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
     return hictk::transformers::ToDataFrame(
         sel, sel.template end<N>(), hictk::transformers::DataFrameFormat::BG2, sel.bins_ptr(), span,
         false, 256'000, diagonal_band_width)();
@@ -332,6 +336,7 @@ template <typename N, typename PixelSelector>
   if constexpr (std::is_same_v<N, long double>) {
     return make_coo_arrow_df<double>(sel, span, diagonal_band_width);
   } else {
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
     return hictk::transformers::ToDataFrame(
         sel, sel.template end<N>(), hictk::transformers::DataFrameFormat::COO, sel.bins_ptr(), span,
         false, 256'000, diagonal_band_width)();
@@ -348,6 +353,7 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> std::shared_ptr<arrow::Table> {
               using N = decltype(count);
+              [[maybe_unused]] const auto lck = lock();
               if (pixel_format == PixelFormat::BG2) {
                 return make_bg2_arrow_df<N>(*sel_ptr, query_span, _diagonal_band_width);
               }
@@ -363,7 +369,10 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
 
 nb::object PixelSelector::to_pandas(std::string_view span) const {
   import_module_checked("pandas");
-  return to_arrow(span).attr("to_pandas")(nb::arg("self_destruct") = true);
+  auto df = to_arrow(span);
+
+  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
+  return df.attr("to_pandas")(nb::arg("self_destruct") = true);
 }
 
 nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(span); }
@@ -389,6 +398,7 @@ nb::object PixelSelector::to_csr(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::object {
               using N = decltype(count);
+              [[maybe_unused]] const auto lck = lock();
               return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
             },
             pixel_count);
@@ -398,7 +408,10 @@ nb::object PixelSelector::to_csr(std::string_view span) const {
 
 nb::object PixelSelector::to_coo(std::string_view span) const {
   import_module_checked("scipy");
-  return to_csr(span).attr("tocoo")(false);
+  auto m = to_csr(span);
+
+  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
+  return m.attr("tocoo")(false);
 }
 
 template <typename N, typename PixelSelector>
@@ -408,8 +421,9 @@ template <typename N, typename PixelSelector>
   if constexpr (std::is_same_v<N, long double>) {
     return make_numpy_matrix<double>(std::move(sel), span, diagonal_band_width);
   } else {
-    return nb::cast(
-        hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)());
+    auto m = hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)();
+    [[maybe_unused]] const nb::gil_scoped_acquire gil{};
+    return nb::cast(std::move(m));
   }
 }
 
@@ -423,6 +437,7 @@ nb::object PixelSelector::to_numpy(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::object {
               using N = decltype(count);
+              [[maybe_unused]] const auto lck = lock();
               return make_numpy_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
             },
             pixel_count);
@@ -510,13 +525,16 @@ template <typename PixelIt>
 
 nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool keep_nans,
                                  bool keep_infs, bool keep_zeros, bool exact) const {
-  const auto stats =
-      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
-                       _diagonal_band_width, {metrics.begin(), metrics.end()});
+  const auto stats = [&]() {
+    [[maybe_unused]] const auto lck = lock();
+    return aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
+                            _diagonal_band_width, {metrics.begin(), metrics.end()});
+  }();
 
   using StatsDict =
       nanobind::typed<nanobind::dict, std::string, std::variant<std::int64_t, double>>;
 
+  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
   StatsDict stats_py{};
 
   for (const auto& metric : metrics) {
@@ -563,18 +581,21 @@ std::int64_t PixelSelector::nnz(bool keep_nans, bool keep_infs) const {
 nb::object PixelSelector::sum(bool keep_nans, bool keep_infs) const {
   const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
                                       _diagonal_band_width, {"sum"});
+  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
 }
 
 nb::object PixelSelector::min(bool keep_nans, bool keep_infs, bool keep_zeros) const {
   const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros,
                                       false, _diagonal_band_width, {"min"});
+  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
 }
 
 nb::object PixelSelector::max(bool keep_nans, bool keep_infs, bool keep_zeros) const {
   const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros,
                                       false, _diagonal_band_width, {"max"});
+  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
   return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
 }
 
@@ -659,6 +680,14 @@ std::string_view PixelSelector::count_type_to_str(const PixelVar& var) {
   unreachable_code();
 }
 
+[[nodiscard]] CoolerGlobalLock::UniqueLock PixelSelector::lock() const noexcept {
+  using T = std::shared_ptr<const hictk::cooler::PixelSelector>;
+  if (std::get_if<T>(&selector) != nullptr) {
+    return CoolerGlobalLock::lock();
+  }
+  return {};
+}
+
 void PixelSelector::bind(nb::module_& m) {
   auto sel = nb::class_<PixelSelector>(
       m, "PixelSelector",
@@ -696,24 +725,30 @@ void PixelSelector::bind(nb::module_& m) {
           "Implement iter(self). The resulting iterator yields objects of type hictkpy.Pixel.",
           nb::rv_policy::take_ownership);
 
-  sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",
+  sel.def("to_arrow", &PixelSelector::to_arrow, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_arrow(self, query_span: str = \"upper_triangle\") -> pyarrow.Table"),
           "Retrieve interactions as a pyarrow.Table.", nb::rv_policy::take_ownership);
-  sel.def("to_pandas", &PixelSelector::to_pandas, nb::arg("query_span") = "upper_triangle",
+  sel.def("to_pandas", &PixelSelector::to_pandas, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_pandas(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Retrieve interactions as a pandas DataFrame.", nb::rv_policy::take_ownership);
-  sel.def("to_df", &PixelSelector::to_df, nb::arg("query_span") = "upper_triangle",
+  sel.def("to_df", &PixelSelector::to_df, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_df(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Alias to to_pandas().", nb::rv_policy::take_ownership);
-  sel.def("to_numpy", &PixelSelector::to_numpy, nb::arg("query_span") = "full",
+  sel.def("to_numpy", &PixelSelector::to_numpy, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "full",
           nb::sig("def to_numpy(self, query_span: str = \"full\") -> numpy.ndarray"),
           "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::move);
   sel.def(
-      "to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
+      "to_coo", &PixelSelector::to_coo, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
       "Retrieve interactions as a SciPy COO matrix.", nb::rv_policy::take_ownership);
   sel.def(
-      "to_csr", &PixelSelector::to_csr, nb::arg("query_span") = "upper_triangle",
+      "to_csr", &PixelSelector::to_csr, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
       "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::move);
 
@@ -733,54 +768,60 @@ void PixelSelector::bind(nb::module_& m) {
           "The estimates are stable and usually very accurate. "
           "However, if you require exact values, you can specify exact=True."),
       fmt::join(known_metrics, ", "));
-  sel.def("describe", &PixelSelector::describe, nb::arg("metrics") = known_metrics,
-          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
-          nb::arg("exact") = false, describe_cmd_help.c_str());
-  sel.def("nnz", &PixelSelector::nnz, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
+  sel.def("describe", &PixelSelector::describe, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("metrics") = known_metrics, nb::arg("keep_nans") = false,
+          nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+          describe_cmd_help.c_str());
+  sel.def("nnz", &PixelSelector::nnz, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
           "Get the number of non-zero entries for the current pixel selection. See documentation "
           "for describe() for more details.");
-  sel.def("sum", &PixelSelector::sum, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
+  sel.def("sum", &PixelSelector::sum, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
           nb::sig("def sum(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float"),
           "Get the total number of interactions for the current pixel selection. See documentation "
           "for describe() for more details.");
   sel.def(
-      "min", &PixelSelector::min, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::arg("keep_zeros") = false,
+      "min", &PixelSelector::min, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
       nb::sig("def min(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> int | float | None"),
       "Get the minimum number of interactions for the current pixel selection. See documentation "
       "for describe() for more details.");
   sel.def(
-      "max", &PixelSelector::max, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::arg("keep_zeros") = false,
+      "max", &PixelSelector::max, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
       nb::sig("def max(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> int | float | None"),
       "Get the maximum number of interactions for the current pixel selection. See documentation "
       "for describe() for more details.");
   sel.def(
-      "mean", &PixelSelector::mean, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::arg("keep_zeros") = false,
+      "mean", &PixelSelector::mean, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
       nb::sig("def mean(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> float | None"),
       "Get the average number of interactions for the current pixel selection. See documentation "
       "for describe() for more details.");
   sel.def(
-      "variance", &PixelSelector::variance, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      "variance", &PixelSelector::variance, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
+      nb::arg("exact") = false,
       nb::sig("def variance(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
       "Get the variance of the number of interactions for the current pixel selection. See "
       "documentation for describe() for more details.");
   sel.def(
-      "skewness", &PixelSelector::skewness, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      "skewness", &PixelSelector::skewness, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
+      nb::arg("exact") = false,
       nb::sig("def skewness(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
       "Get the skewness of the number of interactions for the current pixel selection. See "
       "documentation for describe() for more details.");
   sel.def(
-      "kurtosis", &PixelSelector::kurtosis, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      "kurtosis", &PixelSelector::kurtosis, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
+      nb::arg("exact") = false,
       nb::sig("def kurtosis(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
       "Get the kurtosis of the number of interactions for the current pixel selection. See "

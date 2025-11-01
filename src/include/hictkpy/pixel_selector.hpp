@@ -20,6 +20,7 @@
 #include <variant>
 #include <vector>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy {
@@ -89,6 +90,8 @@ struct PixelSelector {
 
   [[nodiscard]] static auto parse_span(std::string_view span) -> QuerySpan;
   [[nodiscard]] static std::string_view count_type_to_str(const PixelVar& var);
+
+  [[nodiscard]] CoolerGlobalLock::UniqueLock lock() const noexcept;
 
   static void bind(nanobind::module_& m);
 

@@ -31,8 +31,8 @@ FetchContent_Declare(
 FetchContent_Declare(
   hictk
   URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.1.5.tar.xz"
-  URL_HASH "SHA256=5cfc87ffc73acc4bf7b236394b1865a49c137158ee122cbc96f9c485ec9c0fb6"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-main.tar.gz"
+  URL_HASH "SHA256=0cdda2be1949471e95c037a49fb791df5f42159867b2f89c5418e4e434213117"
   EXCLUDE_FROM_ALL
   OVERRIDE_FIND_PACKAGE
   SYSTEM
@@ -121,6 +121,8 @@ target_compile_features(
     "cxx_std_$<IF:$<BOOL:${CMAKE_CXX_STANDARD}>,17,${CMAKE_CXX_STANDARD}>"
 )
 
+add_link_options(-fsanitize=thread)
+
 option(HICTKPY_BUILD_PORTABLE_WHEELS_WIN "Build portable Windows wheels" OFF)
 
 # Tweak fmt
@@ -136,7 +138,8 @@ target_compile_definitions(
     HICTK_WITH_ARROW
     HICTK_WITH_EIGEN
     # Tweak spdlog
-    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_$<IF:$<CONFIG:Debug>,DEBUG,INFO>
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
+    # SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_$<IF:$<CONFIG:Debug>,DEBUG,INFO>
     SPDLOG_CLOCK_COARSE
     SPDLOG_FMT_EXTERNAL
     SPDLOG_NO_THREAD_ID

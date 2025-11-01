@@ -9,10 +9,10 @@
 #include <hictk/cooler/cooler.hpp>
 #include <hictk/file.hpp>
 #include <hictk/hic.hpp>
-#include <optional>
 #include <string>
 #include <string_view>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy {
@@ -50,6 +50,7 @@ class File {
 
   [[nodiscard]] static bool is_cooler(const std::filesystem::path& uri);
   [[nodiscard]] static bool is_hic(const std::filesystem::path& uri);
+  [[nodiscard]] CoolerGlobalLock::UniqueLock lock() const;
 };
 
 }  // namespace hictkpy

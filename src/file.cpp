@@ -36,6 +36,7 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/reference.hpp"
@@ -53,7 +54,10 @@ static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
       [&](const auto &ff) -> hictkpy::PixelSelector {
         using FileT = remove_cvref_t<decltype(ff)>;
         if constexpr (std::is_same_v<FileT, hictk::cooler::File>) {
-          auto sel = ff.fetch(normalization, diagonal_band_width.has_value());
+          auto sel = [&]() {
+            [[maybe_unused]] const auto lck = CoolerGlobalLock::lock();
+            return ff.fetch(normalization, diagonal_band_width.has_value());
+          }();
           using SelT = decltype(sel);
           return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
                   diagonal_band_width};
@@ -90,7 +94,10 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f, const hictk::Geno
           return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
                   diagonal_band_width};
         } else {
-          auto sel = ff.fetch(chrom1, start1, end1, chrom2, start2, end2, normalization);
+          auto sel = [&]() {
+            [[maybe_unused]] const auto lck = CoolerGlobalLock::lock();
+            return ff.fetch(chrom1, start1, end1, chrom2, start2, end2, normalization);
+          }();
 
           using SelT = decltype(sel);
           return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
@@ -141,7 +148,7 @@ static hictkpy::PixelSelector fetch(const File &f, std::optional<std::string_vie
   }
 
   return fetch_impl(
-      *f, std::move(range1), std::move(range2), normalization_method,
+      *f, range1, range2, normalization_method,
       std::visit([](const auto &ct) { return map_py_numeric_to_cpp_type(ct); }, count_type), join,
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED,
       diagonal_band_width);
@@ -338,11 +345,19 @@ File::File(hictk::cooler::File f) : File(hictk::File(std::move(f))) {}
 
 File::File(hictk::hic::File f) : File(hictk::File(std::move(f))) {}
 
+[[nodiscard]] static hictk::File open_file_ts(const std::filesystem::path &path,
+                                              std::optional<std::int32_t> resolution,
+                                              std::string_view matrix_type,
+                                              std::string_view matrix_unit) {
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return hictk::File{path.string(), sanitize_resolution(resolution),
+                     hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
+                     hictk::hic::ParseUnitStr(std::string{matrix_unit})};
+}
+
 File::File(const std::filesystem::path &path, std::optional<std::int32_t> resolution,
            std::string_view matrix_type, std::string_view matrix_unit)
-    : File(hictk::File{path.string(), sanitize_resolution(resolution),
-                       hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
-                       hictk::hic::ParseUnitStr(std::string{matrix_unit})}) {}
+    : File(open_file_ts(path, resolution, matrix_type, matrix_unit)) {}
 
 hictk::File *File::operator->() { return &**this; }
 
@@ -387,10 +402,18 @@ bool File::try_close() noexcept {
 }
 
 bool File::is_cooler(const std::filesystem::path &uri) {
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
   return bool(hictk::cooler::utils::is_cooler(uri.string()));
 }
 
 bool File::is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
+
+CoolerGlobalLock::UniqueLock File::lock() const {
+  if ((*this)->is_cooler()) {
+    return CoolerGlobalLock::lock();
+  }
+  return {};
+}
 
 void File::bind(nb::module_ &m) {
   auto file =

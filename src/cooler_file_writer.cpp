@@ -24,8 +24,8 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
-#include "hictkpy/cooler_mtx.hpp"
 #include "hictkpy/file.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
@@ -147,6 +147,7 @@ File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_
   // const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
   // const auto previous_lvl = spdlog::default_logger()->level();
   // spdlog::default_logger()->set_level(log_lvl);
+  (void)log_lvl_str;
 
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path.string());
   hictk::internal::NumericVariant count_type{std::int32_t{}};

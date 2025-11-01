@@ -39,6 +39,7 @@ HICTKPY_DISABLE_WARNING_POP
   [[maybe_unused]] const nanobind::gil_scoped_release hictkpy_gil{};
 
 inline nanobind::module_ import_module_checked(const std::string& module_name) {
+  [[maybe_unused]] const nanobind::gil_scoped_acquire gil{};
   try {
     return nanobind::module_::import_(module_name.c_str());
   } catch (nanobind::python_error& e) {
@@ -71,6 +72,7 @@ inline nanobind::module_ import_pyarrow_checked(int min_version_major = 16,
 
   static std::string error_msg{};
   error_msg.clear();
+  [[maybe_unused]] const nanobind::gil_scoped_acquire gil{};
   try {
     auto metadata = nanobind::module_::import_("importlib.metadata");
 
