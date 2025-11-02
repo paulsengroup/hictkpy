@@ -12,7 +12,7 @@ def fx(i):
 
     print(f"{i} fetching from {path}...", file=sys.stderr)
     with hictkpy.File(path, 50_000) as f:
-        res = f.fetch().to_numpy().sum()
+        res = f.fetch().to_csr().sum()
     print(f"{i} DONE!", file=sys.stderr)
     return res
 

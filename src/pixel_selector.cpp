@@ -381,14 +381,14 @@ nb::object PixelSelector::to_pandas(std::string_view span) const {
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
-                                                hictk::transformers::QuerySpan span,
-                                                std::optional<std::uint64_t> diagonal_band_width) {
+[[nodiscard]] static auto make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
+                                          hictk::transformers::QuerySpan span,
+                                          std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
     return make_csr_matrix<double>(std::move(sel), span, diagonal_band_width);
   } else {
-    return nb::cast(hictk::transformers::ToSparseMatrix(std::move(sel), N{}, span, false,
-                                                        diagonal_band_width)());
+    return hictk::transformers::ToSparseMatrix(std::move(sel), N{}, span, false,
+                                               diagonal_band_width)();
   }
 }
 
@@ -401,9 +401,13 @@ std::optional<nb::object> PixelSelector::to_csr(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> std::optional<nb::object> {
               using N = decltype(count);
-              [[maybe_unused]] const auto lck = lock();
-              return std::make_optional(
-                  make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width));
+              auto m = [&]() {
+                [[maybe_unused]] const auto lck = lock();
+                return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+              }();
+
+              HICTKPY_GIL_SCOPED_ACQUIRE
+              return std::make_optional(nb::cast(std::move(m)));
             },
             pixel_count);
       },
