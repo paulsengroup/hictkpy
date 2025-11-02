@@ -68,8 +68,7 @@ std::shared_ptr<spdlog::logger> Logger::init_cpp_logger(
         if constexpr (SPDLOG_ACTIVE_LEVEL < SPDLOG_LEVEL_DEBUG) {
           // useful for debugging and required to avoid deadlocks
           if (msg.level == SPDLOG_LEVEL_TRACE) {
-            fmt::println(stderr, FMT_STRING("[{:%Y-%m-%d %T.%e}] [trace]: {}"), msg.time,
-                         msg.payload);
+            fmt::println(stderr, FMT_STRING("[{:%Y-%m-%d %T}] [trace]: {}"), msg.time, msg.payload);
             return;
           }
         }

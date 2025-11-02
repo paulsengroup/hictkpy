@@ -343,8 +343,8 @@ template <typename N, typename PixelSelector>
   }
 }
 
-nb::object PixelSelector::to_arrow(std::string_view span) const {
-  std::ignore = import_pyarrow_checked();
+std::optional<nb::object> PixelSelector::to_arrow(std::string_view span) const {
+  check_pyarrow_is_importable();
 
   const auto query_span = parse_span(span);
   auto table = std::visit(
@@ -364,15 +364,20 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
       },
       selector);
 
-  return export_pyarrow_table(std::move(table));
+  return [&table]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return std::make_optional(export_pyarrow_table(std::move(table)));
+  }();
 }
 
 nb::object PixelSelector::to_pandas(std::string_view span) const {
-  import_module_checked("pandas");
-  auto df = to_arrow(span);
+  check_module_is_importable("pandas");
+  auto arrow_df = to_arrow(span);
 
-  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
-  return df.attr("to_pandas")(nb::arg("self_destruct") = true);
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  auto pandas_df = arrow_df->attr("to_pandas")(nb::arg("self_destruct") = true);
+  arrow_df.reset();
+  return pandas_df;
 }
 
 nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(span); }
@@ -389,17 +394,18 @@ template <typename N, typename PixelSelector>
   }
 }
 
-nb::object PixelSelector::to_csr(std::string_view span) const {
-  import_module_checked("scipy");
+std::optional<nb::object> PixelSelector::to_csr(std::string_view span) const {
+  check_module_is_importable("scipy");
   const auto query_span = parse_span(span);
 
   return std::visit(
-      [&](auto sel_ptr) -> nb::object {
+      [&](auto sel_ptr) -> std::optional<nb::object> {
         return std::visit(
-            [&]([[maybe_unused]] auto count) -> nb::object {
+            [&]([[maybe_unused]] auto count) -> std::optional<nb::object> {
               using N = decltype(count);
               [[maybe_unused]] const auto lck = lock();
-              return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+              return std::make_optional(
+                  make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width));
             },
             pixel_count);
       },
@@ -407,11 +413,13 @@ nb::object PixelSelector::to_csr(std::string_view span) const {
 }
 
 nb::object PixelSelector::to_coo(std::string_view span) const {
-  import_module_checked("scipy");
-  auto m = to_csr(span);
+  check_module_is_importable("scipy");
+  auto csr_m = to_csr(span);
 
   [[maybe_unused]] const nb::gil_scoped_acquire gil{};
-  return m.attr("tocoo")(false);
+  auto coo_m = csr_m->attr("tocoo")(false);
+  csr_m.reset();
+  return coo_m;
 }
 
 template <typename N, typename PixelSelector>
@@ -428,7 +436,7 @@ template <typename N, typename PixelSelector>
 }
 
 nb::object PixelSelector::to_numpy(std::string_view span) const {
-  std::ignore = import_module_checked("numpy");
+  check_module_is_importable("numpy");
 
   const auto query_span = parse_span(span);
 
@@ -573,51 +581,58 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
 }
 
 std::int64_t PixelSelector::nnz(bool keep_nans, bool keep_infs) const {
+  [[maybe_unused]] const auto lck = lock();
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
                            _diagonal_band_width, {"nnz"})
               .nnz;
 }
 
-nb::object PixelSelector::sum(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
-                                      _diagonal_band_width, {"sum"});
-  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
-  return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
+std::variant<std::int64_t, double> PixelSelector::sum(bool keep_nans, bool keep_infs) const {
+  [[maybe_unused]] const auto lck = lock();
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
+                           _diagonal_band_width, {"sum"})
+              .sum;
 }
 
-nb::object PixelSelector::min(bool keep_nans, bool keep_infs, bool keep_zeros) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros,
-                                      false, _diagonal_band_width, {"min"});
-  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
-  return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
+std::variant<std::int64_t, double> PixelSelector::min(bool keep_nans, bool keep_infs,
+                                                      bool keep_zeros) const {
+  [[maybe_unused]] const auto lck = lock();
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
+                           _diagonal_band_width, {"min"})
+              .min;
 }
 
-nb::object PixelSelector::max(bool keep_nans, bool keep_infs, bool keep_zeros) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros,
-                                      false, _diagonal_band_width, {"max"});
-  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
-  return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
+std::variant<std::int64_t, double> PixelSelector::max(bool keep_nans, bool keep_infs,
+                                                      bool keep_zeros) const {
+  [[maybe_unused]] const auto lck = lock();
+  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
+                           _diagonal_band_width, {"max"})
+              .max;
 }
 
 double PixelSelector::mean(bool keep_nans, bool keep_infs, bool keep_zeros) const {
+  [[maybe_unused]] const auto lck = lock();
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
                            _diagonal_band_width, {"mean"})
               .mean;
 }
 
 double PixelSelector::variance(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  [[maybe_unused]] const auto lck = lock();
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"variance"})
               .variance;
 }
 
 double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  [[maybe_unused]] const auto lck = lock();
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"skewness"})
               .skewness;
 }
 
 double PixelSelector::kurtosis(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  [[maybe_unused]] const auto lck = lock();
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"kurtosis"})
               .kurtosis;

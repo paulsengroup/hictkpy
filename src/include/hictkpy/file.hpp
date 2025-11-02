@@ -32,7 +32,7 @@ class File {
   File(const File&) = delete;
   File(File&&) noexcept = default;
 
-  ~File() noexcept = default;
+  ~File() noexcept;
 
   File& operator=(const File&) = delete;
   File& operator=(File&&) noexcept = default;

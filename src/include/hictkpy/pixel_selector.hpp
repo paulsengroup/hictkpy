@@ -70,19 +70,21 @@ struct PixelSelector {
   [[nodiscard]] nanobind::type_object dtype() const;
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
-  [[nodiscard]] nanobind::object to_arrow(std::string_view span) const;
+  [[nodiscard]] std::optional<nanobind::object> to_arrow(std::string_view span) const;
   [[nodiscard]] nanobind::object to_df(std::string_view span) const;
   [[nodiscard]] nanobind::object to_pandas(std::string_view span) const;
   [[nodiscard]] nanobind::object to_coo(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_csr(std::string_view span) const;
+  [[nodiscard]] std::optional<nanobind::object> to_csr(std::string_view span) const;
   [[nodiscard]] nanobind::object to_numpy(std::string_view span) const;
 
   [[nodiscard]] nanobind::dict describe(const std::vector<std::string>& metrics, bool keep_nans,
                                         bool keep_infs, bool keep_zeros, bool exact) const;
   [[nodiscard]] std::int64_t nnz(bool keep_nans, bool keep_infs) const;
-  [[nodiscard]] nanobind::object sum(bool keep_nans, bool keep_infs) const;
-  [[nodiscard]] nanobind::object min(bool keep_nans, bool keep_infs, bool keep_zeros) const;
-  [[nodiscard]] nanobind::object max(bool keep_nans, bool keep_infs, bool keep_zeros) const;
+  [[nodiscard]] std::variant<std::int64_t, double> sum(bool keep_nans, bool keep_infs) const;
+  [[nodiscard]] std::variant<std::int64_t, double> min(bool keep_nans, bool keep_infs,
+                                                       bool keep_zeros) const;
+  [[nodiscard]] std::variant<std::int64_t, double> max(bool keep_nans, bool keep_infs,
+                                                       bool keep_zeros) const;
   [[nodiscard]] double mean(bool keep_nans, bool keep_infs, bool keep_zeros) const;
   [[nodiscard]] double variance(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const;
   [[nodiscard]] double skewness(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const;

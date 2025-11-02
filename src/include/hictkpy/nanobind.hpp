@@ -29,17 +29,19 @@ HICTKPY_DISABLE_WARNING_USELESS_CAST
 HICTKPY_DISABLE_WARNING_POP
 // clang-format on
 
+#include <fmt/std.h>
+#include <spdlog/spdlog.h>
+
 #include <cassert>
-#include <mutex>
 #include <string>
+#include <thread>
 
-#define HICTKPY_GIL_SCOPED_ACQUIRE \
-  [[maybe_unused]] const nanobind::gil_scoped_acquire hictkpy_gil{};
-#define HICTKPY_GIL_SCOPED_RELEASE \
-  [[maybe_unused]] const nanobind::gil_scoped_release hictkpy_gil{};
+#include "hictkpy/locking.hpp"
 
-inline nanobind::module_ import_module_checked(const std::string& module_name) {
-  [[maybe_unused]] const nanobind::gil_scoped_acquire gil{};
+namespace hictkpy {
+
+[[nodiscard]] inline nanobind::module_ import_module_checked(const std::string& module_name) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
   try {
     return nanobind::module_::import_(module_name.c_str());
   } catch (nanobind::python_error& e) {
@@ -53,19 +55,18 @@ inline nanobind::module_ import_module_checked(const std::string& module_name) {
 }
 
 // NOLINTNEXTLINE(*-avoid-magic-numbers)
-inline nanobind::module_ import_pyarrow_checked(int min_version_major = 16,
-                                                int min_version_minor = 0,
-                                                int min_version_patch = 0) {
+[[nodiscard]] inline nanobind::module_ import_pyarrow_checked(int min_version_major = 16,
+                                                              int min_version_minor = 0,
+                                                              int min_version_patch = 0) {
   assert(min_version_major >= 0);
   assert(min_version_minor >= 0);
   assert(min_version_patch >= 0);
 
-  static bool version_ok{false};
-  static std::mutex mtx{};
+  HICTKPY_GIL_SCOPED_ACQUIRE
 
+  static bool version_ok{false};
   auto pa = import_module_checked("pyarrow");
 
-  [[maybe_unused]] const auto lck = std::scoped_lock(mtx);
   if (version_ok) {
     return pa;
   }
@@ -127,3 +128,17 @@ inline nanobind::module_ import_pyarrow_checked(int min_version_major = 16,
   assert(version_ok);
   return pa;
 }
+
+inline void check_module_is_importable(const std::string& module_name) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  std::ignore = import_module_checked(module_name);
+}
+
+// NOLINTNEXTLINE(*-avoid-magic-numbers)
+inline void check_pyarrow_is_importable(int min_version_major = 16, int min_version_minor = 0,
+                                        int min_version_patch = 0) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  std::ignore = import_pyarrow_checked(min_version_major, min_version_minor, min_version_patch);
+}
+
+}  // namespace hictkpy

@@ -359,6 +359,13 @@ File::File(const std::filesystem::path &path, std::optional<std::int32_t> resolu
            std::string_view matrix_type, std::string_view matrix_unit)
     : File(open_file_ts(path, resolution, matrix_type, matrix_unit)) {}
 
+File::~File() noexcept {
+  if (_fp.has_value()) {
+    const auto lck = lock();
+    _fp.reset();
+  }
+}
+
 hictk::File *File::operator->() { return &**this; }
 
 const hictk::File *File::operator->() const { return &**this; }
@@ -377,7 +384,12 @@ const hictk::File &File::operator*() const {
   throw_closed_file_exc(_uri);
 }
 
-void File::close() { _fp.reset(); }
+void File::close() {
+  if (_fp) {
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
+    _fp.reset();
+  }
+}
 
 bool File::try_close() noexcept {
   if (!_fp) {
@@ -409,7 +421,7 @@ bool File::is_cooler(const std::filesystem::path &uri) {
 bool File::is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
 
 CoolerGlobalLock::UniqueLock File::lock() const {
-  if ((*this)->is_cooler()) {
+  if (_fp.has_value() && _fp->is_cooler()) {
     return CoolerGlobalLock::lock();
   }
   return {};

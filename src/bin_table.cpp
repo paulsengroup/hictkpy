@@ -291,7 +291,7 @@ auto BinTable::coords_to_bin_ids(const std::vector<std::string>& chroms,
 }
 
 nb::object BinTable::merge_coords(nb::object df) const {
-  import_pyarrow_checked();
+  check_pyarrow_is_importable();
   auto pd = import_module_checked("pandas");
 
   // TODO avoid potentially copying data here
