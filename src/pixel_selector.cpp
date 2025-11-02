@@ -380,8 +380,6 @@ nb::object PixelSelector::to_pandas(std::string_view span) const {
   return pandas_df;
 }
 
-nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(span); }
-
 template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
                                                 hictk::transformers::QuerySpan span,
@@ -416,22 +414,20 @@ nb::object PixelSelector::to_coo(std::string_view span) const {
   check_module_is_importable("scipy");
   auto csr_m = to_csr(span);
 
-  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
+  HICTKPY_GIL_SCOPED_ACQUIRE
   auto coo_m = csr_m->attr("tocoo")(false);
   csr_m.reset();
   return coo_m;
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] static nb::object make_numpy_matrix(
-    std::shared_ptr<const PixelSelector> sel, hictk::transformers::QuerySpan span,
-    std::optional<std::uint64_t> diagonal_band_width) {
+[[nodiscard]] static auto make_eigen_matrix(std::shared_ptr<const PixelSelector> sel,
+                                            hictk::transformers::QuerySpan span,
+                                            std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
-    return make_numpy_matrix<double>(std::move(sel), span, diagonal_band_width);
+    return make_eigen_matrix<double>(std::move(sel), span, diagonal_band_width);
   } else {
-    auto m = hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)();
-    [[maybe_unused]] const nb::gil_scoped_acquire gil{};
-    return nb::cast(std::move(m));
+    return hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)();
   }
 }
 
@@ -445,8 +441,13 @@ nb::object PixelSelector::to_numpy(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::object {
               using N = decltype(count);
-              [[maybe_unused]] const auto lck = lock();
-              return make_numpy_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+              auto m = [&]() {
+                [[maybe_unused]] const auto lck = lock();
+                return make_eigen_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+              }();
+
+              HICTKPY_GIL_SCOPED_ACQUIRE
+              return nb::cast(std::move(m));
             },
             pixel_count);
       },
@@ -542,7 +543,7 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
   using StatsDict =
       nanobind::typed<nanobind::dict, std::string, std::variant<std::int64_t, double>>;
 
-  [[maybe_unused]] const nb::gil_scoped_acquire gil{};
+  HICTKPY_GIL_SCOPED_ACQUIRE
   StatsDict stats_py{};
 
   for (const auto& metric : metrics) {
@@ -587,27 +588,28 @@ std::int64_t PixelSelector::nnz(bool keep_nans, bool keep_infs) const {
               .nnz;
 }
 
-std::variant<std::int64_t, double> PixelSelector::sum(bool keep_nans, bool keep_infs) const {
+std::optional<std::variant<std::int64_t, double>> PixelSelector::sum(bool keep_nans,
+                                                                     bool keep_infs) const {
   [[maybe_unused]] const auto lck = lock();
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
-                           _diagonal_band_width, {"sum"})
-              .sum;
+  return aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
+                          _diagonal_band_width, {"sum"})
+      .sum;
 }
 
-std::variant<std::int64_t, double> PixelSelector::min(bool keep_nans, bool keep_infs,
-                                                      bool keep_zeros) const {
+std::optional<std::variant<std::int64_t, double>> PixelSelector::min(bool keep_nans, bool keep_infs,
+                                                                     bool keep_zeros) const {
   [[maybe_unused]] const auto lck = lock();
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
-                           _diagonal_band_width, {"min"})
-              .min;
+  return aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
+                          _diagonal_band_width, {"min"})
+      .min;
 }
 
-std::variant<std::int64_t, double> PixelSelector::max(bool keep_nans, bool keep_infs,
-                                                      bool keep_zeros) const {
+std::optional<std::variant<std::int64_t, double>> PixelSelector::max(bool keep_nans, bool keep_infs,
+                                                                     bool keep_zeros) const {
   [[maybe_unused]] const auto lck = lock();
-  return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
-                           _diagonal_band_width, {"max"})
-              .max;
+  return aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
+                          _diagonal_band_width, {"max"})
+      .max;
 }
 
 double PixelSelector::mean(bool keep_nans, bool keep_infs, bool keep_zeros) const {
@@ -748,7 +750,7 @@ void PixelSelector::bind(nb::module_& m) {
           nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_pandas(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Retrieve interactions as a pandas DataFrame.", nb::rv_policy::take_ownership);
-  sel.def("to_df", &PixelSelector::to_df, nb::call_guard<nb::gil_scoped_release>(),
+  sel.def("to_df", &PixelSelector::to_pandas, nb::call_guard<nb::gil_scoped_release>(),
           nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_df(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Alias to to_pandas().", nb::rv_policy::take_ownership);

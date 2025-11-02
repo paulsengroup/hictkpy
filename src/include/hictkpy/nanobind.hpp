@@ -73,7 +73,6 @@ namespace hictkpy {
 
   static std::string error_msg{};
   error_msg.clear();
-  [[maybe_unused]] const nanobind::gil_scoped_acquire gil{};
   try {
     auto metadata = nanobind::module_::import_("importlib.metadata");
 

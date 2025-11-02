@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "hictkpy/common.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace nb = nanobind;
@@ -73,7 +74,7 @@ std::shared_ptr<spdlog::logger> Logger::init_cpp_logger(
           }
         }
 
-        [[maybe_unused]] const nb::gil_scoped_acquire gil{};
+        HICTKPY_GIL_SCOPED_ACQUIRE
         auto msg_py = nb::str(msg.payload.data(), msg.payload.size());
         logger.attr("log")(to_py_lvl(msg.level), msg_py);
       });

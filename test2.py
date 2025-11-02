@@ -11,8 +11,8 @@ def fx(i):
         path = "../hictk/test/data/hic/4DNFIZ1ZVXC8.hic9"
 
     print(f"{i} fetching from {path}...", file=sys.stderr)
-    with hictkpy.File(path, 10_000) as f:
-        res = f.fetch().to_arrow().to_pandas()["count"].sum()
+    with hictkpy.File(path, 50_000) as f:
+        res = f.fetch().to_numpy().sum()
     print(f"{i} DONE!", file=sys.stderr)
     return res
 
@@ -26,4 +26,4 @@ def test(threads):
 
 if __name__ == "__main__":
     # input("Press enter")
-    test(16)
+    print(test(16))
