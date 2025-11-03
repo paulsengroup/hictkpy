@@ -11,6 +11,7 @@
 #include "hictkpy/cooler_file_writer.hpp"
 #include "hictkpy/file.hpp"
 #include "hictkpy/hic_file_writer.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/logger.hpp"
 #include "hictkpy/multires_file.hpp"
 #include "hictkpy/nanobind.hpp"
@@ -21,16 +22,14 @@
 namespace nb = nanobind;
 namespace hictkpy {
 
-[[nodiscard]] static hictkpy::Logger init_logger() {
-  hictkpy::Logger logger{spdlog::level::trace};
-  spdlog::set_default_logger(logger.get_logger());
-  return logger;
-}
+[[nodiscard]] static Logger init_logger() { return Logger{spdlog::level::trace}; }
 
 NB_MODULE(_hictkpy, m) {
+  static const auto tsan_proxy_mutex = GilScopedAcquire<true>::try_register_with_tsan();
+
   // Leaks appear to only occur when the interpreter shuts down abruptly
   nb::set_leak_warnings(false);
-  [[maybe_unused]] const auto logger = init_logger();
+  [[maybe_unused]] static const auto logger = init_logger();
 
   m.attr("__hictk_version__") = hictk::config::version::str();
 

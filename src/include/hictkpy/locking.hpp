@@ -4,15 +4,34 @@
 
 #pragma once
 
+#ifdef __SANITIZE_THREAD__
+#define HICTKPY_USE_TSAN
+#elif defined(__has_feature) && __has_feature(thread_sanitizer)
+#define HICTKPY_USE_TSAN
+#endif
+
+#ifdef HICTKPY_USE_TSAN
+#include <sanitizer/tsan_interface.h>
+#endif
+
 #include <Python.h>
 #include <fmt/format.h>
 #include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
+#include <cstddef>
 #include <mutex>
 #include <thread>
 
 namespace hictkpy {
+
+[[nodiscard]] constexpr bool tsan_enabled() noexcept {
+#ifdef HICTKPY_USE_TSAN
+  return true;
+#else
+  return false;
+#endif
+}
 
 class CoolerGlobalLock {
   CoolerGlobalLock() = default;
@@ -70,61 +89,76 @@ class CoolerGlobalLock {
   }
 };
 
+template <bool NO_LOG>
 class GilScopedAcquire {
-  // This mutex is likely redundant. Locking the GIL should be enough.
-  // The mutex is mostly here to make TSAN happy.
-  using Mutex = std::recursive_mutex;
-  std::unique_lock<Mutex> _lck{};
   PyGILState_STATE _state;
+#ifdef HICTKPY_USE_TSAN
+  static inline char _tsan_gil_proxy{};
+#endif
 
-  static inline Mutex _mtx{};
+  struct GilMutexProxyRAII {  // NOLINT(*-special-member-functions)
+    explicit GilMutexProxyRAII() noexcept {
+#ifdef HICTKPY_USE_TSAN
+      __tsan_mutex_create(static_cast<void*>(&_tsan_gil_proxy), __tsan_mutex_write_reentrant);
+#endif
+    }
+    ~GilMutexProxyRAII() noexcept {
+#ifdef HICTKPY_USE_TSAN
+      __tsan_mutex_destroy(static_cast<void*>(&_tsan_gil_proxy), __tsan_mutex_linker_init);
+#endif
+    }
+  };
 
-  [[nodiscard]] static PyGILState_STATE init() noexcept {
-    SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: acquiring..."), std::this_thread::get_id());
+  [[nodiscard]] static PyGILState_STATE state_ensure() noexcept {
+    if constexpr (!NO_LOG) {
+      SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: acquiring..."), std::this_thread::get_id());
+    }
     auto state = PyGILState_Ensure();
-    SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: acquired!"), std::this_thread::get_id());
+    tsan_acquire();
+    if constexpr (!NO_LOG) {
+      SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: acquired!"), std::this_thread::get_id());
+    }
     return state;
   }
 
+  explicit GilScopedAcquire() noexcept : _state(state_ensure()) {}
+
  public:
-  explicit GilScopedAcquire() noexcept : _lck(_mtx), _state(init()) {}
+  [[nodiscard]] static auto create() { return GilScopedAcquire{}; }
+
   GilScopedAcquire(const GilScopedAcquire&) = delete;
   GilScopedAcquire(GilScopedAcquire&&) noexcept = default;
   ~GilScopedAcquire() noexcept {
-    SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: releasing..."), std::this_thread::get_id());
+    if constexpr (!NO_LOG) {
+      SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: releasing..."), std::this_thread::get_id());
+    }
+    tsan_release();
     PyGILState_Release(_state);
-    _lck.unlock();
-    SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: released!"), std::this_thread::get_id());
+    if constexpr (!NO_LOG) {
+      SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: released!"), std::this_thread::get_id());
+    }
   }
 
   GilScopedAcquire& operator=(const GilScopedAcquire&) = delete;
   GilScopedAcquire& operator=(GilScopedAcquire&&) noexcept = default;
-};
 
-class GilScopedRelease {
-  PyThreadState* _state{};
-
-  [[nodiscard]] static PyThreadState* init() noexcept {
-    SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: releasing..."), std::this_thread::get_id());
-    auto* state = PyEval_SaveThread();
-    SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: released!"), std::this_thread::get_id());
-    return state;
+  [[nodiscard]] static const GilMutexProxyRAII& try_register_with_tsan() {
+    static const GilMutexProxyRAII proxy{};
+    return proxy;
   }
 
- public:
-  explicit GilScopedRelease() noexcept : _state(init()) {}
-  GilScopedRelease(const GilScopedRelease&) = delete;
-  GilScopedRelease(GilScopedRelease&&) noexcept = default;
-  ~GilScopedRelease() noexcept {
-    if (_state) {
-      SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: acquiring..."), std::this_thread::get_id());
-      PyEval_RestoreThread(_state);
-      SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: acquired!"), std::this_thread::get_id());
-    }
+ private:
+  static void tsan_acquire() noexcept {
+#ifdef HICTKPY_USE_TSAN
+    __tsan_acquire(static_cast<void*>(&_tsan_gil_proxy));
+#endif
   }
 
-  GilScopedRelease& operator=(const GilScopedRelease&) = delete;
-  GilScopedRelease& operator=(GilScopedRelease&&) noexcept = default;
+  static void tsan_release() noexcept {
+#ifdef HICTKPY_USE_TSAN
+    __tsan_release(static_cast<void*>(&_tsan_gil_proxy));
+#endif
+  }
 };
 
 }  // namespace hictkpy
@@ -133,7 +167,9 @@ class GilScopedRelease {
   [[maybe_unused]] const auto cooler_lock = hictkpy::CoolerGlobalLock::lock();
 
 #define HICTKPY_GIL_SCOPED_ACQUIRE \
-  [[maybe_unused]] const hictkpy::GilScopedAcquire hictkpy_gil_acquire_{};
+  [[maybe_unused]] const auto hictkpy_gil_acquire_ = hictkpy::GilScopedAcquire<false>::create();
 
+/*
 #define HICTKPY_GIL_SCOPED_RELEASE \
   [[maybe_unused]] const hictkpy::GilScopedRelease hictkpy_gil_release_{};
+*/
