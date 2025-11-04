@@ -52,6 +52,8 @@ class Logger {
   void enqueue(Message msg) noexcept;
   [[nodiscard]] std::optional<Message> try_dequeue() noexcept;
   void shutdown() noexcept;
+  void set_level(std::int64_t level) noexcept;
+  void set_level(const std::string &level) noexcept;
 
  private:
   void init_cpp_logger(spdlog::level::level_enum level);

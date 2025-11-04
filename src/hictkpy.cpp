@@ -22,7 +22,7 @@
 namespace nb = nanobind;
 namespace hictkpy {
 
-[[nodiscard]] static std::unique_ptr<const Logger> init_logger() {
+[[nodiscard]] static std::unique_ptr<Logger> init_logger() {
   try {
     auto logger = std::make_unique<Logger>(spdlog::level::trace);
     [[maybe_unused]] const GilScopedAcquire gil{true};
@@ -52,6 +52,16 @@ NB_MODULE(_hictkpy, m) {
   m.def("is_scool_file", &SingleCellFile::is_scool, nb::arg("path"),
         "Test whether path points to a .scool file.");
   m.def("is_hic", &File::is_hic, nb::arg("path"), "Test whether path points to a .hic file.");
+
+  auto logging = m.def_submodule("logging");
+  logging.def(
+      "setLevel",
+      [&](const std::variant<std::int64_t, std::string>& level) {
+        if (logger) {
+          std::visit([&](const auto& level_) { logger->set_level(level_); }, level);
+        }
+      },
+      nb::arg("level"), "Test the log level for hictkpy's logger.");
 
   BinTable::bind(m);
   Pixel::bind(m);

@@ -52,6 +52,26 @@ namespace hictkpy {
   // NOLINTEND(*-avoid-magic-numbers)
 }
 
+[[nodiscard]] static spdlog::level::level_enum py_to_spdlog_lvl(std::int64_t level) {
+  // NOLINTBEGIN(*-avoid-magic-numbers)
+  if (level >= 50) {
+    return spdlog::level::off;
+  }
+  if (level >= 40) {
+    return spdlog::level::err;
+  }
+  if (level >= 30) {
+    return spdlog::level::warn;
+  }
+  if (level >= 20) {
+    return spdlog::level::info;
+  }
+  if (level >= 10) {
+    return spdlog::level::debug;
+  }
+  return spdlog::level::trace;
+}
+
 [[nodiscard]] static double spdlog_to_py_timestamp(const spdlog::details::log_msg& msg) noexcept {
   try {
     const auto t =
@@ -215,6 +235,61 @@ std::optional<Logger::Message> Logger::try_dequeue() noexcept {
   }
 
   return {};
+}
+
+void Logger::set_level(const std::string& py_level) noexcept {
+  if (!_logger) {
+    return;
+  }
+
+  try {
+    [[maybe_unused]] const GilScopedAcquire gil{true};
+    const auto logging = nb::module_::import_("logging");
+    const auto py_level_int = nb::cast<std::int64_t>(logging.attr(py_level.c_str()));
+
+    return set_level(py_level_int);
+  } catch (const std::exception& e) {
+    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to change log level: {}"), e.what());
+  } catch (...) {
+    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to change log level: unknown error"));
+  }
+}
+
+void Logger::set_level(std::int64_t py_level) noexcept {
+  if (!_logger) {
+    return;
+  }
+
+  std::optional<nb::object> previous_level{};
+  auto reset_log_level = [&]() {
+    try {
+      if (previous_level.has_value()) {
+        get_py_logger().attr("setLevel")(*previous_level);
+      }
+    } catch (...) {  // NOLINT
+    }
+  };
+
+  try {
+    const auto level = py_to_spdlog_lvl(py_level);
+    [[maybe_unused]] const GilScopedAcquire gil{true};
+    auto logger = get_py_logger();
+    previous_level = logger.attr("level");
+    std::ignore = get_py_logger().attr("setLevel")(py_level);
+
+    _logger->set_level(level);
+    for (auto& sink : _logger->sinks()) {
+      sink->set_level(level);
+    }
+
+    return;
+
+  } catch (const std::exception& e) {
+    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to change log level: {}"), e.what());
+  } catch (...) {
+    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to change log level: unknown error"));
+  }
+  reset_log_level();
 }
 
 void Logger::shutdown() noexcept {
