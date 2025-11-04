@@ -22,14 +22,24 @@
 namespace nb = nanobind;
 namespace hictkpy {
 
-[[nodiscard]] static Logger init_logger() { return Logger{spdlog::level::trace}; }
+[[nodiscard]] static std::unique_ptr<const Logger> init_logger() {
+  try {
+    auto logger = std::make_unique<Logger>(spdlog::level::trace);
+    [[maybe_unused]] const GilScopedAcquire gil{true};
+    nb::module_::import_("atexit").attr("register")(
+        nb::cpp_function([logger_ptr = logger.get()]() { logger_ptr->shutdown(); }));
+    return logger;
+  } catch (...) {
+    fmt::println(stderr, FMT_STRING("failed to register shutdown hook for hictkpy's logger!"));
+  }
+  return {};
+}
 
 NB_MODULE(_hictkpy, m) {
-  static const auto tsan_proxy_mutex = GilScopedAcquire<true>::try_register_with_tsan();
-
   // Leaks appear to only occur when the interpreter shuts down abruptly
   nb::set_leak_warnings(false);
-  [[maybe_unused]] static const auto logger = init_logger();
+  static const auto tsan_proxy_mutex = GilScopedAcquire::try_register_with_tsan();
+  static const auto logger = init_logger();
 
   m.attr("__hictk_version__") = hictk::config::version::str();
 

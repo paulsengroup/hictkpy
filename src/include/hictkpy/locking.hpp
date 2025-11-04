@@ -89,12 +89,12 @@ class CoolerGlobalLock {
   }
 };
 
-template <bool NO_LOG>
 class GilScopedAcquire {
   PyGILState_STATE _state;
 #ifdef HICTKPY_USE_TSAN
   static inline char _tsan_gil_proxy{};
 #endif
+  bool _no_log;
 
   struct GilMutexProxyRAII {  // NOLINT(*-special-member-functions)
     explicit GilMutexProxyRAII() noexcept {
@@ -109,32 +109,31 @@ class GilScopedAcquire {
     }
   };
 
-  [[nodiscard]] static PyGILState_STATE state_ensure() noexcept {
-    if constexpr (!NO_LOG) {
+  [[nodiscard]] static PyGILState_STATE state_ensure(bool no_log) noexcept {
+    if (!no_log) {
       SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: acquiring..."), std::this_thread::get_id());
     }
     auto state = PyGILState_Ensure();
     tsan_acquire();
-    if constexpr (!NO_LOG) {
+    if (!no_log) {
       SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: acquired!"), std::this_thread::get_id());
     }
     return state;
   }
 
-  explicit GilScopedAcquire() noexcept : _state(state_ensure()) {}
-
  public:
-  [[nodiscard]] static auto create() { return GilScopedAcquire{}; }
+  explicit GilScopedAcquire(bool no_log = false) noexcept
+      : _state(state_ensure(no_log)), _no_log(no_log) {}
 
   GilScopedAcquire(const GilScopedAcquire&) = delete;
   GilScopedAcquire(GilScopedAcquire&&) noexcept = default;
   ~GilScopedAcquire() noexcept {
-    if constexpr (!NO_LOG) {
+    if (!_no_log) {
       SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: releasing..."), std::this_thread::get_id());
     }
     tsan_release();
     PyGILState_Release(_state);
-    if constexpr (!NO_LOG) {
+    if (!_no_log) {
       SPDLOG_TRACE(FMT_STRING("[tid={}]: GIL: released!"), std::this_thread::get_id());
     }
   }
@@ -167,7 +166,7 @@ class GilScopedAcquire {
   [[maybe_unused]] const auto cooler_lock = hictkpy::CoolerGlobalLock::lock();
 
 #define HICTKPY_GIL_SCOPED_ACQUIRE \
-  [[maybe_unused]] const auto hictkpy_gil_acquire_ = hictkpy::GilScopedAcquire<false>::create();
+  [[maybe_unused]] const auto hictkpy_gil_acquire_ = hictkpy::GilScopedAcquire{};
 
 /*
 #define HICTKPY_GIL_SCOPED_RELEASE \

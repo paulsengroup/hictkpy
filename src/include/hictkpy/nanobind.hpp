@@ -29,6 +29,8 @@ HICTKPY_DISABLE_WARNING_USELESS_CAST
 HICTKPY_DISABLE_WARNING_POP
 // clang-format on
 
+#include <Python.h>
+#include <fmt/format.h>
 #include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
@@ -138,6 +140,27 @@ inline void check_pyarrow_is_importable(int min_version_major = 16, int min_vers
                                         int min_version_patch = 0) {
   HICTKPY_GIL_SCOPED_ACQUIRE
   std::ignore = import_pyarrow_checked(min_version_major, min_version_minor, min_version_patch);
+}
+
+template <typename... T>
+inline void println_noexcept(fmt::format_string<T...> fmt, T&&... args) noexcept {
+  try {
+    fmt::println(stderr, fmt, std::forward<T>(args)...);
+  } catch (...) {  // NOLINT
+  }
+}
+
+template <typename... T>
+inline void raise_python_warning(fmt::format_string<T...> fmt, T&&... args) noexcept {
+  try {
+    const auto msg = fmt::format(fmt, std::forward<T>(args)...);
+    [[maybe_unused]] const nanobind::gil_scoped_acquire gil{};
+    if (PyErr_WarnEx(PyExc_UserWarning, msg.c_str(), 1) < 0) {
+      println_noexcept(fmt, std::forward<T>(args)...);
+    }
+  } catch (...) {  // NOLINT
+    println_noexcept(fmt, std::forward<T>(args)...);
+  }
 }
 
 }  // namespace hictkpy

@@ -27,13 +27,14 @@ class Logger {
     Message(const spdlog::details::log_msg &msg);  // NOLINT(*-explicit-conversions)
 
     [[nodiscard]] nanobind::object to_py_logrecord() const;
+    [[nodiscard]] bool is_eoq_signal() const noexcept;
+    [[nodiscard]] static Message EOQ();
   };
 
   std::shared_ptr<spdlog::logger> _logger{};
   std::queue<Message> _msg_queue;
   std::timed_mutex _msg_queue_mtx;
   std::thread _logger_thread{};
-  std::atomic<bool> _early_exit{false};
 
  public:
   Logger() = delete;
@@ -50,11 +51,13 @@ class Logger {
 
   void enqueue(Message msg) noexcept;
   [[nodiscard]] std::optional<Message> try_dequeue() noexcept;
+  void shutdown() noexcept;
 
  private:
   void init_cpp_logger(spdlog::level::level_enum level);
   [[nodiscard]] std::thread spawn_logger_thread();
   std::unique_lock<std::timed_mutex> lock(const std::chrono::milliseconds &timeout);
+  void close_msg_queue() noexcept;
 };
 
 }  // namespace hictkpy

@@ -1,3 +1,4 @@
+import logging
 import sys
 from concurrent.futures import ThreadPoolExecutor
 
@@ -24,6 +25,12 @@ def test(threads):
     return [r.result() for r in res]
 
 
+def setup_logger(level=logging.INFO):
+    logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s")
+    logging.getLogger().setLevel(level)
+
+
 if __name__ == "__main__":
+    setup_logger(logging.DEBUG)
     # input("Press enter")
     print(test(16))
