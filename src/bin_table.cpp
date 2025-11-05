@@ -29,6 +29,7 @@
 #include <variant>
 #include <vector>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/reference.hpp"
 #include "hictkpy/to_pyarrow.hpp"
 
@@ -116,8 +117,15 @@ std::string BinTable::repr() const {
   return dictionary(arrow::int32(), arrow::utf8());
 }
 
-[[nodiscard]] static std::shared_ptr<arrow::Schema> make_bin_table_schema() {
+[[nodiscard]] static std::shared_ptr<arrow::Schema> make_bin_table_schema(
+    bool include_bin_id = false) {
   arrow::FieldVector fields{};
+  fields.reserve(include_bin_id ? 4 : 3);
+
+  if (include_bin_id) {
+    fields.emplace_back(arrow::field("bin_id", arrow::uint64(), false));
+  }
+
   fields.emplace_back(arrow::field("chrom", chrom_dict(), false));
   fields.emplace_back(arrow::field("start", arrow::uint32(), false));
   fields.emplace_back(arrow::field("end", arrow::uint32(), false));
@@ -143,14 +151,30 @@ std::string BinTable::repr() const {
   return result.MoveValueUnsafe();
 }
 
-[[nodiscard]] static nb::object make_bin_table_df(const std::vector<std::string>& chrom_names,
-                                                  std::vector<std::int32_t> chrom_ids,
-                                                  std::vector<std::uint32_t> start_pos,
-                                                  std::vector<std::uint32_t> end_pos,
-                                                  std::vector<std::uint64_t> bin_ids = {}) {
+[[nodiscard]] static std::shared_ptr<arrow::Table> bin_table_to_arrow(
+    const std::vector<std::string>& chrom_names, std::vector<std::int32_t> chrom_ids,
+    std::vector<std::uint32_t> start_pos, std::vector<std::uint32_t> end_pos,
+    std::optional<std::vector<std::uint64_t>> bin_ids) {
   const auto num_bins = static_cast<std::int64_t>(chrom_ids.size());
 
-  auto schema = make_bin_table_schema();
+  assert(chrom_ids.size() == start_pos.size());
+  assert(chrom_ids.size() == end_pos.size());
+  if (bin_ids.has_value()) {
+    assert(chrom_ids.size() == bin_ids->size());
+  }
+
+  if (num_bins == 0) {
+    return arrow::Table::Make(make_bin_table_schema(bin_ids.has_value()),
+                              std::vector<std::shared_ptr<arrow::Array>>{}, 0);
+  }
+
+  assert(!chrom_names.empty());
+
+  std::shared_ptr<arrow::UInt64Array> bin_ids_data{};
+  if (bin_ids.has_value()) {
+    bin_ids_data = std::make_shared<arrow::UInt64Array>(
+        num_bins, arrow::Buffer::FromVector(std::move(*bin_ids)), nullptr, 0, 0);
+  }
 
   auto chrom_data = std::make_shared<arrow::DictionaryArray>(
       chrom_dict(),
@@ -163,26 +187,41 @@ std::string BinTable::repr() const {
   auto end_data = std::make_shared<arrow::UInt32Array>(
       num_bins, arrow::Buffer::FromVector(std::move(end_pos)), nullptr, 0, 0);
 
-  auto df = export_pyarrow_table(
-                arrow::Table::Make(std::move(schema), {chrom_data, start_data, end_data}))
-                .attr("to_pandas")(nb::arg("self_destruct") = true);
+  auto schema = make_bin_table_schema(!!bin_ids_data);
 
-  if (bin_ids.empty()) {
-    return df;
+  std::vector<std::shared_ptr<arrow::Array>> data{};
+  data.reserve(!!bin_ids_data ? 4 : 3);
+
+  if (bin_ids_data) {
+    data.emplace_back(std::move(bin_ids_data));
   }
 
-  auto bin_ids_data = std::make_shared<arrow::UInt64Array>(
-      num_bins, arrow::Buffer::FromVector(std::move(bin_ids)), nullptr, 0, 0);
+  data.emplace_back(std::move(chrom_data));
+  data.emplace_back(std::move(start_data));
+  data.emplace_back(std::move(end_data));
 
-  schema =
-      std::make_shared<arrow::Schema>(arrow::FieldVector{arrow::field("bin_id", arrow::uint64())});
+  return arrow::Table::Make(std::move(schema), data);
+}
 
-  auto bin_ids_df =
-      export_pyarrow_table(arrow::Table::Make(std::move(schema), {std::move(bin_ids_data)}))
-          .attr("to_pandas")(nb::arg("self_destruct") = true);
+[[nodiscard]] static nb::object make_bin_table_pyarrow(
+    const std::vector<std::string>& chrom_names, std::vector<std::int32_t> chrom_ids,
+    std::vector<std::uint32_t> start_pos, std::vector<std::uint32_t> end_pos,
+    std::optional<std::vector<std::uint64_t>> bin_ids = {}) {
+  return export_pyarrow_table(bin_table_to_arrow(chrom_names, std::move(chrom_ids),
+                                                 std::move(start_pos), std::move(end_pos),
+                                                 std::move(bin_ids)));
+}
 
-  df.attr("index") = bin_ids_df.attr("__getitem__")("bin_id");
-  return df;
+[[nodiscard]] static nb::object make_bin_table_df(
+    const std::vector<std::string>& chrom_names, std::vector<std::int32_t> chrom_ids,
+    std::vector<std::uint32_t> start_pos, std::vector<std::uint32_t> end_pos,
+    std::optional<std::vector<std::uint64_t>> bin_ids = {}) {
+  auto table = make_bin_table_pyarrow(chrom_names, std::move(chrom_ids), std::move(start_pos),
+                                      std::move(end_pos), std::move(bin_ids));
+
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  return nb::cast(table.attr("to_pandas")(nb::arg("self_destruct") = true),
+                  nb::rv_policy::take_ownership);
 }
 
 nb::object BinTable::bin_ids_to_coords(std::vector<std::uint64_t> bin_ids) const {
@@ -378,10 +417,8 @@ static auto compute_num_bins(const hictk::BinTable& bins, const hictk::GenomicIn
       bins.get()));
 }
 
-nb::object BinTable::to_df(std::optional<std::string_view> range,
-                           std::string_view query_type) const {
-  auto pd = import_module_checked("pandas");
-
+nb::object BinTable::to_arrow(std::optional<std::string_view> range,
+                              std::string_view query_type) const {
   const auto qt =
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED;
   const auto query = !range.has_value() ? hictk::GenomicInterval{}
@@ -413,8 +450,18 @@ nb::object BinTable::to_df(std::optional<std::string_view> range,
       },
       _bins->get());
 
-  return make_bin_table_df(chrom_names(false), std::move(chrom_ids), std::move(starts),
-                           std::move(ends), std::move(bin_ids));
+  return make_bin_table_pyarrow(chrom_names(false), std::move(chrom_ids), std::move(starts),
+                                std::move(ends), std::move(bin_ids));
+}
+
+nb::object BinTable::to_pandas(std::optional<std::string_view> range,
+                               std::string_view query_type) const {
+  auto table = std::make_optional(to_arrow(range, query_type));
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  auto df = nb::cast(table->attr("to_pandas")(nb::arg("self_destruct") = true),
+                     nb::rv_policy::take_ownership);
+  table.reset();
+  return df;
 }
 
 std::shared_ptr<const hictk::BinTable> BinTable::get() const noexcept { return _bins; }
@@ -533,9 +580,24 @@ void BinTable::bind(nb::module_& m) {
          nb::sig("def merge(self, df: pandas.DataFrame) -> pandas.DataFrame"),
          nb::rv_policy::take_ownership);
 
-  bt.def("to_df", &BinTable::to_df, nb::arg("range") = nb::none(), nb::arg("query_type") = "UCSC",
+  bt.def("to_arrow", &BinTable::to_arrow, nb::call_guard<nb::gil_scoped_release>(),
+         nb::arg("range") = nb::none(), nb::arg("query_type") = "UCSC",
+         "Return the bins in the BinTable as a pyarrow.Table. The optional \"range\" parameter "
+         "can be used to only fetch a subset of the bins in the BinTable.",
+         nb::sig("def to_arrow(self, range: str | None = None, query_type: str = 'UCSC') -> "
+                 "pyarrow.Table"),
+         nb::rv_policy::take_ownership);
+
+  bt.def("to_pandas", &BinTable::to_pandas, nb::call_guard<nb::gil_scoped_release>(),
+         nb::arg("range") = nb::none(), nb::arg("query_type") = "UCSC",
          "Return the bins in the BinTable as a pandas.DataFrame. The optional \"range\" parameter "
          "can be used to only fetch a subset of the bins in the BinTable.",
+         nb::sig("def to_pandas(self, range: str | None = None, query_type: str = 'UCSC') -> "
+                 "pandas.DataFrame"),
+         nb::rv_policy::take_ownership);
+
+  bt.def("to_df", &BinTable::to_pandas, nb::call_guard<nb::gil_scoped_release>(),
+         nb::arg("range") = nb::none(), nb::arg("query_type") = "UCSC", "Same as to_pandas()",
          nb::sig("def to_df(self, range: str | None = None, query_type: str = 'UCSC') -> "
                  "pandas.DataFrame"),
          nb::rv_policy::take_ownership);

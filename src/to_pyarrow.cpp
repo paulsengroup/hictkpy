@@ -118,9 +118,9 @@ static void release_arrow_array_streamPyCapsule(PyObject* capsule) {
 nb::object export_pyarrow_table(std::shared_ptr<arrow::Table> arrow_table) {
   assert(arrow_table);
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   const auto pa = import_pyarrow_checked();
 
-  HICTKPY_GIL_SCOPED_ACQUIRE
   std::vector<nb::object> columns_py(static_cast<std::size_t>(arrow_table->num_columns()));
   std::vector<std::shared_ptr<arrow::ChunkedArray>> columns(columns_py.size());
   std::copy(arrow_table->columns().begin(), arrow_table->columns().end(), columns.begin());
