@@ -129,6 +129,8 @@ Logger::Message Logger::Message::EOQ() {
 
 bool Logger::Message::is_eoq_signal() const noexcept { return timestamp == -1; }
 
+Logger::Logger() : Logger(spdlog::level::level_enum::warn) {}
+
 Logger::Logger(spdlog::level::level_enum level) {
   [[maybe_unused]] const GilScopedAcquire gil{true};
   log_message_py("debug", "setting up hictkpy's logger...");
@@ -151,9 +153,11 @@ void Logger::init_cpp_logger(spdlog::level::level_enum level_) {
           }
           enqueue(msg);
         } catch (const std::exception& e) {  // NOLINT
-          raise_python_warning(FMT_STRING("hictkpy::Logger: error in log handler: {}"), e.what());
+          raise_python_user_warning(FMT_STRING("hictkpy::Logger: error in log handler: {}"),
+                                    e.what());
         } catch (...) {  // NOLINT
-          raise_python_warning(FMT_STRING("hictkpy::Logger: error in log handler: unknown error"));
+          raise_python_user_warning(
+              FMT_STRING("hictkpy::Logger: error in log handler: unknown error"));
         }
       });
 
@@ -168,28 +172,50 @@ void Logger::init_cpp_logger(spdlog::level::level_enum level_) {
 std::thread Logger::spawn_logger_thread() {
   log_message_py("debug", "about to spawn hictkpy's logger thread...");
   return std::thread{[this]() {
+    auto logger = []() -> std::optional<nb::object> {
+      try {
+        return std::make_optional(get_py_logger());
+      } catch (const std::exception& e) {
+        raise_python_user_warning(
+            FMT_STRING("hictkpy::Logger: an error occurred in logger thread: {}"), e.what());
+      } catch (...) {  // NOLINT
+        raise_python_user_warning(
+            FMT_STRING("hictkpy::Logger: an error occurred in logger thread: unknown error"));
+      }
+      return {};
+    }();
+
+    if (!logger.has_value()) {
+      return;
+    }
+
     try {
-      auto logger = get_py_logger();
-      log_message_py(logger, "debug", "hictkpy's logger thread successfully started!");
+      log_message_py(*logger, "debug", "hictkpy's logger thread successfully started!");
       while (true) {
         const auto msg = try_dequeue();
         if (msg.has_value()) {
           if (msg->is_eoq_signal()) {
             log_message_py("debug",
                            "EOQ signal received: hictkpy's logger thread is shutting down...");
+
+            [[maybe_unused]] const GilScopedAcquire gil{true};
+            logger.reset();
             return;
           }
           [[maybe_unused]] const GilScopedAcquire gil{true};
-          std::ignore = logger.attr("handle")(msg->to_py_logrecord());
+          std::ignore = logger->attr("handle")(msg->to_py_logrecord());
         }
       }
     } catch (const std::exception& e) {
-      raise_python_warning(FMT_STRING("hictkpy::Logger: an error occurred in logger thread: {}"),
-                           e.what());
+      raise_python_user_warning(
+          FMT_STRING("hictkpy::Logger: an error occurred in logger thread: {}"), e.what());
     } catch (...) {  // NOLINT
-      raise_python_warning(
+      raise_python_user_warning(
           FMT_STRING("hictkpy::Logger: an error occurred in logger thread: unknown error"));
     }
+
+    [[maybe_unused]] const GilScopedAcquire gil{true};
+    logger.reset();
   }};
 }
 
@@ -247,11 +273,13 @@ void Logger::set_level(const std::string& py_level) noexcept {
     const auto logging = nb::module_::import_("logging");
     const auto py_level_int = nb::cast<std::int64_t>(logging.attr(py_level.c_str()));
 
-    return set_level(py_level_int);
+    set_level(py_level_int);
   } catch (const std::exception& e) {
-    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to change log level: {}"), e.what());
+    raise_python_user_warning(FMT_STRING("hictkpy::Logger: failed to change log level: {}"),
+                              e.what());
   } catch (...) {
-    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to change log level: unknown error"));
+    raise_python_user_warning(
+        FMT_STRING("hictkpy::Logger: failed to change log level: unknown error"));
   }
 }
 
@@ -285,9 +313,11 @@ void Logger::set_level(std::int64_t py_level) noexcept {
     return;
 
   } catch (const std::exception& e) {
-    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to change log level: {}"), e.what());
+    raise_python_user_warning(FMT_STRING("hictkpy::Logger: failed to change log level: {}"),
+                              e.what());
   } catch (...) {
-    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to change log level: unknown error"));
+    raise_python_user_warning(
+        FMT_STRING("hictkpy::Logger: failed to change log level: unknown error"));
   }
   reset_log_level();
 }
@@ -306,9 +336,10 @@ void Logger::shutdown() noexcept {
     }
     log_message_py("debug", "hictkpy's logger was successfully shutdown!");
   } catch (const std::exception& e) {
-    raise_python_warning(FMT_STRING("hictkpy::Logger: failed to join logger thread: {}"), e.what());
+    raise_python_user_warning(FMT_STRING("hictkpy::Logger: failed to join logger thread: {}"),
+                              e.what());
   } catch (...) {  // NOLINT
-    raise_python_warning(
+    raise_python_user_warning(
         FMT_STRING("hictkpy::Logger: failed to join logger thread: unknown error"));
   }
 }

@@ -284,8 +284,6 @@ static nb::object get_weights_df(const File &f, const std::vector<std::string> &
 
   for (const auto &normalization : normalizations) {
     if (normalization == "NONE") {
-      fields.resize(fields.size() - 1);
-      columns.resize(columns.size() - 1);
       continue;
     }
 

@@ -138,16 +138,27 @@ inline void println_noexcept(fmt::format_string<T...> fmt, T&&... args) noexcept
 }
 
 template <typename... T>
-inline void raise_python_warning(fmt::format_string<T...> fmt, T&&... args) noexcept {
+inline void raise_python_warning(PyObject* warning_type, fmt::format_string<T...> fmt,
+                                 T&&... args) noexcept {
   try {
     const auto msg = fmt::format(fmt, std::forward<T>(args)...);
     [[maybe_unused]] const nanobind::gil_scoped_acquire gil{};
-    if (PyErr_WarnEx(PyExc_UserWarning, msg.c_str(), 1) < 0) {
+    if (PyErr_WarnEx(warning_type, msg.c_str(), 1) < 0) {
       println_noexcept(fmt, std::forward<T>(args)...);
     }
   } catch (...) {  // NOLINT
     println_noexcept(fmt, std::forward<T>(args)...);
   }
+}
+
+template <typename... T>
+inline void raise_python_user_warning(fmt::format_string<T...> fmt, T&&... args) noexcept {
+  raise_python_warning(PyExc_UserWarning, fmt, std::forward<T>(args)...);
+}
+
+template <typename... T>
+inline void raise_python_deprecation_warning(fmt::format_string<T...> fmt, T&&... args) noexcept {
+  raise_python_warning(PyExc_DeprecationWarning, fmt, std::forward<T>(args)...);
 }
 
 }  // namespace hictkpy

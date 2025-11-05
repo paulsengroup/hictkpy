@@ -46,7 +46,7 @@ static void ctx_exit(HiCFileWriter &w, nb::handle exc_type, [[maybe_unused]] nb:
   }
 
   if (!w.finalized()) {
-    std::ignore = w.finalize("WARN");
+    std::ignore = w.finalize(std::nullopt);
   }
 }
 
@@ -56,6 +56,7 @@ static ChromosomeDict get_chromosomes_checked(const hictk::BinTable &bins) {
         "constructing .hic files is only supported when the BinTable has a uniform bin size");
   }
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   ChromosomeDict chroms{};
   for (const auto &chrom : bins.chromosomes()) {
     if (chrom.is_all()) {
@@ -106,34 +107,36 @@ HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const hictkpy::
                     assembly, n_threads, chunk_size, tmpdir_, compression_lvl,
                     skip_all_vs_all_matrix) {}
 
-File HiCFileWriter::finalize(std::string_view log_lvl_str) {
+File HiCFileWriter::finalize(std::optional<std::string_view> log_lvl_str) {
   if (finalized()) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
   }
 
-  // TODO changing log levels in this way is problematic. Need to keep 1 logger per thread?
-  const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
-  const auto previous_lvl = spdlog::default_logger()->level();
-  spdlog::default_logger()->set_level(log_lvl);
-
+  if (log_lvl_str.has_value()) {
+    raise_python_deprecation_warning(
+        FMT_STRING("HiCFileWriter::finalize(): changing log level with argument log_lvl=\"{0}\" is "
+                   "deprecated and has no effect.\n"
+                   "Please use hictkpy.logging.setLevel(\"{0}\") to change the log level instead."),
+        log_lvl_str);
+  }
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), w().path());
-  try {
-    auto writer = [&]() {
-      HICTKPY_GIL_SCOPED_ACQUIRE
-      hictk::hic::internal::HiCFileWriter w{std::move(*_w)};
-      _w.reset();
-      return w;
-    }();
+  auto writer = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    hictk::hic::internal::HiCFileWriter w{std::move(*_w)};
+    _w.reset();
+    return w;
+  }();
 
+  try {
     writer.serialize();
-    _tmpdir.reset();
   } catch (...) {
-    spdlog::default_logger()->set_level(previous_lvl);
+    _w = std::move(writer);
     throw;
   }
+
+  _tmpdir.reset();
   SPDLOG_INFO(FMT_STRING("successfully finalized \"{}\"!"), _path);
-  spdlog::default_logger()->set_level(previous_lvl);
 
   return File{hictk::hic::File{_path, _base_resolution}};
 }
@@ -296,7 +299,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
       "When validate is True, hictkpy will perform some basic sanity checks on the given "
       "pixels before adding them to the .hic file.");
   writer.def("finalize", &hictkpy::HiCFileWriter::finalize,
-             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = nb::none(),
              "Write interactions to file.", nb::rv_policy::move);
 }
 

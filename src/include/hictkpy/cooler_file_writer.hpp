@@ -43,7 +43,7 @@ class CoolerFileWriter {
 
   void add_pixels(const nanobind::object& df, bool sorted, bool validate);
 
-  [[nodiscard]] File finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+  [[nodiscard]] File finalize(std::optional<std::string_view> log_lvl_str, std::size_t chunk_size,
                               std::size_t update_frequency);
   [[nodiscard]] bool finalized() const noexcept;
 

@@ -50,7 +50,7 @@ static void ctx_exit(CoolerFileWriter &w, nb::handle exc_type,
   }
 
   if (!w.finalized()) {
-    std::ignore = w.finalize("WARN", 500'000, 10'000'000);
+    std::ignore = w.finalize(std::nullopt, 500'000, 10'000'000);
   }
 }
 
@@ -115,24 +115,22 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
         const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, !sorted)
                                        : bg2_df_to_thin_pixels<N>(_w->bins(), df, !sorted);
 
+        HICTKPY_LOCK_COOLER_MTX_SCOPED
         auto clr = [&]() {
-          HICTKPY_LOCK_COOLER_MTX_SCOPED
           return get().create_cell<N>(cell_id, std::move(attrs),
                                       hictk::cooler::DEFAULT_HDF5_CACHE_SIZE * 4, 1);
         }();
 
         SPDLOG_INFO(FMT_STRING("adding {} pixels of type {} to file \"{}\"..."), pixels.size(),
                     dtype_str, clr.uri());
-        {
-          HICTKPY_LOCK_COOLER_MTX_SCOPED
-          clr.append_pixels(pixels.begin(), pixels.end(), validate);
-          clr.flush();
-        }
+
+        clr.append_pixels(pixels.begin(), pixels.end(), validate);
+        clr.flush();
       },
       var);
 }
 
-File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+File CoolerFileWriter::finalize(std::optional<std::string_view> log_lvl_str, std::size_t chunk_size,
                                 std::size_t update_freq) {
   if (finalized()) {
     throw std::runtime_error(
@@ -143,44 +141,59 @@ File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_
     throw std::runtime_error("chunk_size must be greater than 0");
   }
 
-  // TODO changing log levels in this way is problematic. Need to keep 1 logger per thread?
-  // const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
-  // const auto previous_lvl = spdlog::default_logger()->level();
-  // spdlog::default_logger()->set_level(log_lvl);
-  (void)log_lvl_str;
+  if (log_lvl_str.has_value()) {
+    raise_python_deprecation_warning(
+        FMT_STRING(
+            "CoolerFileWriter::finalize(): changing log level with argument log_lvl=\"{0}\" is "
+            "deprecated and has no effect.\n"
+            "Please use hictkpy.logging.setLevel(\"{0}\") to change the log level instead."),
+        log_lvl_str);
+  }
 
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path.string());
   hictk::internal::NumericVariant count_type{std::int32_t{}};
-  if (!get().cells().empty()) {
+  auto writer = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
     HICTKPY_LOCK_COOLER_MTX_SCOPED
-    count_type = get().open("0").pixel_variant();
-  }
+    if (!get().cells().empty()) {
+      count_type = get().open("0").pixel_variant();
+    }
 
-  try {
-    std::visit(
-        [&](const auto &num) {
+    decltype(_w) w = std::move(_w);
+    _w.reset();
+    return w;
+  }();
+
+  auto clr = std::visit(
+      [&]([[maybe_unused]] const auto &num) {
+        try {
           using N = remove_cvref_t<decltype(num)>;
-          SPDLOG_DEBUG(FMT_STRING("aggregating file \"{}\" and writing results to file \"{}\"..."),
-                       get().path(), _path.string());
+
           HICTKPY_LOCK_COOLER_MTX_SCOPED
-          std::ignore =  // NOLINTNEXTLINE(*-unchecked-optional-access)
-              get().aggregate<N>(_path.string(), false, _compression_lvl, chunk_size, update_freq);
-        },
-        count_type);
+          SPDLOG_DEBUG(FMT_STRING("aggregating file \"{}\" and writing results to file \"{}\"..."),
+                       writer->path(), _path.string());
 
-  } catch (...) {
-    // spdlog::default_logger()->set_level(previous_lvl);
-    throw;
+          // NOLINTNEXTLINE(*-unchecked-optional-access)
+          return writer->aggregate<N>(_path.string(), false, _compression_lvl, chunk_size,
+                                      update_freq);
+        } catch (...) {
+          _w = std::move(writer);
+          [[maybe_unused]] std::error_code ec{};
+          std::filesystem::remove(_path, ec);  // NOLINT
+          throw;
+        }
+      },
+      count_type);
+
+  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), writer->cells().size(), _path);
+
+  {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    _w = std::move(writer);
+    reset();
   }
-
-  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), get().cells().size(), _path);
-  // spdlog::default_logger()->set_level(previous_lvl);
-
-  reset();
 
   HICTKPY_LOCK_COOLER_MTX_SCOPED
-  hictk::cooler::File clr{_path.string()};
-
   return File{std::move(clr)};
 }
 
@@ -207,11 +220,13 @@ std::optional<hictk::cooler::SingleCellFile> CoolerFileWriter::create_file(
 }
 
 void CoolerFileWriter::reset() {
-  const std::string tmpfile{get().path()};
-  {
+  const auto tmpfile = [&]() {
     HICTKPY_LOCK_COOLER_MTX_SCOPED
+    auto tmpfile_ = get().path();
     _w.reset();
-  }
+    return tmpfile_;
+  }();
+
   _tmpdir.reset();
   std::filesystem::remove(tmpfile);  // NOLINT
 }

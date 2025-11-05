@@ -37,8 +37,8 @@ class Logger {
   std::thread _logger_thread{};
 
  public:
-  Logger() = delete;
-  explicit Logger(spdlog::level::level_enum level = spdlog::level::warn);
+  Logger();
+  explicit Logger(spdlog::level::level_enum level);
   explicit Logger(std::string_view level);
 
   Logger(const Logger &) = delete;
