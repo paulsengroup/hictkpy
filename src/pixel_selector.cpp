@@ -232,7 +232,6 @@ class PixelIteratorWrapper {
   bool operator!=(const PixelIteratorWrapper& other) const { return !(*this == other); }
 
   const Pixel& operator*() {
-    // TODO should lock when appropriate
     _value = *_it;
     return _value;
   }

@@ -143,6 +143,10 @@ def call_kurtosis(f: hictkpy.File) -> float:
     return f.fetch().kurtosis()
 
 
+def call_iterator(f: hictkpy.File) -> int:
+    return sum(1 for _ in f.fetch())
+
+
 @functools.cache
 def vtable() -> Dict[str, Callable]:
     names = [
@@ -160,6 +164,7 @@ def vtable() -> Dict[str, Callable]:
         "call_variance",
         "call_skewness",
         "call_kurtosis",
+        # "call_iterator",
     ]
 
     return {name: globals()[name] for name in names}
