@@ -22,6 +22,16 @@
 namespace nb = nanobind;
 namespace hictkpy {
 
+static void set_nanobind_leak_warnings() {
+#ifndef NDEBUG
+  const auto x = true;
+#else
+  const auto x = false;
+#endif
+  // Leaks appear to only occur when the interpreter shuts down abruptly
+  nb::set_leak_warnings(x);
+}
+
 [[nodiscard]] static std::unique_ptr<Logger> init_logger() {
   try {
     auto logger = std::make_unique<Logger>(spdlog::level::trace);
@@ -38,8 +48,7 @@ namespace hictkpy {
 }
 
 NB_MODULE(_hictkpy, m) {
-  // Leaks appear to only occur when the interpreter shuts down abruptly
-  nb::set_leak_warnings(false);
+  set_nanobind_leak_warnings();
   static const auto tsan_proxy_mutex = GilScopedAcquire::try_register_with_tsan();
   static const auto logger = init_logger();
 
