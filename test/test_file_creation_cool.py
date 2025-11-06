@@ -29,6 +29,7 @@ class TestClass:
     def setup_method():
         logging.basicConfig(level="INFO", force=True)
         logging.getLogger().setLevel("INFO")
+        hictkpy.logging.setLevel("INFO")
 
     def test_accessors(self, file, resolution, tmpdir):
         with hictkpy.File(file, resolution) as f:
@@ -117,7 +118,7 @@ class TestClass:
                 end = start + chunk_size
                 w.add_pixels(df[start:end])
 
-            w.finalize("info", 100_000, 100_000)
+            w.finalize()
             with pytest.raises(
                 RuntimeError,
                 match=r"caught attempt to add_pixels\(\) to a \.cool file that has already been finalized",
@@ -145,7 +146,7 @@ class TestClass:
                 end = start + chunk_size
                 w.add_pixels(df[start:end])
 
-            w.finalize("info", 100_000, 100_000)
+            w.finalize()
             with pytest.raises(
                 RuntimeError,
                 match=r"caught attempt to add_pixels\(\) to a \.cool file that has already been finalized",
@@ -170,7 +171,7 @@ class TestClass:
                 end = start + chunk_size
                 w.add_pixels(df[start:end])
 
-            w.finalize("info", 100_000, 100_000)
+            w.finalize()
             with pytest.raises(
                 RuntimeError,
                 match=r"caught attempt to add_pixels\(\) to a \.cool file that has already been finalized",
@@ -200,7 +201,7 @@ class TestClass:
                 end = start + chunk_size
                 w.add_pixels(df[start:end])
 
-            w.finalize("info", 100_000, 100_000)
+            w.finalize()
             with pytest.raises(
                 RuntimeError,
                 match=r"caught attempt to add_pixels\(\) to a \.cool file that has already been finalized",
