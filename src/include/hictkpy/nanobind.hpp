@@ -130,7 +130,7 @@ inline void check_pyarrow_is_importable(int min_version_major = 16, int min_vers
 }
 
 template <typename... T>
-inline void println_noexcept(fmt::format_string<T...> fmt, T&&... args) noexcept {
+inline void println_stderr_noexcept(fmt::format_string<T...> fmt, T&&... args) noexcept {
   try {
     fmt::println(stderr, fmt, std::forward<T>(args)...);
   } catch (...) {  // NOLINT
@@ -144,10 +144,10 @@ inline void raise_python_warning(PyObject* warning_type, fmt::format_string<T...
     const auto msg = fmt::format(fmt, std::forward<T>(args)...);
     [[maybe_unused]] const nanobind::gil_scoped_acquire gil{};
     if (PyErr_WarnEx(warning_type, msg.c_str(), 1) < 0) {
-      println_noexcept(fmt, std::forward<T>(args)...);
+      println_stderr_noexcept(fmt, std::forward<T>(args)...);
     }
   } catch (...) {  // NOLINT
-    println_noexcept(fmt, std::forward<T>(args)...);
+    println_stderr_noexcept(fmt, std::forward<T>(args)...);
   }
 }
 
@@ -159,6 +159,11 @@ inline void raise_python_user_warning(fmt::format_string<T...> fmt, T&&... args)
 template <typename... T>
 inline void raise_python_deprecation_warning(fmt::format_string<T...> fmt, T&&... args) noexcept {
   raise_python_warning(PyExc_DeprecationWarning, fmt, std::forward<T>(args)...);
+}
+
+template <typename... T>
+inline void raise_python_runtime_warning(fmt::format_string<T...> fmt, T&&... args) noexcept {
+  raise_python_warning(PyExc_RuntimeWarning, fmt, std::forward<T>(args)...);
 }
 
 }  // namespace hictkpy

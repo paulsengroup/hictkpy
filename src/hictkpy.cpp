@@ -29,8 +29,10 @@ namespace hictkpy {
     nb::module_::import_("atexit").attr("register")(
         nb::cpp_function([logger_ptr = logger.get()]() { logger_ptr->shutdown(); }));
     return logger;
+  } catch (const std::exception& e) {
+    raise_python_runtime_warning(FMT_STRING("failed to configure hictkpy's logger: {}"), e.what());
   } catch (...) {
-    fmt::println(stderr, FMT_STRING("failed to register shutdown hook for hictkpy's logger!"));
+    raise_python_runtime_warning(FMT_STRING("failed to configure hictkpy's logger: unknown error"));
   }
   return {};
 }

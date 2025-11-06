@@ -557,16 +557,13 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
     stats_py["nnz"] = *stats.nnz;
   }
   if (stats.sum) {
-    stats_py["sum"] =
-        std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
+    stats_py["sum"] = *stats.sum;
   }
   if (stats.min) {
-    stats_py["min"] =
-        std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
+    stats_py["min"] = *stats.min;
   }
   if (stats.max) {
-    stats_py["max"] =
-        std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
+    stats_py["max"] = *stats.max;
   }
   if (stats.mean) {
     stats_py["mean"] = *stats.mean;

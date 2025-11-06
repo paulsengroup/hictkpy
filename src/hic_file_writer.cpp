@@ -160,6 +160,7 @@ auto HiCFileWriter::resolutions() const {
   // NOLINTNEXTLINE
   auto *resolutions_ptr = new std::vector<std::uint32_t>(w().resolutions());
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   auto capsule = nb::capsule(resolutions_ptr, [](void *vect_ptr) noexcept {
     delete reinterpret_cast<std::vector<std::uint32_t> *>(vect_ptr);  // NOLINT
   });
@@ -235,8 +236,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
   writer.def(nb::init<const std::filesystem::path &, const ChromosomeDict &, std::uint32_t,
                       std::string_view, std::size_t, std::size_t, const std::filesystem::path &,
                       std::uint32_t, bool>(),
-             nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("chromosomes"),
-             nb::arg("resolution"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
+             nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
+             nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
              nb::arg("chunk_size") = 10'000'000,
              nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
@@ -247,9 +248,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
       nb::init<const std::filesystem::path &, const ChromosomeDict &,
                const std::vector<std::uint32_t> &, std::string_view, std::size_t, std::size_t,
                const std::filesystem::path &, std::uint32_t, bool>(),
-      nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("chromosomes"),
-      nb::arg("resolutions"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
-      nb::arg("chunk_size") = 10'000'000,
+      nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolutions"),
+      nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1, nb::arg("chunk_size") = 10'000'000,
       nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
       nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
       "Open a .hic file for writing given a list of chromosomes with their sizes and one or more "
@@ -258,8 +258,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
   writer.def(
       nb::init<const std::filesystem::path &, const hictkpy::BinTable &, std::string_view,
                std::size_t, std::size_t, const std::filesystem::path &, std::uint32_t, bool>(),
-      nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("bins"),
-      nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1, nb::arg("chunk_size") = 10'000'000,
+      nb::arg("path"), nb::arg("bins"), nb::arg("assembly") = "unknown", nb::arg("n_threads") = 1,
+      nb::arg("chunk_size") = 10'000'000,
       nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
       nb::arg("compression_lvl") = 10, nb::arg("skip_all_vs_all_matrix") = false,
       "Open a .hic file for writing given a BinTable. Only BinTable with a fixed bin size are "

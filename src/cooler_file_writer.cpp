@@ -273,16 +273,15 @@ void CoolerFileWriter::bind(nb::module_ &m) {
   // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def(nb::init<std::filesystem::path, const ChromosomeDict &, std::uint32_t,
                       std::string_view, const std::filesystem::path &, std::uint32_t>(),
-             nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("chromosomes"),
-             nb::arg("resolution"), nb::arg("assembly") = "unknown",
+             nb::arg("path"), nb::arg("chromosomes"), nb::arg("resolution"),
+             nb::arg("assembly") = "unknown",
              nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 6,
              "Open a .cool file for writing given a list of chromosomes with their sizes and a "
              "resolution.");
   writer.def(nb::init<std::filesystem::path, const hictkpy::BinTable &, std::string_view,
                       const std::filesystem::path &, std::uint32_t>(),
-             nb::call_guard<nb::gil_scoped_release>(), nb::arg("path"), nb::arg("bins"),
-             nb::arg("assembly") = "unknown",
+             nb::arg("path"), nb::arg("bins"), nb::arg("assembly") = "unknown",
              nb::arg("tmpdir") = hictk::internal::TmpDir::default_temp_directory_path(),
              nb::arg("compression_lvl") = 6,
              "Open a .cool file for writing given a table of bins.");
@@ -324,7 +323,7 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              "pixels before adding them to the Cooler file.");
   // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def("finalize", &hictkpy::CoolerFileWriter::finalize,
-             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = nb::none(),
              nb::arg("chunk_size") = 500'000, nb::arg("update_frequency") = 10'000'000,
              "Write interactions to file.", nb::rv_policy::move);
   // NOLINTEND(*-avoid-magic-numbers)

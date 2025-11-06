@@ -189,6 +189,32 @@ class Pixel {
 };
 
 namespace internal {
+
+template <typename T>
+class ThreadSafeTypedPyList {
+  static_assert(!std::is_same_v<nanobind::object, T>);
+  std::optional<nanobind::list> _lst;
+
+ public:
+  ThreadSafeTypedPyList() : _lst(nanobind::list()) {}
+  // NOLINTNEXTLINE(*-explicit-conversions)
+  ThreadSafeTypedPyList(nanobind::list lst) noexcept : _lst(std::move(lst)) {}
+  ThreadSafeTypedPyList(const ThreadSafeTypedPyList &) = default;
+  ThreadSafeTypedPyList(ThreadSafeTypedPyList &&) noexcept = default;
+  ~ThreadSafeTypedPyList() noexcept {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    _lst.reset();
+  }
+
+  ThreadSafeTypedPyList &operator=(const ThreadSafeTypedPyList &) = default;
+  ThreadSafeTypedPyList &operator=(ThreadSafeTypedPyList &&) noexcept = default;
+
+  [[nodiscard]] T at(std::size_t i) const {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return nanobind::cast<T>((*_lst)[i]);  // NOLINT(*-unchecked-optional-access)
+  }
+};
+
 template <typename N,
           typename NumpyArray = nanobind::ndarray<nanobind::numpy, nanobind::shape<-1>, N>>
 [[nodiscard]] inline NumpyArray get_column_as_numpy(const nanobind::object &df,
@@ -197,8 +223,9 @@ template <typename N,
   return nanobind::cast<NumpyArray>(df.attr("__getitem__")(column).attr("to_numpy")());
 }
 
-[[nodiscard]] inline nanobind::list get_column_as_list(const nanobind::object &df,
-                                                       std::string_view column) {
+template <typename T>
+[[nodiscard]] inline ThreadSafeTypedPyList<T> get_column_as_list(const nanobind::object &df,
+                                                                 std::string_view column) {
   HICTKPY_GIL_SCOPED_ACQUIRE
   return nanobind::cast<nanobind::list>(df.attr("__getitem__")(column).attr("to_list")());
 }
@@ -207,7 +234,7 @@ inline void py_string_to_cpp(const nanobind::object &obj, std::string &buff) {
   buff.clear();
   HICTKPY_GIL_SCOPED_ACQUIRE
   auto sv = nanobind::cast<std::string_view>(obj);
-  buff.append(sv.data(), sv.size());
+  buff.assign(sv.data(), sv.size());
 }
 
 }  // namespace internal
@@ -240,10 +267,10 @@ inline std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTa
                                                               const nanobind::object &df,
                                                               bool sort) {
   // TODO cast to pandas series with the appropriate string type?
-  auto chrom1 = internal::get_column_as_list(df, "chrom1");
+  auto chrom1 = internal::get_column_as_list<std::string_view>(df, "chrom1");
   auto start1_np = internal::get_column_as_numpy<std::uint32_t>(df, "start1");
   auto end1_np = internal::get_column_as_numpy<std::uint32_t>(df, "end1");
-  auto chrom2 = internal::get_column_as_list(df, "chrom2");
+  auto chrom2 = internal::get_column_as_list<std::string_view>(df, "chrom2");
   auto start2_np = internal::get_column_as_numpy<std::uint32_t>(df, "start2");
   auto end2_np = internal::get_column_as_numpy<std::uint32_t>(df, "end2");
   auto counts_np = internal::get_column_as_numpy<N>(df, "count");
@@ -254,41 +281,26 @@ inline std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTa
   const auto end2 = end2_np.view();
   const auto counts = counts_np.view();
 
-  std::string strbuff1;
-  std::string strbuff2;
-
   const auto &reference = bin_table.chromosomes();
   std::vector<hictk::ThinPixel<N>> buffer(start1_np.size());
   for (std::size_t i = 0; i < start1_np.size(); ++i) {
-    internal::py_string_to_cpp(chrom1[i], strbuff1);
-    internal::py_string_to_cpp(chrom2[i], strbuff2);
-
     if (end1(i) < start1(i) || end2(i) < start2(i)) {
-      HICTKPY_GIL_SCOPED_ACQUIRE
       throw std::runtime_error(fmt::format(
           FMT_STRING("Found an invalid pixel {} {} {} {} {} {} {}: bin end position cannot be "
                      "smaller than its start"),
-          strbuff1, start1(i), end1(i), strbuff2, start2(i), end2(i), counts(i)));
+          chrom1.at(i), start1(i), end1(i), chrom2.at(i), start2(i), end2(i), counts(i)));
     }
 
-    auto bin1 = [&]() {
-      HICTKPY_GIL_SCOPED_ACQUIRE
-      return bin_table.at(reference.at(strbuff1), start1(i));
-    }();
-
-    auto bin2 = [&]() {
-      HICTKPY_GIL_SCOPED_ACQUIRE
-      return bin_table.at(reference.at(strbuff2), start2(i));
-    }();
+    auto bin1 = bin_table.at(reference.at(chrom1.at(i)), start1(i));
+    auto bin2 = bin_table.at(reference.at(chrom2.at(i)), start2(i));
 
     if (bin_table.type() == hictk::BinTable::Type::fixed &&
         (end1(i) - start1(i) > bin_table.resolution() ||
          end2(i) - start2(i) > bin_table.resolution())) {
-      HICTKPY_GIL_SCOPED_ACQUIRE
-      throw std::runtime_error(
-          fmt::format(FMT_STRING("Found an invalid pixel {} {} {} {} {} {} {}: pixel spans a "
-                                 "distance greater than the bin size"),
-                      strbuff1, start1(i), end1(i), strbuff2, start2(i), end2(i), counts(i)));
+      throw std::runtime_error(fmt::format(
+          FMT_STRING("Found an invalid pixel {} {} {} {} {} {} {}: pixel spans a "
+                     "distance greater than the bin size"),
+          chrom1.at(i), start1(i), end1(i), chrom2.at(i), start2(i), end2(i), counts(i)));
     }
 
     buffer[i] = hictk::ThinPixel<N>{bin1.id(), bin2.id(), counts(i)};
