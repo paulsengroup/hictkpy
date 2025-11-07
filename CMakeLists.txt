@@ -121,6 +121,9 @@ dynamic_project_options(
         "${CUDA_WARNINGS}"
 )
 
+# gitignore build folders
+file(WRITE "${CMAKE_BINARY_DIR}/.gitignore" "*")
+
 target_compile_features(
   hictkpy_project_options
   INTERFACE
