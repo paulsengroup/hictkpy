@@ -9,22 +9,28 @@
 #include <spdlog/spdlog.h>
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <hictk/bin_table.hpp>
 #include <hictk/cooler/cooler.hpp>
 #include <hictk/file.hpp>
+#include <hictk/numeric_variant.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <variant>
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/file.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
@@ -38,13 +44,18 @@ static CoolerFileWriter &ctx_enter(CoolerFileWriter &w) { return w; }
 
 static void ctx_exit(CoolerFileWriter &w, nb::handle exc_type,
                      [[maybe_unused]] nb::handle exc_value, [[maybe_unused]] nb::handle traceback) {
-  if (!exc_type.is_none()) {
+  const auto exc_raised = [exc_type]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return !exc_type.is_none();
+  }();
+
+  if (exc_raised) {
     w.try_cleanup();
     return;
   }
 
   if (!w.finalized()) {
-    std::ignore = w.finalize("WARN", 500'000, 10'000'000);
+    std::ignore = w.finalize(std::nullopt, 500'000, 10'000'000);
   }
 }
 
@@ -72,11 +83,13 @@ CoolerFileWriter::CoolerFileWriter(std::filesystem::path path_, const Chromosome
 
 const std::filesystem::path &CoolerFileWriter::path() const noexcept { return _path; }
 
-std::uint32_t CoolerFileWriter::resolution() const { return w().resolution(); }
+std::uint32_t CoolerFileWriter::resolution() const { return get().resolution(); }
 
-const hictk::Reference &CoolerFileWriter::chromosomes() const { return w().chromosomes(); }
+const hictk::Reference &CoolerFileWriter::chromosomes() const { return get().chromosomes(); }
 
-std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const { return w().bins_ptr(); }
+std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const {
+  return get().bins_ptr();
+}
 
 void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool validate) {
   if (finalized()) {
@@ -84,15 +97,21 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
         "caught attempt to add_pixels() to a .cool file that has already been finalized!");
   }
 
-  const auto cell_id = fmt::to_string(w().cells().size());
+  const auto cell_id = fmt::to_string(get().cells().size());
   auto attrs = hictk::cooler::Attributes::init(resolution());
-  attrs.assembly = w().attributes().assembly;
+  attrs.assembly = get().attributes().assembly;
 
-  auto lck = std::make_optional<nb::gil_scoped_acquire>();
-  const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
+  const auto coo_format = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
+  }();
 
-  const auto dtype = df.attr("__getitem__")("count").attr("dtype");
-  const auto dtype_str = nb::cast<std::string>(dtype.attr("__str__")());
+  const auto dtype_str = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    auto dtype = df.attr("__getitem__")("count").attr("dtype");
+    return nb::cast<std::string>(dtype.attr("__str__")());
+  }();
+
   const auto var = map_py_numeric_to_cpp_type(dtype_str);
 
   std::visit(
@@ -100,21 +119,23 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
         using N = remove_cvref_t<decltype(n)>;
         const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, !sorted)
                                        : bg2_df_to_thin_pixels<N>(_w->bins(), df, !sorted);
-        lck.reset();
 
-        auto clr = _w->create_cell<N>(cell_id, std::move(attrs),
+        HICTKPY_LOCK_COOLER_MTX_SCOPED
+        auto clr = [&]() {
+          return get().create_cell<N>(cell_id, std::move(attrs),
                                       hictk::cooler::DEFAULT_HDF5_CACHE_SIZE * 4, 1);
+        }();
 
         SPDLOG_INFO(FMT_STRING("adding {} pixels of type {} to file \"{}\"..."), pixels.size(),
                     dtype_str, clr.uri());
-        clr.append_pixels(pixels.begin(), pixels.end(), validate);
 
+        clr.append_pixels(pixels.begin(), pixels.end(), validate);
         clr.flush();
       },
       var);
 }
 
-File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+File CoolerFileWriter::finalize(std::optional<std::string_view> log_lvl_str, std::size_t chunk_size,
                                 std::size_t update_freq) {
   if (finalized()) {
     throw std::runtime_error(
@@ -125,40 +146,60 @@ File CoolerFileWriter::finalize(std::string_view log_lvl_str, std::size_t chunk_
     throw std::runtime_error("chunk_size must be greater than 0");
   }
 
-  // NOLINTBEGIN(*-unchecked-optional-access)
-  const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
-  const auto previous_lvl = spdlog::default_logger()->level();
-  spdlog::default_logger()->set_level(log_lvl);
+  if (log_lvl_str.has_value()) {
+    raise_python_deprecation_warning(
+        FMT_STRING(
+            "CoolerFileWriter::finalize(): changing log level with argument log_lvl=\"{0}\" is "
+            "deprecated and has no effect.\n"
+            "Please use hictkpy.logging.setLevel(\"{0}\") to change the log level instead."),
+        log_lvl_str);
+  }
 
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path.string());
-  hictk::internal::NumericVariant count_type{};
-  if (w().cells().empty()) {
-    count_type = std::int32_t{};
-  } else {
-    count_type = _w->open("0").pixel_variant();
-  }
-  try {
-    std::visit(
-        [&](const auto &num) {
+  hictk::internal::NumericVariant count_type{std::int32_t{}};
+  auto writer = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
+    if (!get().cells().empty()) {
+      count_type = get().open("0").pixel_variant();
+    }
+
+    decltype(_w) w = std::move(_w);
+    _w.reset();
+    return w;
+  }();
+
+  auto clr = std::visit(
+      [&]([[maybe_unused]] const auto &num) {
+        try {
           using N = remove_cvref_t<decltype(num)>;
-          w().aggregate<N>(_path.string(), false, _compression_lvl, chunk_size, update_freq);
-        },
-        count_type);
-  } catch (...) {
-    spdlog::default_logger()->set_level(previous_lvl);
-    throw;
+
+          HICTKPY_LOCK_COOLER_MTX_SCOPED
+          SPDLOG_DEBUG(FMT_STRING("aggregating file \"{}\" and writing results to file \"{}\"..."),
+                       writer->path(), _path.string());
+
+          // NOLINTNEXTLINE(*-unchecked-optional-access)
+          return writer->aggregate<N>(_path.string(), false, _compression_lvl, chunk_size,
+                                      update_freq);
+        } catch (...) {
+          _w = std::move(writer);
+          [[maybe_unused]] std::error_code ec{};
+          std::filesystem::remove(_path, ec);  // NOLINT
+          throw;
+        }
+      },
+      count_type);
+
+  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), writer->cells().size(), _path);
+
+  {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    _w = std::move(writer);
+    reset();
   }
 
-  SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), w().cells().size(), _path);
-  spdlog::default_logger()->set_level(previous_lvl);
-
-  const std::string sclr_path{_w->path()};
-  _w.reset();
-  _tmpdir.reset();
-  std::filesystem::remove(sclr_path);  // NOLINT
-  // NOLINTEND(*-unchecked-optional-access)
-
-  return File{hictk::cooler::File{_path.string()}};
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return File{std::move(clr)};
 }
 
 bool CoolerFileWriter::finalized() const noexcept { return !_w.has_value(); }
@@ -166,8 +207,7 @@ bool CoolerFileWriter::finalized() const noexcept { return !_w.has_value(); }
 void CoolerFileWriter::try_cleanup() noexcept {
   try {
     SPDLOG_DEBUG("CoolerFileWriter::try_cleanup()");
-    _w.reset();
-    _tmpdir.reset();
+    reset();
   } catch (...) {  // NOLINT
   }
 }
@@ -178,8 +218,22 @@ std::optional<hictk::cooler::SingleCellFile> CoolerFileWriter::create_file(
   using namespace hictk::cooler;
   auto attrs = SingleCellAttributes::init(bins.resolution());
   attrs.assembly = assembly;
+
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
   return std::make_optional<SingleCellFile>(SingleCellFile::create(
       tmpdir / std::filesystem::path{path}.filename(), bins, false, std::move(attrs)));
+}
+
+void CoolerFileWriter::reset() {
+  const auto tmpfile = [&]() {
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
+    auto tmpfile_ = get().path();
+    _w.reset();
+    return tmpfile_;
+  }();
+
+  _tmpdir.reset();
+  std::filesystem::remove(tmpfile);  // NOLINT
 }
 
 const std::filesystem::path &CoolerFileWriter::tmpdir() const {
@@ -193,7 +247,7 @@ const std::filesystem::path &CoolerFileWriter::tmpdir() const {
   return (*_tmpdir)();
 }
 
-hictk::cooler::SingleCellFile &CoolerFileWriter::w() {
+hictk::cooler::SingleCellFile &CoolerFileWriter::get() {
   if (!_w.has_value()) {
     throw std::runtime_error(fmt::format(
         FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
@@ -202,7 +256,7 @@ hictk::cooler::SingleCellFile &CoolerFileWriter::w() {
   return *_w;
 }
 
-const hictk::cooler::SingleCellFile &CoolerFileWriter::w() const {
+const hictk::cooler::SingleCellFile &CoolerFileWriter::get() const {
   if (!_w.has_value()) {
     throw std::runtime_error(fmt::format(
         FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
@@ -244,6 +298,7 @@ void CoolerFileWriter::bind(nb::module_ &m) {
 
   writer.def("__exit__", &ctx_exit,
              // clang-format off
+             nb::call_guard<nb::gil_scoped_release>(),
              nb::arg("exc_type") = nb::none(),
              nb::arg("exc_value") = nb::none(),
              nb::arg("traceback") = nb::none()
@@ -273,7 +328,7 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              "pixels before adding them to the Cooler file.");
   // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def("finalize", &hictkpy::CoolerFileWriter::finalize,
-             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = nb::none(),
              nb::arg("chunk_size") = 500'000, nb::arg("update_frequency") = 10'000'000,
              "Write interactions to file.", nb::rv_policy::move);
   // NOLINTEND(*-avoid-magic-numbers)
