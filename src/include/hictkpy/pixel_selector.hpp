@@ -20,6 +20,7 @@
 #include <variant>
 #include <vector>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy {
@@ -37,7 +38,7 @@ struct PixelSelector {
 
   SelectorVar selector{};
   PixelVar pixel_count{std::int32_t{0}};
-  hictk::transformers::DataFrameFormat pixel_format{hictk::transformers::DataFrameFormat::COO};
+  hictk::transformers::DataFrameFormat pixel_format{PixelFormat::COO};
   std::optional<std::uint64_t> _diagonal_band_width{};
 
   PixelSelector() = default;
@@ -69,19 +70,23 @@ struct PixelSelector {
   [[nodiscard]] nanobind::type_object dtype() const;
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
-  [[nodiscard]] nanobind::object to_arrow(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_df(std::string_view span) const;
+  [[nodiscard]] std::optional<nanobind::object> to_arrow(std::string_view span) const;
   [[nodiscard]] nanobind::object to_pandas(std::string_view span) const;
   [[nodiscard]] nanobind::object to_coo(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_csr(std::string_view span) const;
+  [[nodiscard]] std::optional<nanobind::object> to_csr(std::string_view span) const;
   [[nodiscard]] nanobind::object to_numpy(std::string_view span) const;
 
   [[nodiscard]] nanobind::dict describe(const std::vector<std::string>& metrics, bool keep_nans,
                                         bool keep_infs, bool keep_zeros, bool exact) const;
   [[nodiscard]] std::int64_t nnz(bool keep_nans, bool keep_infs) const;
-  [[nodiscard]] nanobind::object sum(bool keep_nans, bool keep_infs) const;
-  [[nodiscard]] nanobind::object min(bool keep_nans, bool keep_infs, bool keep_zeros) const;
-  [[nodiscard]] nanobind::object max(bool keep_nans, bool keep_infs, bool keep_zeros) const;
+  [[nodiscard]] std::optional<std::variant<std::int64_t, double>> sum(bool keep_nans,
+                                                                      bool keep_infs) const;
+  [[nodiscard]] std::optional<std::variant<std::int64_t, double>> min(bool keep_nans,
+                                                                      bool keep_infs,
+                                                                      bool keep_zeros) const;
+  [[nodiscard]] std::optional<std::variant<std::int64_t, double>> max(bool keep_nans,
+                                                                      bool keep_infs,
+                                                                      bool keep_zeros) const;
   [[nodiscard]] double mean(bool keep_nans, bool keep_infs, bool keep_zeros) const;
   [[nodiscard]] double variance(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const;
   [[nodiscard]] double skewness(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const;
@@ -89,6 +94,8 @@ struct PixelSelector {
 
   [[nodiscard]] static auto parse_span(std::string_view span) -> QuerySpan;
   [[nodiscard]] static std::string_view count_type_to_str(const PixelVar& var);
+
+  [[nodiscard]] CoolerGlobalLock::UniqueLock lock() const noexcept;
 
   static void bind(nanobind::module_& m);
 
