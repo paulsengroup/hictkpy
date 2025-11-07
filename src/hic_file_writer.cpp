@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <hictk/bin_table.hpp>
 #include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
@@ -23,6 +24,7 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
@@ -35,13 +37,18 @@ static HiCFileWriter &ctx_enter(HiCFileWriter &w) { return w; }
 
 static void ctx_exit(HiCFileWriter &w, nb::handle exc_type, [[maybe_unused]] nb::handle exc_value,
                      [[maybe_unused]] nb::handle traceback) {
-  if (!exc_type.is_none()) {
+  const auto exc_raised = [exc_type]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return !exc_type.is_none();
+  }();
+
+  if (exc_raised) {
     w.try_cleanup();
     return;
   }
 
   if (!w.finalized()) {
-    std::ignore = w.finalize("WARN");
+    std::ignore = w.finalize(std::nullopt);
   }
 }
 
@@ -51,6 +58,7 @@ static ChromosomeDict get_chromosomes_checked(const hictk::BinTable &bins) {
         "constructing .hic files is only supported when the BinTable has a uniform bin size");
   }
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   ChromosomeDict chroms{};
   for (const auto &chrom : bins.chromosomes()) {
     if (chrom.is_all()) {
@@ -101,27 +109,36 @@ HiCFileWriter::HiCFileWriter(const std::filesystem::path &path_, const hictkpy::
                     assembly, n_threads, chunk_size, tmpdir_, compression_lvl,
                     skip_all_vs_all_matrix) {}
 
-File HiCFileWriter::finalize([[maybe_unused]] std::string_view log_lvl_str) {
+File HiCFileWriter::finalize(std::optional<std::string_view> log_lvl_str) {
   if (finalized()) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("finalize() was already called on file \"{}\""), _path));
   }
 
-  const auto log_lvl = spdlog::level::from_str(normalize_log_lvl(log_lvl_str));
-  const auto previous_lvl = spdlog::default_logger()->level();
-  spdlog::default_logger()->set_level(log_lvl);
-
+  if (log_lvl_str.has_value()) {
+    raise_python_deprecation_warning(
+        FMT_STRING("HiCFileWriter::finalize(): changing log level with argument log_lvl=\"{0}\" is "
+                   "deprecated and has no effect.\n"
+                   "Please use hictkpy.logging.setLevel(\"{0}\") to change the log level instead."),
+        log_lvl_str);
+  }
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), w().path());
-  try {
-    _w->serialize();
-    _tmpdir.reset();
+  auto writer = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    hictk::hic::internal::HiCFileWriter w{std::move(*_w)};
     _w.reset();
+    return w;
+  }();
+
+  try {
+    writer.serialize();
   } catch (...) {
-    spdlog::default_logger()->set_level(previous_lvl);
+    _w = std::move(writer);
     throw;
   }
+
+  _tmpdir.reset();
   SPDLOG_INFO(FMT_STRING("successfully finalized \"{}\"!"), _path);
-  spdlog::default_logger()->set_level(previous_lvl);
 
   return File{hictk::hic::File{_path, _base_resolution}};
 }
@@ -145,6 +162,7 @@ auto HiCFileWriter::resolutions() const {
   // NOLINTNEXTLINE
   auto *resolutions_ptr = new std::vector<std::uint32_t>(w().resolutions());
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   auto capsule = nb::capsule(resolutions_ptr, [](void *vect_ptr) noexcept {
     delete reinterpret_cast<std::vector<std::uint32_t> *>(vect_ptr);  // NOLINT
   });
@@ -164,12 +182,15 @@ void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
         "caught attempt to add_pixels() to a .hic file that has already been finalized!");
   }
 
-  auto lck = std::make_optional<nb::gil_scoped_acquire>();
-  const auto coo_format = nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
+  const auto coo_format = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
+  }();
+
   const auto pixels = coo_format
                           ? coo_df_to_thin_pixels<float>(df, false)
                           : bg2_df_to_thin_pixels<float>(w().bins(_base_resolution), df, false);
-  lck.reset();
+
   SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), w().path());
   w().add_pixels(_base_resolution, pixels.begin(), pixels.end(), validate);
 }
@@ -253,6 +274,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
 
   writer.def("__exit__", &ctx_exit,
              // clang-format off
+             nb::call_guard<nb::gil_scoped_release>(),
              nb::arg("exc_type") = nb::none(),
              nb::arg("exc_value") = nb::none(),
              nb::arg("traceback") = nb::none()
@@ -279,7 +301,7 @@ void HiCFileWriter::bind(nb::module_ &m) {
       "When validate is True, hictkpy will perform some basic sanity checks on the given "
       "pixels before adding them to the .hic file.");
   writer.def("finalize", &hictkpy::HiCFileWriter::finalize,
-             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = "WARN",
+             nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = nb::none(),
              "Write interactions to file.", nb::rv_policy::move);
 }
 

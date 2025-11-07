@@ -10,6 +10,7 @@
 #include <hictk/hic/file_writer.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -50,7 +51,7 @@ class HiCFileWriter {
 
   void add_pixels(const nanobind::object& df, bool validate);
 
-  [[nodiscard]] File finalize(std::string_view log_lvl_str);
+  [[nodiscard]] File finalize(std::optional<std::string_view> log_lvl_str = {});
   [[nodiscard]] bool finalized() const noexcept;
 
   void try_cleanup() noexcept;
