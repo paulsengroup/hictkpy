@@ -14,6 +14,7 @@ find_package(
 
 find_package(Arrow REQUIRED QUIET)
 find_package(FMT REQUIRED QUIET)
+find_package(HDF5 REQUIRED QUIET COMPONENTS C)
 find_package(nanobind REQUIRED QUIET)
 find_package(phmap REQUIRED QUIET)
 find_package(spdlog REQUIRED QUIET)
@@ -63,6 +64,7 @@ target_link_libraries(
     hictk::transformers
     Arrow::arrow_$<IF:$<BOOL:${BUILD_SHARED_LIBS}>,shared,static>
     fmt::fmt-header-only
+    HDF5::HDF5
     phmap
     Python::Module
     spdlog::spdlog_header_only

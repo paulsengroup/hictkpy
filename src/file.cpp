@@ -9,6 +9,7 @@
 #include <winsock2.h>
 #endif
 
+#include <H5public.h>
 #include <fmt/format.h>
 
 #include <algorithm>
@@ -494,6 +495,15 @@ void File::bind(nb::module_ &m) {
       nb::sig("def weights(self, names: collections.abc.Sequence[str], divisive: bool = True) -> "
               "pandas.DataFrame"),
       nb::rv_policy::take_ownership);
+}
+
+void cooler::init_global_state() {
+  // this should be called early on during module declaration, and it is mostly useful to avoid
+  // false positives from the sanitizers
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  if (H5open() < 0) {
+    throw std::runtime_error("failed to initialize HDF5 library!");
+  }
 }
 
 }  // namespace hictkpy

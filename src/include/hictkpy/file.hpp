@@ -53,4 +53,8 @@ class File {
   [[nodiscard]] CoolerGlobalLock::UniqueLock lock() const;
 };
 
+namespace cooler {
+void init_global_state();
+}
+
 }  // namespace hictkpy
