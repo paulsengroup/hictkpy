@@ -29,6 +29,7 @@ class TestClass:
     def setup_method():
         logging.basicConfig(level="INFO", force=True)
         logging.getLogger().setLevel("INFO")
+        hictkpy.logging.setLevel("INFO")
 
     def test_accessors(self, file, resolution, tmpdir):
         with hictkpy.File(file, resolution) as f:
@@ -88,6 +89,12 @@ class TestClass:
                 raise RuntimeError("foo")
         assert len(list(tmpdir_.iterdir())) == 0
         assert not hictkpy.is_hic(path)
+
+    def test_finalizer_warnings(self, file, resolution, tmpdir):
+        path = tmpdir / "test.hic"
+        with hictkpy.cooler.FileWriter(path, {"chr1": 100, "chr2": 50}, 10) as w:
+            with pytest.deprecated_call():
+                w.finalize("INFO")
 
     def test_file_creation_empty(self, file, resolution, tmpdir):
         if resolution is None:

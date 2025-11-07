@@ -29,6 +29,7 @@ class TestClass:
     def setup_method():
         logging.basicConfig(level="INFO", force=True)
         logging.getLogger().setLevel("INFO")
+        hictkpy.logging.setLevel("INFO")
 
     def test_accessors(self, file, resolution, tmpdir):
         with hictkpy.File(file, resolution) as f:
@@ -90,6 +91,12 @@ class TestClass:
         assert len(list(tmpdir_.iterdir())) == 0
         assert not hictkpy.is_cooler(path)
 
+    def test_finalizer_warnings(self, file, resolution, tmpdir):
+        path = tmpdir / "test.cool"
+        with hictkpy.cooler.FileWriter(path, {"chr1": 100, "chr2": 50}, 10) as w:
+            with pytest.deprecated_call():
+                w.finalize("INFO")
+
     def test_file_creation_empty(self, file, resolution, tmpdir):
         if resolution is None:
             pytest.skip()
@@ -117,7 +124,7 @@ class TestClass:
                 end = start + chunk_size
                 w.add_pixels(df[start:end])
 
-            w.finalize("info", 100_000, 100_000)
+            w.finalize()
             with pytest.raises(
                 RuntimeError,
                 match=r"caught attempt to add_pixels\(\) to a \.cool file that has already been finalized",
@@ -145,7 +152,7 @@ class TestClass:
                 end = start + chunk_size
                 w.add_pixels(df[start:end])
 
-            w.finalize("info", 100_000, 100_000)
+            w.finalize()
             with pytest.raises(
                 RuntimeError,
                 match=r"caught attempt to add_pixels\(\) to a \.cool file that has already been finalized",
@@ -170,7 +177,7 @@ class TestClass:
                 end = start + chunk_size
                 w.add_pixels(df[start:end])
 
-            w.finalize("info", 100_000, 100_000)
+            w.finalize()
             with pytest.raises(
                 RuntimeError,
                 match=r"caught attempt to add_pixels\(\) to a \.cool file that has already been finalized",
@@ -200,7 +207,7 @@ class TestClass:
                 end = start + chunk_size
                 w.add_pixels(df[start:end])
 
-            w.finalize("info", 100_000, 100_000)
+            w.finalize()
             with pytest.raises(
                 RuntimeError,
                 match=r"caught attempt to add_pixels\(\) to a \.cool file that has already been finalized",
