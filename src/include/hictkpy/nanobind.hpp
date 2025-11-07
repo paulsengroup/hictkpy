@@ -4,16 +4,8 @@
 
 #pragma once
 
-// clang-format off
-#include "hictkpy/suppress_warnings.hpp"
-HICTKPY_DISABLE_WARNING_PUSH
-HICTKPY_DISABLE_WARNING_CAST_ALIGN
-HICTKPY_DISABLE_WARNING_CXX98_COMPAT
-HICTKPY_DISABLE_WARNING_OLD_STYLE_CAST
-HICTKPY_DISABLE_WARNING_PEDANTIC
-HICTKPY_DISABLE_WARNING_SHADOW
-HICTKPY_DISABLE_WARNING_SIGN_CONVERSION
-HICTKPY_DISABLE_WARNING_USELESS_CAST
+#include <fmt/format.h>
+#include <fmt/std.h>
 #include <nanobind/eigen/dense.h>
 #include <nanobind/eigen/sparse.h>
 #include <nanobind/make_iterator.h>
@@ -26,14 +18,21 @@ HICTKPY_DISABLE_WARNING_USELESS_CAST
 #include <nanobind/stl/tuple.h>
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/vector.h>
-HICTKPY_DISABLE_WARNING_POP
-// clang-format on
+#include <spdlog/spdlog.h>
 
 #include <cassert>
-#include <mutex>
+#include <cstdio>
+#include <exception>
 #include <string>
+#include <utility>
+#include <vector>
 
-inline nanobind::module_ import_module_checked(const std::string& module_name) {
+#include "hictkpy/locking.hpp"
+
+namespace hictkpy {
+
+[[nodiscard]] inline nanobind::module_ import_module_checked(const std::string& module_name) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
   try {
     return nanobind::module_::import_(module_name.c_str());
   } catch (nanobind::python_error& e) {
@@ -47,19 +46,18 @@ inline nanobind::module_ import_module_checked(const std::string& module_name) {
 }
 
 // NOLINTNEXTLINE(*-avoid-magic-numbers)
-inline nanobind::module_ import_pyarrow_checked(int min_version_major = 16,
-                                                int min_version_minor = 0,
-                                                int min_version_patch = 0) {
+[[nodiscard]] inline nanobind::module_ import_pyarrow_checked(int min_version_major = 16,
+                                                              int min_version_minor = 0,
+                                                              int min_version_patch = 0) {
   assert(min_version_major >= 0);
   assert(min_version_minor >= 0);
   assert(min_version_patch >= 0);
 
-  static bool version_ok{false};
-  static std::mutex mtx{};
+  HICTKPY_GIL_SCOPED_ACQUIRE
 
+  static bool version_ok{false};
   auto pa = import_module_checked("pyarrow");
 
-  [[maybe_unused]] const auto lck = std::scoped_lock(mtx);
   if (version_ok) {
     return pa;
   }
@@ -89,34 +87,45 @@ inline nanobind::module_ import_pyarrow_checked(int min_version_major = 16,
                   patch_version_found >= min_version_patch;
 
     if (!version_ok) {
-      // Poor man's formatting
-      error_msg = "pyarrow ";
-      for (const auto& tok : version) {
-        error_msg += tok + ".";
-      }
-      if (version.size() > 1) {
-        error_msg.pop_back();
-      }
-      error_msg +=
-          " is too old to be used with hictkpy: please "
-          "install a compatible version with: pip install 'hictkpy[pyarrow]'";
-      throw nanobind::import_error(error_msg.c_str());
+      error_msg = fmt::format(
+          FMT_STRING("pyarrow {}.{}.{} is too old to be used with hictkpy: please "
+                     "install a compatible version with: pip install 'hictkpy[pyarrow]'"),
+          major_version_found, minor_version_found, patch_version_found);
     }
   } catch (const nanobind::builtin_exception&) {
     throw;
   } catch (const std::exception& e) {
-    error_msg = "unable to parse pyarrow version: ";
-    error_msg += e.what();
-    error_msg +=
-        ". Assuming pyarrow's version is not compatible: please "
-        "install a compatible version of pyarrow with: pip install 'hictkpy[pyarrow]'";
-    throw nanobind::import_error(error_msg.c_str());
+    error_msg = fmt::format(
+        FMT_STRING(
+            "Unable to parse pyarrow version: {}.\n"
+            "Assuming pyarrow's version is not compatible.\n"
+            "Please install a compatible version of pyarrow with: pip install 'hictkpy[pyarrow]'"),
+        e.what());
   } catch (...) {
-    throw nanobind::import_error(
-        "unable to parse pyarrow version: Assuming pyarrow's version is not compatible: please "
-        "install a compatible version of pyarrow with: pip install 'hictkpy[pyarrow]'");
+    error_msg =
+        "Unable to parse pyarrow version.\n"
+        "Assuming pyarrow's version is not compatible.\n"
+        "Please install a compatible version of pyarrow with: pip install 'hictkpy[pyarrow]'";
+  }
+
+  if (!error_msg.empty()) {
+    throw nanobind::import_error(error_msg.c_str());
   }
 
   assert(version_ok);
   return pa;
 }
+
+inline void check_module_is_importable(const std::string& module_name) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  std::ignore = import_module_checked(module_name);
+}
+
+// NOLINTNEXTLINE(*-avoid-magic-numbers)
+inline void check_pyarrow_is_importable(int min_version_major = 16, int min_version_minor = 0,
+                                        int min_version_patch = 0) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  std::ignore = import_pyarrow_checked(min_version_major, min_version_minor, min_version_patch);
+}
+
+}  // namespace hictkpy
