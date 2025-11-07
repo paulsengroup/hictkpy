@@ -172,7 +172,9 @@ Generic API
    .. automethod:: get_ids
    .. automethod:: merge
    .. automethod:: resolution
+   .. automethod:: to_arrow
    .. automethod:: to_df
+   .. automethod:: to_pandas
    .. automethod:: type
 
    .. automethod:: __iter__

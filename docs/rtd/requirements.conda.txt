@@ -2,9 +2,9 @@
 #
 # SPDX-License-Identifier: MIT
 
-clangxx>18
-lld>18
-llvm-tools>18
+clangxx>21
+lld>21
+llvm-tools>21
 python>3.11
 pip
 libarrow>=16

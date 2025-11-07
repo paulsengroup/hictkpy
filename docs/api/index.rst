@@ -13,11 +13,13 @@ The API is organized in three categories:
   The documentation also covers several general-purpose classes and data structures such as :py:class:`hictkpy.BinTable`, :py:class:`hictkpy.Bin`, and :py:class:`hictkpy.Pixel` which are utilized across the API.
 * :doc:`Cooler API <cooler>` -- Documents the :py:class:`hictkpy.cooler.SingleCellFile` and :py:class:`hictkpy.cooler.FileWriter` classes, which are used to access ``.scool`` files and create ``.cool`` files, respectively.
 * :doc:`.hic API <hic>` -- Documents the :py:class:`hictkpy.hic.FileWriter` class, which is used to create ``.hic`` files.
+* :doc:`Logging API <logging>` -- Documents how to tweak hictkpy's :py:class:`logging.Logger`.
 
 .. toctree::
    :hidden:
    :maxdepth: 1
 
    generic
+   logging
    cooler
    hic
