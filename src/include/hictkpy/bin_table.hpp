@@ -57,8 +57,10 @@ class BinTable {
 
   [[nodiscard]] nanobind::iterator make_iterable() const;
 
-  [[nodiscard]] nanobind::object to_df(std::optional<std::string_view> range,
-                                       std::string_view query_type) const;
+  [[nodiscard]] nanobind::object to_arrow(std::optional<std::string_view> range,
+                                          std::string_view query_type) const;
+  [[nodiscard]] nanobind::object to_pandas(std::optional<std::string_view> range,
+                                           std::string_view query_type) const;
 
   [[nodiscard]] std::shared_ptr<const hictk::BinTable> get() const noexcept;
 
