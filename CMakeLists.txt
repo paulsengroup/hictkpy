@@ -18,6 +18,10 @@ project(
   DESCRIPTION "Python bindings for hictk."
 )
 
+if(NOT DEFINED CMAKE_FIND_PACKAGE_PREFER_CONFIG)
+  set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(
   _hictkpy_project_options

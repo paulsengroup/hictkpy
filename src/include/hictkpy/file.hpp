@@ -13,6 +13,7 @@
 #include <string>
 #include <string_view>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy {
@@ -32,7 +33,7 @@ class File {
   File(const File&) = delete;
   File(File&&) noexcept = default;
 
-  ~File() noexcept = default;
+  ~File() noexcept;
 
   File& operator=(const File&) = delete;
   File& operator=(File&&) noexcept = default;
@@ -50,6 +51,11 @@ class File {
 
   [[nodiscard]] static bool is_cooler(const std::filesystem::path& uri);
   [[nodiscard]] static bool is_hic(const std::filesystem::path& uri);
+  [[nodiscard]] CoolerGlobalLock::UniqueLock lock() const;
 };
+
+namespace cooler {
+void init_global_state();
+}
 
 }  // namespace hictkpy
