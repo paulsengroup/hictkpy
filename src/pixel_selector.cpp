@@ -400,21 +400,21 @@ std::optional<nb::object> PixelSelector::to_csr(std::string_view span) const {
   const auto query_span = parse_span(span);
 
   return std::visit(
-      [&](auto sel_ptr) -> std::optional<nb::object> {
+      [&]([[maybe_unused]] auto count) -> std::optional<nb::object> {
         return std::visit(
-            [&]([[maybe_unused]] auto count) -> std::optional<nb::object> {
-              using N = decltype(count);
+            [&](const auto& sel_ptr) -> std::optional<nb::object> {
               auto m = [&]() {
+                using N = decltype(count);
                 HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
-                return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+                return make_csr_matrix<N>(sel_ptr, query_span, _diagonal_band_width);
               }();
 
               HICTKPY_GIL_SCOPED_ACQUIRE
               return std::make_optional(nb::cast(std::move(m)));
             },
-            pixel_count);
+            selector);
       },
-      selector);
+      pixel_count);
 }
 
 nb::object PixelSelector::to_coo(std::string_view span) const {
@@ -444,21 +444,21 @@ nb::object PixelSelector::to_numpy(std::string_view span) const {
   const auto query_span = parse_span(span);
 
   return std::visit(
-      [&](auto sel_ptr) -> nb::object {
+      [&]([[maybe_unused]] auto count) -> nb::object {
         return std::visit(
-            [&]([[maybe_unused]] auto count) -> nb::object {
-              using N = decltype(count);
+            [&](const auto& sel_ptr) -> nb::object {
               auto m = [&]() {
+                using N = decltype(count);
                 HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
-                return make_eigen_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+                return make_eigen_matrix<N>(sel_ptr, query_span, _diagonal_band_width);
               }();
 
               HICTKPY_GIL_SCOPED_ACQUIRE
               return nb::cast(std::move(m));
             },
-            pixel_count);
+            selector);
       },
-      selector);
+      pixel_count);
 }
 
 template <typename PixelIt>
