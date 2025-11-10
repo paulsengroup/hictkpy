@@ -45,3 +45,5 @@ __all__ = [
     "hic",
     "__hictk_version__",
 ]
+
+del _get_hictkpy_version

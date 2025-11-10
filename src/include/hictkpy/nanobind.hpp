@@ -33,7 +33,7 @@
 namespace hictkpy {
 
 [[nodiscard]] inline nanobind::module_ import_module_checked(const std::string& module_name) {
-  HICTKPY_GIL_SCOPED_ACQUIRE
+  [[maybe_unused]] const GilScopedAcquire gil{true};
   try {
     return nanobind::module_::import_(module_name.c_str());
   } catch (nanobind::python_error& e) {
@@ -54,7 +54,7 @@ namespace hictkpy {
   assert(min_version_minor >= 0);
   assert(min_version_patch >= 0);
 
-  HICTKPY_GIL_SCOPED_ACQUIRE
+  [[maybe_unused]] const GilScopedAcquire gil{true};
 
   static bool version_ok{false};
   auto pa = import_module_checked("pyarrow");
@@ -118,14 +118,14 @@ namespace hictkpy {
 }
 
 inline void check_module_is_importable(const std::string& module_name) {
-  HICTKPY_GIL_SCOPED_ACQUIRE
+  [[maybe_unused]] const GilScopedAcquire gil{true};
   std::ignore = import_module_checked(module_name);
 }
 
 // NOLINTNEXTLINE(*-avoid-magic-numbers)
 inline void check_pyarrow_is_importable(int min_version_major = 16, int min_version_minor = 0,
                                         int min_version_patch = 0) {
-  HICTKPY_GIL_SCOPED_ACQUIRE
+  [[maybe_unused]] const GilScopedAcquire gil{true};
   std::ignore = import_pyarrow_checked(min_version_major, min_version_minor, min_version_patch);
 }
 
@@ -142,7 +142,7 @@ inline void raise_python_warning(PyObject* warning_type, fmt::format_string<T...
                                  T&&... args) noexcept {
   try {
     const auto msg = fmt::format(fmt, std::forward<T>(args)...);
-    [[maybe_unused]] const nanobind::gil_scoped_acquire gil{};
+    [[maybe_unused]] const GilScopedAcquire gil{true};
     if (PyErr_WarnEx(warning_type, msg.c_str(), 1) < 0) {
       println_stderr_noexcept(fmt, std::forward<T>(args)...);
     }

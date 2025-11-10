@@ -41,7 +41,8 @@ class HictkpyConan(ConanFile):
     def requirements(self):
         self.requires("arrow/22.0.0#e46b173ba20adc478f7926495aeed142")
         self.requires("bshoshany-thread-pool/5.0.0#d94da300363f0c35b8f41b2c5490c94d")
-        self.requires("boost/1.89.0#010f59feedfd171b15f467b42f723d13", force=True)
+        if is_msvc(self):
+            self.requires("boost/1.89.0#010f59feedfd171b15f467b42f723d13", force=True)
         self.requires("concurrentqueue/1.0.4#1e48e1c712bcfd892087c9c622a51502")
         self.requires("eigen/5.0.0#f7561f543f4aafd6d2dc1f6d677e3075", force=True)
         self.requires("fast_float/8.1.0#bbf67486bec084d167da0f3e13eee534")
@@ -62,17 +63,18 @@ class HictkpyConan(ConanFile):
         self.options["arrow"].with_boost = is_msvc(self)
         self.options["arrow"].with_re2 = True
         self.options["arrow"].with_thrift = False
-        self.options["boost"].header_only = True
-        self.options["boost"].error_code_header_only = True
-        self.options["boost"].system_no_deprecated = True
-        self.options["boost"].asio_no_deprecated = True
-        self.options["boost"].filesystem_no_deprecated = True
-        self.options["boost"].filesystem_use_std_fs = True
-        self.options["boost"].filesystem_version = 4
-        self.options["boost"].zlib = False
-        self.options["boost"].bzip2 = False
-        self.options["boost"].lzma = False
-        self.options["boost"].zstd = False
+        if is_msvc(self):
+            self.options["boost"].header_only = True
+            self.options["boost"].error_code_header_only = True
+            self.options["boost"].system_no_deprecated = True
+            self.options["boost"].asio_no_deprecated = True
+            self.options["boost"].filesystem_no_deprecated = True
+            self.options["boost"].filesystem_use_std_fs = True
+            self.options["boost"].filesystem_version = 4
+            self.options["boost"].zlib = False
+            self.options["boost"].bzip2 = False
+            self.options["boost"].lzma = False
+            self.options["boost"].zstd = False
         self.options["eigen"].MPL2_only = True
         self.options["fmt"].header_only = True
         self.options["hdf5"].enable_cxx = False

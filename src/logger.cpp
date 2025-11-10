@@ -31,6 +31,17 @@ namespace nb = nanobind;
 
 namespace hictkpy {
 
+static constexpr bool PRINTDEBUG_LOGGING{false};
+
+template <typename... T>
+static void printdebug(fmt::format_string<T...> fmt, T&&... args) noexcept {
+  if constexpr (PRINTDEBUG_LOGGING) {
+    println_stderr_noexcept(fmt, std::forward<T>(args)...);
+  }
+}
+
+static void printdebug(std::string_view msg) noexcept { printdebug(FMT_STRING("{}"), msg); }
+
 [[nodiscard]] static std::int32_t spdlog_lvl_to_py(spdlog::level::level_enum level) {
   using T = std::underlying_type_t<spdlog::level::level_enum>;
   level = spdlog::level::level_enum{
@@ -50,9 +61,9 @@ namespace hictkpy {
     case spdlog::level::err:
       return 40;
     case spdlog::level::critical:
-      [[fallthrough]];
-    case spdlog::level::off:
       return 50;
+    case spdlog::level::off:
+      return 99;
     default:
       unreachable_code();
   }
@@ -61,7 +72,7 @@ namespace hictkpy {
 
 [[nodiscard]] static spdlog::level::level_enum py_to_spdlog_lvl(std::int64_t level) {
   // NOLINTBEGIN(*-avoid-magic-numbers)
-  if (level >= 50) {
+  if (level > 50) {
     return spdlog::level::off;
   }
   if (level >= 40) {
@@ -77,6 +88,7 @@ namespace hictkpy {
     return spdlog::level::debug;
   }
   return spdlog::level::trace;
+  // NOLINTEND(*-avoid-magic-numbers)
 }
 
 [[nodiscard]] static double spdlog_to_py_timestamp(const spdlog::details::log_msg& msg) noexcept {
@@ -95,23 +107,15 @@ namespace hictkpy {
   return logging.attr("getLogger")("hictkpy");
 }
 
-static void log_message_py(nb::object& logger, const std::string& level, std::string_view message) {
-  [[maybe_unused]] const GilScopedAcquire gil{true};
-  std::ignore = logger.attr(level.c_str())(message);
-}
-
-static void log_message_py(const std::string& level, std::string_view message) {
-  [[maybe_unused]] const GilScopedAcquire gil{true};
-  auto logger = get_py_logger();
-  log_message_py(logger, level, message);
-}
-
-Logger::Message::Message(const spdlog::details::log_msg& msg)
+LogMessage::LogMessage(const spdlog::details::log_msg& msg)
     : payload(msg.payload.data(), msg.payload.size()),
       timestamp(spdlog_to_py_timestamp(msg)),
       level(msg.level) {}
 
-nb::object Logger::Message::to_py_logrecord() const {
+LogMessage::LogMessage(std::string payload_, double timestamp_, spdlog::level::level_enum level_)
+    : payload(std::move(payload_)), timestamp(timestamp_), level(level_) {}
+
+nb::object LogMessage::to_py_logrecord() const {
   [[maybe_unused]] const GilScopedAcquire gil{true};
   auto LogRecord = nb::module_::import_("logging").attr("LogRecord");
 
@@ -128,125 +132,56 @@ nb::object Logger::Message::to_py_logrecord() const {
   return record;
 }
 
-Logger::Message Logger::Message::EOQ() {
-  Message msg{};
-  msg.timestamp = -1;
+LogMessage LogMessage::EOQ() { return {"", -1, spdlog::level::off}; }
+
+void LogMessage::serialize(std::string& buff) const {
+  // NOLINTBEGIN(*-pro-type-reinterpret-cast)
+  const std::string_view timestamp_view{reinterpret_cast<const char*>(&timestamp),
+                                        sizeof(timestamp)};
+  const std::string_view level_view{reinterpret_cast<const char*>(&level), sizeof(level)};
+  // NOLINTEND(*-pro-type-reinterpret-cast)
+
+  buff.clear();
+  buff.reserve(timestamp_view.size() + level_view.size() + payload.size());
+
+  buff.append(timestamp_view);
+  buff.append(level_view);
+  buff.append(payload);
+}
+
+void LogMessage::deserialize(std::string_view buff, LogMessage& msg) {
+  if (buff.size() < sizeof(timestamp) + sizeof(level)) {
+    // empty or corrupted message
+    msg.payload.clear();
+    msg.timestamp = 0;
+    msg.level = spdlog::level::off;
+    return;
+  }
+
+  std::memcpy(&msg.timestamp, buff.data(), sizeof(timestamp));
+  buff.remove_prefix(sizeof(timestamp));
+
+  std::memcpy(&msg.level, buff.data(), sizeof(level));
+  buff.remove_prefix(sizeof(level));
+
+  msg.payload.assign(buff);
+}
+
+LogMessage LogMessage::deserialize(std::string_view buff) {
+  LogMessage msg;
+  deserialize(buff, msg);
   return msg;
 }
 
-bool Logger::Message::is_eoq_signal() const noexcept { return timestamp == -1; }
+bool LogMessage::is_eoq_signal() const noexcept { return timestamp == -1; }
 
-Logger::Logger() : Logger(spdlog::level::level_enum::warn) {}
+MessageQueue::operator bool() const noexcept { return !_closed; }
 
-Logger::Logger(spdlog::level::level_enum level) {
-  [[maybe_unused]] const GilScopedAcquire gil{true};
-  log_message_py("debug", "setting up hictkpy's logger...");
-
-  init_cpp_logger(level);
-  _logger_thread = spawn_logger_thread();
-  log_message_py("debug", "successfully set up the hictkpy's logger!");
-}
-
-Logger::Logger(std::string_view level) : Logger(spdlog::level::from_str(std::string{level})) {}
-
-Logger::~Logger() noexcept { shutdown(); }
-
-void Logger::init_cpp_logger(spdlog::level::level_enum level_) {
-  auto sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
-      [this](const spdlog::details::log_msg& msg) {
-        try {
-          if (HICTKPY_UNLIKELY(!_logger)) {
-            return;
-          }
-          enqueue(msg);
-        } catch (const std::exception& e) {  // NOLINT
-          raise_python_user_warning(FMT_STRING("hictkpy::Logger: error in log handler: {}"),
-                                    e.what());
-        } catch (...) {  // NOLINT
-          raise_python_user_warning(
-              FMT_STRING("hictkpy::Logger: error in log handler: unknown error"));
-        }
-      });
-
-  sink->set_pattern("%v");
-  sink->set_level(level_);
-
-  _logger = std::make_shared<spdlog::logger>("hictkpy", std::move(sink));
-  _logger->set_level(level_);
-  spdlog::set_default_logger(_logger);
-}
-
-std::thread Logger::spawn_logger_thread() {
-  log_message_py("debug", "about to spawn hictkpy's logger thread...");
-  return std::thread{[this]() {
-    auto logger = []() -> std::optional<nb::object> {
-      try {
-        return std::make_optional(get_py_logger());
-      } catch (const std::exception& e) {
-        raise_python_user_warning(
-            FMT_STRING("hictkpy::Logger: an error occurred in logger thread: {}"), e.what());
-      } catch (...) {  // NOLINT
-        raise_python_user_warning(
-            FMT_STRING("hictkpy::Logger: an error occurred in logger thread: unknown error"));
-      }
-      return {};
-    }();
-
-    if (!logger.has_value()) {
-      return;
-    }
-
-    try {
-      log_message_py(*logger, "debug", "hictkpy's logger thread successfully started!");
-      while (true) {
-        const auto msg = try_dequeue();
-        if (msg.has_value()) {
-          if (msg->is_eoq_signal()) {
-            log_message_py("debug",
-                           "EOQ signal received: hictkpy's logger thread is shutting down...");
-
-            [[maybe_unused]] const GilScopedAcquire gil{true};
-            logger.reset();
-            return;
-          }
-          [[maybe_unused]] const GilScopedAcquire gil{true};
-          std::ignore = logger->attr("handle")(msg->to_py_logrecord());
-        }
-      }
-    } catch (const std::exception& e) {
-      raise_python_user_warning(
-          FMT_STRING("hictkpy::Logger: an error occurred in logger thread: {}"), e.what());
-    } catch (...) {  // NOLINT
-      raise_python_user_warning(
-          FMT_STRING("hictkpy::Logger: an error occurred in logger thread: unknown error"));
-    }
-
-    [[maybe_unused]] const GilScopedAcquire gil{true};
-    logger.reset();
-  }};
-}
-
-std::unique_lock<std::timed_mutex> Logger::lock(const std::chrono::milliseconds& timeout) {
-  return {_msg_queue_mtx, timeout};
-}
-
-void Logger::close_msg_queue() noexcept {
-  [[maybe_unused]] const std::scoped_lock lck(_msg_queue_mtx);
-  while (true) {
-    try {
-      _msg_queue.emplace(Message::EOQ());
-      return;
-    } catch (...) {  // NOLINT
-    }
-  }
-}
-
-void Logger::enqueue(Message msg) noexcept {
+void MessageQueue::enqueue(Message msg, std::chrono::milliseconds wait_time) noexcept {
   try {
-    const std::chrono::milliseconds timeout{100};
-    while (true) {
-      [[maybe_unused]] const auto lck = lock(timeout);
-      if (HICTKPY_LIKELY(lck.owns_lock())) {
+    while (!_closed) {
+      [[maybe_unused]] const std::unique_lock lck{_mtx, wait_time};
+      if (lck.owns_lock()) {
         _msg_queue.emplace(std::move(msg));
         return;
       }
@@ -255,20 +190,196 @@ void Logger::enqueue(Message msg) noexcept {
   }
 }
 
-std::optional<Logger::Message> Logger::try_dequeue() noexcept {
+std::optional<LogMessage> MessageQueue::try_dequeue() noexcept {
   try {
-    const std::chrono::milliseconds timeout{100};
-    [[maybe_unused]] const auto lck = lock(timeout);
-    if (HICTKPY_UNLIKELY(lck.owns_lock() && !_msg_queue.empty())) {
-      auto msg = std::make_optional(_msg_queue.front());
-      _msg_queue.pop();
-      return msg;
+    while (!_closed) {
+      [[maybe_unused]] const std::unique_lock lck{_mtx};
+      if (lck.owns_lock() && !_msg_queue.empty()) {
+        auto msg = _msg_queue.front();
+        _msg_queue.pop();
+        if (msg.is_eoq_signal()) {
+          _closed = true;
+        }
+        return msg;
+      }
     }
   } catch (...) {  // NOLINT
   }
-
   return {};
 }
+
+[[nodiscard]] std::optional<LogMessage> MessageQueue::try_dequeue_timed() noexcept {
+  return try_dequeue_timed(std::chrono::milliseconds{100});
+}
+
+template <typename Duration>
+[[nodiscard]] std::optional<LogMessage> MessageQueue::try_dequeue_timed(
+    Duration duration) noexcept {
+  try {
+    while (!_closed) {
+      [[maybe_unused]] const std::unique_lock lck{_mtx, duration};
+      if (lck.owns_lock() && !_msg_queue.empty()) {
+        auto msg = _msg_queue.front();
+        _msg_queue.pop();
+        if (msg.is_eoq_signal()) {
+          _closed = true;
+        }
+        return msg;
+      }
+    }
+  } catch (...) {  // NOLINT
+  }
+  return {};
+}
+
+void MessageQueue::dequeue_all(std::vector<Message>& msgs) noexcept {
+  try {
+    msgs.clear();
+    [[maybe_unused]] const std::unique_lock lck{_mtx};
+    msgs.reserve(_msg_queue.size());
+    while (!_msg_queue.empty()) {
+      msgs.emplace_back(_msg_queue.front());
+      _msg_queue.pop();
+    }
+  } catch (...) {  // NOLINT
+  }
+}
+
+void MessageQueue::send_eoq() noexcept { enqueue(Message::EOQ()); }
+
+std::shared_ptr<spdlog::logger> Logger::init_cpp_logger(spdlog::level::level_enum level_) noexcept {
+  printdebug("hictkpy::Logger::Logger(): setting up hictkpy's logger...");
+
+  try {
+    auto logger = std::make_shared<spdlog::logger>("hictkpy");
+    if (!logger) {
+      raise_python_user_warning("hictkpy::Logger: setup failed: logging is disabled");
+      return nullptr;
+    }
+
+    logger->set_level(level_);
+
+    auto sink = std::make_shared<spdlog::sinks::callback_sink_mt>(
+        [this, logger](const spdlog::details::log_msg& msg) {
+          try {
+            if (HICTKPY_UNLIKELY(!logger)) {
+              return;
+            }
+            enqueue(msg);
+          } catch (const std::exception& e) {
+            raise_python_user_warning(FMT_STRING("hictkpy::Logger: error in log handler: {}"),
+                                      e.what());
+          } catch (...) {  // NOLINT
+            raise_python_user_warning(
+                FMT_STRING("hictkpy::Logger: error in log handler: unknown error"));
+          }
+        });
+
+    sink->set_pattern("%v");
+    sink->set_level(level_);
+    logger->sinks().emplace_back(std::move(sink));
+
+    printdebug("hictkpy::Logger::Logger(): successfully set up the hictkpy's logger!");
+    return logger;
+
+  } catch (const std::exception& e) {
+    raise_python_user_warning(FMT_STRING("hictkpy::Logger: setup failed: {}\nlogging is disabled"),
+                              e.what());
+  } catch (...) {
+    raise_python_user_warning("hictkpy::Logger: setup failed: logging is disabled");
+  }
+  return nullptr;
+}
+
+[[nodiscard]] static std::optional<nb::object> get_logger_noexcept() noexcept {
+  try {
+    return get_py_logger();
+  } catch (const std::exception& e) {
+    raise_python_user_warning(FMT_STRING("hictkpy::Logger: an error occurred in logger thread: {}"),
+                              e.what());
+  } catch (...) {  // NOLINT
+    raise_python_user_warning(
+        FMT_STRING("hictkpy::Logger: an error occurred in logger thread: unknown error"));
+  }
+  return {};
+}
+
+std::thread Logger::start_logger_thread() noexcept {
+  auto thr_started = std::make_shared<std::atomic<bool>>(false);
+  std::unique_ptr<std::thread> thr{};
+  try {
+    thr = std::make_unique<std::thread>([this, thr_started]() mutable {
+      assert(thr_started);
+      try {
+        *thr_started = true;
+        while (true) {
+          const auto msg = _msg_queue.try_dequeue_timed();
+          if (_return_immediately) {
+            printdebug("hictkpy::Logger: logger thread is returning immediately");
+            return;
+          }
+          if (msg.has_value()) {
+            if (msg->is_eoq_signal()) {
+              printdebug("hictkpy::Logger: EOQ signal received: logger thread has been shutdown");
+              return;
+            }
+            [[maybe_unused]] const GilScopedAcquire gil{true};
+            if (auto logger = get_logger_noexcept(); logger.has_value()) {
+              std::ignore = logger->attr("handle")(msg->to_py_logrecord());
+            }
+          }
+        }
+      } catch (const nb::python_error& e) {
+        printdebug(
+            FMT_STRING(
+                "hictkpy::Logger: logger thread returning due to the following exception: {}"),
+            e.what());
+      } catch (const std::exception& e) {
+        raise_python_user_warning(
+            FMT_STRING("hictkpy::Logger: an error occurred in logger thread: {}"), e.what());
+      } catch (...) {  // NOLINT
+        raise_python_user_warning(
+            FMT_STRING("hictkpy::Logger: an error occurred in logger thread: unknown error"));
+      }
+    });
+  } catch (...) {
+    raise_python_user_warning(FMT_STRING("hictkpy::Logger: failed to start logger thread!"));
+    if (!!thr && thr->joinable()) {
+      thr->join();
+    }
+  }
+
+  while (!*thr_started) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  }
+  printdebug("hictkpy::Logger: logger thread successfully started!");
+
+  return std::move(*thr);
+}
+
+Logger::Logger() : Logger(spdlog::level::level_enum::warn) {}
+
+Logger::Logger(spdlog::level::level_enum level)
+    : _logger(init_cpp_logger(level)), _logger_thread(start_logger_thread()) {
+  if (_logger_thread.joinable()) {
+    spdlog::set_default_logger(_logger);
+  } else if (auto logger = spdlog::default_logger(); logger) {
+    logger->set_level(spdlog::level::off);
+  }
+}
+
+Logger::Logger(std::string_view level) : Logger(spdlog::level::from_str(std::string{level})) {}
+
+Logger::~Logger() noexcept {
+  _return_immediately = true;
+  if (_logger_thread.joinable()) {
+    _logger_thread.join();
+  }
+}
+
+void Logger::enqueue(Message msg) noexcept { _msg_queue.enqueue(std::move(msg)); }
+
+std::optional<Logger::Message> Logger::try_dequeue() noexcept { return _msg_queue.try_dequeue(); }
 
 void Logger::set_level(const std::string& py_level) noexcept {
   if (!_logger) {
@@ -329,26 +440,52 @@ void Logger::set_level(std::int64_t py_level) noexcept {
   reset_log_level();
 }
 
-void Logger::shutdown() noexcept {
-  if (!_logger_thread.joinable()) {
-    return;
-  }
-
+void Logger::flush() noexcept {
   try {
-    log_message_py("debug", "shutting down hictkpy's logger...");
-    close_msg_queue();
-    {
-      [[maybe_unused]] const nb::gil_scoped_release gil{};
+    [[maybe_unused]] const GilScopedAcquire gil{true};
+    std::vector<Message> msgs;
+    _msg_queue.dequeue_all(msgs);
+    auto logger = get_logger_noexcept();
+    if (!logger.has_value()) {
+      return;
+    }
+
+    for (const auto& msg : msgs) {
+      if (msg.is_eoq_signal()) {
+        _return_immediately = true;
+        return;
+      }
+      std::ignore = logger->attr("handle")(msg.to_py_logrecord());
+    }
+  } catch (...) {  // NOLINT
+  }
+}
+
+void Logger::shutdown() noexcept {
+  try {
+    [[maybe_unused]] const nb::gil_scoped_release gil{};
+    printdebug("hictkpy::Logger::shutdown() called!");
+    if (_logger_thread.joinable()) {
+      _msg_queue.send_eoq();
+      printdebug("hictkpy::Logger::shutdown(): sending EOQ signal!");
       _logger_thread.join();
     }
-    log_message_py("debug", "hictkpy's logger was successfully shutdown!");
-  } catch (const std::exception& e) {
-    raise_python_user_warning(FMT_STRING("hictkpy::Logger: failed to join logger thread: {}"),
-                              e.what());
+    if (auto logger = spdlog::default_logger(); !!logger) {
+      printdebug("hictkpy::Logger::shutdown(): disabling spdlog logger...");
+      logger->set_level(spdlog::level::off);
+    }
+  } catch ([[maybe_unused]] const std::exception& e) {
+    printdebug(FMT_STRING("hictkpy::Logger::shutdown(): failed to join logger thread: {}"),
+               e.what());
   } catch (...) {  // NOLINT
-    raise_python_user_warning(
-        FMT_STRING("hictkpy::Logger: failed to join logger thread: unknown error"));
+    printdebug("hictkpy::Logger::shutdown(): failed to join logger thread: unknown error");
   }
+}
+
+void Logger::reset_after_fork() noexcept {
+  printdebug("hictkpy::Logger::reset_after_fork() called!");
+  [[maybe_unused]] const GilScopedAcquire gil{true};
+  shutdown();
 }
 
 }  // namespace hictkpy
