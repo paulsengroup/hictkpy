@@ -547,7 +547,8 @@ def setup_logger(level=logging.INFO):
 
 
 if __name__ == "__main__":
-    reference_results = {}
-
+    mp.set_start_method("spawn")
     setup_logger()
+
+    reference_results = {}
     sys.exit(main())
