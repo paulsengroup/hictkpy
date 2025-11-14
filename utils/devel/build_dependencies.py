@@ -197,6 +197,7 @@ def run_local(args: Dict[str, Any]):
             shutil.rmtree(output_prefix)
 
         output_prefix.mkdir(exist_ok=True)
+        (output_prefix / ".gitignore").write_text("*")
 
     for args in itertools.product(profiles, build_types, shared_build):
         run_conan(
