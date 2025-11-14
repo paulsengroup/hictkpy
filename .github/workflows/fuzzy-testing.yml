@@ -347,7 +347,7 @@ jobs:
             ./*'.${{ matrix.format }}' \
             ./*.cool
 
-      - name: Run test (coo)
+      - name: Run test (csr)
         run: |
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
