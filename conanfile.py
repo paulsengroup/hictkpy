@@ -30,23 +30,29 @@ class HictkpyConan(ConanFile):
 
     generators = "CMakeDeps"
 
+    def build_requirements(self):
+        # re2
+        self.requires("abseil/20250814.0#4e0fdd34a888b97aca482e648fc27a3b", force=True)
+        # arrow
+        self.requires("re2/20251105#2eec620fc641f812a5837c642ecb7d66", force=True)
+        # hdf5
+        self.requires("zlib/1.3.1#b8bc2603263cf7eccbd6e17e66b0ed76", force=True)
+
     def requirements(self):
-        # Arrow 21.0.0 can't find certain kernels (e.g., sort_indices)
-        self.requires("arrow/20.0.0#6e04404a336dd16f08062f6923e6f8f1")
-        if is_msvc(self):
-            self.requires("boost/1.88.0#14ecfc01dd5a690f15e1318e56a6b78c", force=True)  # arrow
+        self.requires("arrow/22.0.0#e46b173ba20adc478f7926495aeed142")
         self.requires("bshoshany-thread-pool/5.0.0#d94da300363f0c35b8f41b2c5490c94d")
+        self.requires("boost/1.89.0#010f59feedfd171b15f467b42f723d13", force=True)
         self.requires("concurrentqueue/1.0.4#1e48e1c712bcfd892087c9c622a51502")
         self.requires("eigen/5.0.0#f7561f543f4aafd6d2dc1f6d677e3075", force=True)
-        self.requires("fast_float/8.0.2#846ad0ebab16bc265c511095c3b490e9")
-        self.requires("fmt/12.0.0#dc7de7f3968e5d6b377f27b7d0f33916", force=True)
+        self.requires("fast_float/8.1.0#bbf67486bec084d167da0f3e13eee534")
+        self.requires("fmt/12.1.0#50abab23274d56bb8f42c94b3b9a40c7", force=True)
         self.requires("hdf5/1.14.6#0b780319690d537e6cb0683244919955", force=True)
         self.requires("highfive/3.1.1#d0c724526ebc8ce396ffa1bf7f3c7b64")
-        self.requires("libdeflate/1.23#4994bea7cf7e93789da161fac8e26a53")
+        self.requires("libdeflate/1.25#49fcd3fe6c130c2ec5a01cabb0481ded")
         self.requires("parallel-hashmap/2.0.0#82acae64ffe2693fff5fb3f9df8e1746")
         self.requires("readerwriterqueue/1.0.6#aaa5ff6fac60c2aee591e9e51b063b83")
         self.requires("span-lite/0.11.0#519fd49fff711674cfed8cd17d4ed422")
-        self.requires("spdlog/1.15.3#3ca0e9e6b83af4d0151e26541d140c86")
+        self.requires("spdlog/1.16.0#942c2c39562ae25ba575d9c8e2bdf3b6")
         self.requires("zstd/1.5.7#fde461c0d847a22f16d3066774f61b11", force=True)
 
     def configure(self):
@@ -56,50 +62,17 @@ class HictkpyConan(ConanFile):
         self.options["arrow"].with_boost = is_msvc(self)
         self.options["arrow"].with_re2 = True
         self.options["arrow"].with_thrift = False
-        if is_msvc(self):
-            self.options["boost"].system_no_deprecated = True
-            self.options["boost"].asio_no_deprecated = True
-            self.options["boost"].filesystem_no_deprecated = True
-            self.options["boost"].filesystem_version = 4
-            self.options["boost"].zlib = False
-            self.options["boost"].bzip2 = False
-            self.options["boost"].lzma = False
-            self.options["boost"].zstd = False
-            self.options["boost"].without_atomic = False
-            self.options["boost"].without_charconv = True
-            self.options["boost"].without_chrono = True
-            self.options["boost"].without_cobalt = True
-            self.options["boost"].without_container = True
-            self.options["boost"].without_context = True
-            self.options["boost"].without_contract = True
-            self.options["boost"].without_coroutine = True
-            self.options["boost"].without_date_time = True
-            self.options["boost"].without_exception = True
-            self.options["boost"].without_fiber = True
-            self.options["boost"].without_filesystem = False
-            self.options["boost"].without_graph = True
-            self.options["boost"].without_graph_parallel = True
-            self.options["boost"].without_iostreams = True
-            self.options["boost"].without_json = True
-            self.options["boost"].without_locale = True
-            self.options["boost"].without_log = True
-            self.options["boost"].without_math = True
-            self.options["boost"].without_mpi = True
-            self.options["boost"].without_nowide = True
-            self.options["boost"].without_process = True
-            self.options["boost"].without_program_options = True
-            self.options["boost"].without_python = True
-            self.options["boost"].without_random = True
-            self.options["boost"].without_regex = True
-            self.options["boost"].without_serialization = True
-            self.options["boost"].without_stacktrace = True
-            self.options["boost"].without_system = False
-            self.options["boost"].without_test = True
-            self.options["boost"].without_thread = True
-            self.options["boost"].without_timer = True
-            self.options["boost"].without_type_erasure = True
-            self.options["boost"].without_url = True
-            self.options["boost"].without_wave = True
+        self.options["boost"].header_only = True
+        self.options["boost"].error_code_header_only = True
+        self.options["boost"].system_no_deprecated = True
+        self.options["boost"].asio_no_deprecated = True
+        self.options["boost"].filesystem_no_deprecated = True
+        self.options["boost"].filesystem_use_std_fs = True
+        self.options["boost"].filesystem_version = 4
+        self.options["boost"].zlib = False
+        self.options["boost"].bzip2 = False
+        self.options["boost"].lzma = False
+        self.options["boost"].zstd = False
         self.options["eigen"].MPL2_only = True
         self.options["fmt"].header_only = True
         self.options["hdf5"].enable_cxx = False

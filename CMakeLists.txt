@@ -31,8 +31,8 @@ FetchContent_Declare(
 FetchContent_Declare(
   hictk
   URL
-    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.1.5.tar.xz"
-  URL_HASH "SHA256=5cfc87ffc73acc4bf7b236394b1865a49c137158ee122cbc96f9c485ec9c0fb6"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/hictk-v2.2.0.tar.xz"
+  URL_HASH "SHA256=8341a22a6f6115863549170da72cfe5282c0bcc206cbd872831e60925e3b1eb6"
   EXCLUDE_FROM_ALL
   OVERRIDE_FIND_PACKAGE
   SYSTEM
@@ -68,6 +68,11 @@ set(HICTK_INSTALL OFF)
 set(HICTK_WITH_EIGEN ON)
 set(HICTK_ENABLE_GIT_VERSION_TRACKING OFF)
 find_package(Eigen3 5 REQUIRED QUIET) # Versions <5 are not supported (and will likely result in segfaults)
+
+# Try to look for ArrowCompute explicitly to find the packages when using e.g., conda.
+# See https://github.com/paulsengroup/hictk/pull/477
+find_package(Arrow QUIET)
+find_package(ArrowCompute QUIET)
 
 # We are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
 find_package(hictk REQUIRED QUIET)
