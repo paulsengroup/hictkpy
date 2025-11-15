@@ -7,8 +7,8 @@ lld>18
 llvm-tools>18
 python>3.11
 pip
-# Arrow 21.0.0 can't find certain kernels (e.g., sort_indices)
-libarrow>=16,<21
+libarrow>=16
+libarrow-compute>=16
 libdeflate>=1
-highfive>=2.10
+highfive>=3
 zstd>=1.5

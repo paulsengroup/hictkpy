@@ -69,6 +69,11 @@ set(HICTK_WITH_EIGEN ON)
 set(HICTK_ENABLE_GIT_VERSION_TRACKING OFF)
 find_package(Eigen3 5 REQUIRED QUIET) # Versions <5 are not supported (and will likely result in segfaults)
 
+# Try to look for ArrowCompute explicitly to find the packages when using e.g., conda.
+# See https://github.com/paulsengroup/hictk/pull/477
+find_package(Arrow QUIET)
+find_package(ArrowCompute QUIET)
+
 # We are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
 find_package(hictk REQUIRED QUIET)
 
