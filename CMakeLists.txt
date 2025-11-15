@@ -72,8 +72,9 @@ find_package(Eigen3 5 REQUIRED QUIET) # Versions <5 are not supported (and will 
 # Try to look for ArrowCompute explicitly to find the packages when using e.g., conda.
 # See https://github.com/paulsengroup/hictk/pull/477
 find_package(Arrow QUIET)
-find_package(ArrowCompute QUIET)
-
+if(NOT TARGET ArrowCompute::arrow_compute_shared AND NOT TARGET ArrowCompute::arrow_compute_static)
+  find_package(ArrowCompute REQUIRED QUIET)
+endif()
 # We are finding hictk here to avoid name collisions with the ENABLE_* variables defined in the coming lines
 find_package(hictk REQUIRED QUIET)
 
