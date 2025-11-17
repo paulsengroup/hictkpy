@@ -90,6 +90,16 @@ def make_cli() -> argparse.ArgumentParser:
         default=None,
         help="Path pointing to an existing folder where to store temporary files.",
     )
+    cli.add_argument(
+        "--range1",
+        type=str,
+        help="Genomic range in UCSC format used to perform queries.",
+    )
+    cli.add_argument(
+        "--range2",
+        type=str,
+        help="Genomic range in UCSC format used to perform queries.",
+    )
     return cli
 
 
@@ -163,7 +173,7 @@ def hash_coo_matrix(m: ss.coo_matrix) -> int:
     )
 
 
-def hash_hictkpy_file(f: hictkpy.File) -> int:
+def hash_hictkpy_file(f: hictkpy.File, range1: str | None = None, range2: str | None = None) -> int:
     attrs = f.attributes()
     attrs.pop("creation-date", None)
     logging.debug(
@@ -173,7 +183,7 @@ def hash_hictkpy_file(f: hictkpy.File) -> int:
         f.is_hic(),
         f.is_cooler(),
         json.dumps(attrs, sort_keys=True),
-        f.fetch().sum(),
+        f.fetch(range1, range2).sum(),
     )
     return hash(
         (
@@ -182,75 +192,75 @@ def hash_hictkpy_file(f: hictkpy.File) -> int:
             f.is_hic(),
             f.is_cooler(),
             json.dumps(attrs, sort_keys=True),
-            hash_csr_matrix(f.fetch().to_csr()),
+            hash_csr_matrix(f.fetch(range1, range2).to_csr()),
         )
     )
 
 
-def call_to_arrow(f: hictkpy.File) -> int:
-    df = f.fetch().to_arrow()
+def call_to_arrow(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    df = f.fetch(range1, range2).to_arrow()
     return hash_arrow_table(df)
 
 
-def call_to_pandas(f: hictkpy.File) -> int:
-    df = f.fetch().to_pandas()
+def call_to_pandas(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    df = f.fetch(range1, range2).to_pandas()
     return hash_pandas_df(df)
 
 
-def call_to_df(f: hictkpy.File) -> int:
-    df = f.fetch().to_df()
+def call_to_df(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    df = f.fetch(range1, range2).to_df()
     return hash_pandas_df(df)
 
 
-def call_to_numpy(f: hictkpy.File) -> int:
-    m = f.fetch().to_numpy()
+def call_to_numpy(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    m = f.fetch(range1, range2).to_numpy()
     return hash_numpy_array(m)
 
 
-def call_to_csr(f: hictkpy.File) -> int:
-    m = f.fetch().to_csr()
+def call_to_csr(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    m = f.fetch(range1, range2).to_csr()
     return hash_csr_matrix(m)
 
 
-def call_to_coo(f: hictkpy.File) -> int:
-    m = f.fetch().to_coo()
+def call_to_coo(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    m = f.fetch(range1, range2).to_coo()
     return hash_coo_matrix(m)
 
 
-def call_describe(f: hictkpy.File) -> int:
-    return hash(json.dumps(f.fetch().describe(), sort_keys=True))
+def call_describe(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return hash(json.dumps(f.fetch(range1, range2).describe(), sort_keys=True))
 
 
-def call_nnz(f: hictkpy.File) -> int:
-    return f.fetch().nnz()
+def call_nnz(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return f.fetch(range1, range2).nnz()
 
 
-def call_sum(f: hictkpy.File) -> int:
-    return hash(f.fetch().sum())
+def call_sum(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return hash(f.fetch(range1, range2).sum())
 
 
-def call_min(f: hictkpy.File) -> int:
-    return hash(f.fetch().min())
+def call_min(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return hash(f.fetch(range1, range2).min())
 
 
-def call_max(f: hictkpy.File) -> int:
-    return hash(f.fetch().max())
+def call_max(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return hash(f.fetch(range1, range2).max())
 
 
-def call_variance(f: hictkpy.File) -> int:
-    return hash(f.fetch().variance())
+def call_variance(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return hash(f.fetch(range1, range2).variance())
 
 
-def call_skewness(f: hictkpy.File) -> int:
-    return hash(f.fetch().skewness())
+def call_skewness(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return hash(f.fetch(range1, range2).skewness())
 
 
-def call_kurtosis(f: hictkpy.File) -> int:
-    return hash(f.fetch().kurtosis())
+def call_kurtosis(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return hash(f.fetch(range1, range2).kurtosis())
 
 
-def call_iterator(f: hictkpy.File) -> int:
-    return hash(tuple(p.count for p in f.fetch()))
+def call_iterator(f: hictkpy.File, range1: str | None, range2: str | None) -> int:
+    return hash(tuple(p.count for p in f.fetch(range1, range2)))
 
 
 def create_file_helper(
@@ -345,8 +355,10 @@ def vtable() -> Dict[str, Callable]:
     return {name: globals()[name] for name in names}
 
 
-def runme(
+def runner(
     path: pathlib.Path,
+    range1: str | None,
+    range2: str | None,
     resolution: int,
     end_time: float,
     seed: int | None,
@@ -356,6 +368,9 @@ def runme(
     prng = random.Random(seed)
     counters = {name: 0 for name in vtable()}
     counters["errors"] = 0
+
+    if range2 is None:
+        range2 = range1
 
     with (
         hictkpy.File(path, resolution) as f,
@@ -381,11 +396,11 @@ def runme(
                 else:
                     name = f"create_{file_type}"
                 fx = vtable().get(name)
-                chroms, _, chunks = get_create_file_inputs(path, resolution)
+                chroms, _, chunks = get_create_file_inputs(path, range1, range2, resolution)
                 result = fx(chroms, resolution, chunks, tmpdir, file_type)
                 expected_result = reference_results[name]
             else:
-                result = fx(f)
+                result = fx(f, range1, range2)
                 expected_result = reference_results[f"{name}_{file_type}"]
 
             if result != expected_result:
@@ -409,6 +424,8 @@ def runme(
 def run_fuzzer(
     hic_file: pathlib.Path,
     cooler_file: pathlib.Path,
+    range1: str | None,
+    range2: str | None,
     resolution: int,
     nthreads: int,
     duration: float,
@@ -429,8 +446,10 @@ def run_fuzzer(
 
             tasks.append(
                 tpool.submit(
-                    runme,
+                    runner,
                     path=path,
+                    range1=range1,
+                    range2=range2,
                     resolution=resolution,
                     end_time=end_time,
                     seed=seed,
@@ -452,10 +471,12 @@ def run_fuzzer(
 @functools.cache
 def get_create_file_inputs(
     path: pathlib.Path,
+    range1: str | None,
+    range2: str | None,
     resolution: int,
 ) -> Tuple[Dict[str, int], int, Tuple[pd.DataFrame, ...]]:
     with hictkpy.File(path, resolution) as f:
-        df = f.fetch().to_df()
+        df = f.fetch(range1, range2).to_df()
 
         chunk_size = len(df) // 5
 
@@ -470,6 +491,8 @@ def get_create_file_inputs(
 def compute_reference_results(
     hic_file: pathlib.Path,
     cooler_file: pathlib.Path,
+    range1: str | None,
+    range2: str | None,
     resolution: int,
 ) -> Dict[Tuple[str, str], int]:
 
@@ -485,18 +508,18 @@ def compute_reference_results(
                 continue
 
             logging.info("generating reference results for %s()...", name)
-            results[f"{name}_hic"] = fx(hf)
-            results[f"{name}_cool"] = fx(cf)
+            results[f"{name}_hic"] = fx(hf, range1, range2)
+            results[f"{name}_cool"] = fx(cf, range1, range2)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = pathlib.Path(tmpdir)
 
-        chroms, _, pixel_chunks = get_create_file_inputs(hic_file, resolution)
+        chroms, _, pixel_chunks = get_create_file_inputs(hic_file, range1, range2, resolution)
 
         logging.info("generating reference results for create_hic()...")
         results["create_hic"] = create_hic(chroms, resolution, pixel_chunks, tmpdir)
 
-        chroms, _, pixel_chunks = get_create_file_inputs(cooler_file, resolution)
+        chroms, _, pixel_chunks = get_create_file_inputs(cooler_file, range1, range2, resolution)
         logging.info("generating reference results for create_cooler()...")
         results["create_cooler"] = create_cooler(chroms, resolution, pixel_chunks, tmpdir)
 
@@ -516,12 +539,20 @@ def main() -> int:
     assert hictkpy.is_hic(hic_file)
     assert hictkpy.is_cooler(cooler_file) or hictkpy.is_mcool_file(cooler_file)
 
-    reference_results = compute_reference_results(hic_file, cooler_file, args["resolution"])
+    reference_results = compute_reference_results(
+        hic_file,
+        cooler_file,
+        range1=args["range1"],
+        range2=args["range2"],
+        resolution=args["resolution"],
+    )
 
     logging.info("fuzzing hictkpy for ~%d seconds", duration)
     results = run_fuzzer(
         hic_file,
         cooler_file,
+        range1=args["range1"],
+        range2=args["range2"],
         resolution=args["resolution"],
         nthreads=args["nthreads"],
         duration=duration,
