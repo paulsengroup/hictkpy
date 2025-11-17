@@ -34,7 +34,7 @@ repos:
     hooks:
       - id: codespell
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.18.1
+    rev: v0.19.0
     hooks:
       - id: markdownlint-cli2
   # Formatters should be run late so that they can re-format any prior changes.
