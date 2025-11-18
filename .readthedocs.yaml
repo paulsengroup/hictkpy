@@ -10,7 +10,7 @@ build:
     python: "mambaforge-latest"
 
   commands:
-    - docs/setup_build_env_rtd.sh
+    - docs/rtd/setup_build_env_rtd.sh
     - pip install --upgrade pip
     - CC=clang CXX=clang++ pip install . --group docs -v
     - make -C docs linkcheck html latexpdf
