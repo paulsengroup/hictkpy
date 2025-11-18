@@ -105,7 +105,7 @@ jobs:
           ZSTD_CLEVEL: 19
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
+        uses: github/codeql-action/init@014f16e7ab1402f30e7c3329d33797e7948572db # v4.31.3
         with:
           languages: c-cpp
           build-mode: manual
@@ -126,6 +126,6 @@ jobs:
           pip install . -v
 
       - name: Run Analysis
-        uses: github/codeql-action/analyze@4e94bd11f71e507f7f87df81788dff88d1dacbfb # v4.31.0
+        uses: github/codeql-action/analyze@014f16e7ab1402f30e7c3329d33797e7948572db # v4.31.3
         with:
           category: "/language:c-cpp"
