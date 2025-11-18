@@ -19,11 +19,11 @@ CONDA_PREFIX="$(
     tr -d '\n'
 )"
 
-mamba install -c conda-forge --file docs/requirements.conda.txt
+mamba install -c conda-forge --file docs/rtd/requirements.conda.txt
 
-docs/patch_project_for_rtd.py conanfile.py --root-dir "$PWD" --inplace
-docs/patch_project_for_rtd.py pyproject.toml --root-dir "$PWD" --inplace
-docs/patch_project_for_rtd.py docs/index.rst --root-dir "$PWD" --inplace
+docs/rtd/patch_project_for_rtd.py conanfile.py --root-dir "$PWD" --inplace
+docs/rtd/patch_project_for_rtd.py pyproject.toml --root-dir "$PWD" --inplace
+docs/rtd/patch_project_for_rtd.py docs/index.rst --root-dir "$PWD" --inplace
 
 # Help CMake find dependencies installed with conda
 PREFIX_PATH="$(printf 'list(APPEND CMAKE_PREFIX_PATH "%s")' "$CONDA_PREFIX")"

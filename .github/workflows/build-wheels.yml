@@ -158,19 +158,68 @@ jobs:
   build-sdist:
     name: Build SDist
     runs-on: ubuntu-latest
+    env:
+      CC: "clang"
+      CXX: "clang++"
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@2ddd2b9cb38ad8efd50337e8ab201519a34c9f24 # v7.1.1
+        with:
+          python-version: 3.14
+          activate-environment: true
+          enable-cache: true
 
       - name: Build SDist
-        run: pipx run build --sdist
+        run: uv build --sdist
 
       - name: Check metadata
-        run: pipx run twine check dist/*
+        run: uvx twine check dist/*
+
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          hash="${{ hashFiles('conanfile.py') }}"
+
+          echo "conan-key=sdist-$hash" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Conan cache
+        id: cache-conan
+        uses: actions/cache/restore@v4
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
+
+      - name: Clean Conan cache (post build)
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: rm -rf '${{ env.CONAN_HOME }}/p'
+
+      - name: Test SDist
+        run: |
+          uv pip install -v dist/hictkpy*.tar.gz
+          python -c 'import hictkpy; print(hictkpy.__version__)'
+
+      - name: Clean Conan cache (post build)
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: |
+          uv tool run 'conan>2' cache clean "*" --build
+          uv tool run 'conan>2' cache clean "*" --download
+          uv tool run 'conan>2' cache clean "*" --source
+
+      - name: Save Conan cache
+        uses: actions/cache/save@v4
+        if: steps.cache-conan.outputs.cache-hit != 'true'
+        with:
+          key: conan-${{ steps.cache-key.outputs.conan-key }}
+          path: ${{ env.CONAN_HOME }}/p
 
       - uses: actions/upload-artifact@v5
         with:
           name: sdist
-          path: dist/*.tar.gz
+          path: dist/hictkpy*.tar.gz
 
   build-wheels:
     name: Build Wheels
