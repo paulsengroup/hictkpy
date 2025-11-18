@@ -57,6 +57,7 @@ permissions:
 
 jobs:
   cache-test-datasets:
+    if: ${{ github.event_name != 'workflow_dispatch' }}
     name: "Cache test datasets"
     runs-on: ubuntu-24.04
     outputs:
@@ -116,6 +117,11 @@ jobs:
 
   build-project:
     runs-on: ubuntu-latest
+    if: |
+      always() &&
+      (needs.cache-test-datasets.result == 'success' ||
+       needs.cache-test-datasets.result == 'skipped'
+      )
     needs: [cache-test-datasets]
     strategy:
       fail-fast: false
