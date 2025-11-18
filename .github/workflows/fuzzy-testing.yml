@@ -173,6 +173,8 @@ jobs:
         with:
           key: conan-${{ steps.cache-key.outputs.key }}
           path: ${{ env.CONAN_HOME }}/p
+        env:
+          ZSTD_CLEVEL: 19
 
       - name: Install test dependencies
         run: |

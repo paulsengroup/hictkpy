@@ -132,6 +132,8 @@ jobs:
         with:
           key: conan-${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}/p
+        env:
+          ZSTD_CLEVEL: 19
 
       - name: Test
         run: uv run pytest test -v
