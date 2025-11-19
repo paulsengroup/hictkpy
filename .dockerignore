@@ -1,0 +1,16 @@
+# Copyright (C) 2025 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+*
+
+!.git/**
+!cmake/**
+!external/**
+!src/**
+!.gitignore
+!CMakeLists.txt
+!conanfile.py
+!LICENSE
+!pyproject.toml
+!README.md
