@@ -37,7 +37,7 @@ static void set_nanobind_leak_warnings() {
 static void handle_proc_forking(Logger* logger_ptr, bool print_warning = true) {
   if (logger_ptr) {
     if (print_warning) {
-      raise_python_deprecation_warning(FMT_STRING(
+      raise_python_user_warning(FMT_STRING(
           "hictkpy: detected a call to fork():\n"
           "hictkpy's logger does not support multiprocessing when using fork() as start method.\n"
           "Please change process start method to spawn or forkserver.\n"
