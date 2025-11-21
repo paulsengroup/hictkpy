@@ -167,7 +167,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@2ddd2b9cb38ad8efd50337e8ab201519a34c9f24 # v7.1.1
+        uses: astral-sh/setup-uv@5a7eac68fb9809dea845d802897dc5c723910fa3 # v7.1.3
         with:
           python-version: 3.14
           activate-environment: true
@@ -249,7 +249,7 @@ jobs:
 
       - name: Install uv
         if: ${{ !startsWith(matrix.os, 'ubuntu') }}
-        uses: astral-sh/setup-uv@2ddd2b9cb38ad8efd50337e8ab201519a34c9f24 # v7.1.1
+        uses: astral-sh/setup-uv@5a7eac68fb9809dea845d802897dc5c723910fa3 # v7.1.3
         with:
           python-version: ${{ matrix.python-version }}
           activate-environment: true
@@ -326,7 +326,7 @@ jobs:
         run: tar -C "$TMPDIR" -xf "$(cygpath -u '${{ steps.cache-key.outputs.deps-path }}')"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2.1
+        uses: pypa/cibuildwheel@63fd63b352a9a8bdcc24791c9dbee952ee9a8abc # v3.3.0
         with:
           only: ${{ matrix.wheel-config }}
         env:
