@@ -44,10 +44,10 @@ def make_cli() -> argparse.ArgumentParser:
         raise ValueError("Not a non-negative integer")
 
     def valid_nproc(arg) -> int:
-        if 1 <= (n := int(arg)) <= nproc():
+        if (n := int(arg)) > 1:
             return n
 
-        raise ValueError(f"Not a number between 1 and {nproc()}")
+        raise ValueError("Not a number greater than 1")
 
     cli = argparse.ArgumentParser(description="Fuzzer for hictkpy.")
 
@@ -334,8 +334,8 @@ def create_hic(
 def vtable() -> Dict[str, Callable]:
     names = [
         "call_to_arrow",
-        # "call_to_pandas",
-        # "call_to_df",
+        "call_to_pandas",
+        "call_to_df",
         "call_to_numpy",
         "call_to_csr",
         "call_to_coo",
@@ -476,7 +476,7 @@ def get_create_file_inputs(
     resolution: int,
 ) -> Tuple[Dict[str, int], int, Tuple[pd.DataFrame, ...]]:
     with hictkpy.File(path, resolution) as f:
-        df = f.fetch(range1, range2).to_df()
+        df = f.fetch(range1, range2).to_arrow().to_pandas()
 
         chunk_size = len(df) // 5
 

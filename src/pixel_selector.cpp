@@ -377,12 +377,12 @@ std::optional<nb::object> PixelSelector::to_arrow(std::string_view span) const {
 
 nb::object PixelSelector::to_pandas(std::string_view span) const {
   check_module_is_importable("pandas");
-  auto arrow_df = to_arrow(span);
+  auto df = to_arrow(span);
 
+  // clang-format off
   HICTKPY_GIL_SCOPED_ACQUIRE
-  auto pandas_df = arrow_df->attr("to_pandas")(nb::arg("self_destruct") = true);
-  arrow_df.reset();
-  return pandas_df;
+  return [dff = std::move(df)]() { return dff->attr("to_pandas")(nb::arg("self_destruct") = true); }();
+  // clang-format on
 }
 
 template <typename N, typename PixelSelector>

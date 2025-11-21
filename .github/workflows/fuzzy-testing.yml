@@ -460,6 +460,7 @@ jobs:
 
           TSAN_OPTIONS='verbosity=1'
           TSAN_OPTIONS+=" external_symbolizer_path=$(which llvm-symbolizer)"
+          TSAN_OPTIONS+=" suppressions=$PWD/utils/devel/hictkpy.tsan.suppression.txt"
           export TSAN_OPTIONS
           echo "$TSAN_OPTIONS"
 
