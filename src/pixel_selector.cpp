@@ -28,6 +28,7 @@
 #include <hictk/transformers/to_sparse_matrix.hpp>
 #include <hictkpy/common.hpp>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -224,44 +225,86 @@ nb::type_object PixelSelector::dtype() const {
   unreachable_code();
 }
 
-template <typename PixelIt>
+template <typename PixelIt, typename Mutex>
 class PixelIteratorWrapper {
   PixelIt _it{};
   Pixel _value;
+  Mutex* _mtx{};
 
  public:
-  PixelIteratorWrapper() = default;
+  PixelIteratorWrapper() = delete;
   // NOLINTNEXTLINE(*-explicit-conversions)
-  PixelIteratorWrapper(PixelIt it) noexcept : _it(std::move(it)) {}
+  PixelIteratorWrapper(PixelIt it, Mutex* mtx) noexcept : _it(std::move(it)), _mtx(mtx) {}
 
-  bool operator==(const PixelIteratorWrapper& other) const { return _it == other._it; }
+  bool operator==(const PixelIteratorWrapper& other) const {
+    if (this == &other) {
+      return true;
+    }
+
+    auto bind_mutex_to_lock = [](auto* mtx) -> std::unique_lock<Mutex> {
+      if (!mtx) {
+        return {};
+      }
+      return std::unique_lock<Mutex>{*mtx, std::defer_lock};
+    };
+
+    auto lck1 = bind_mutex_to_lock(_mtx);
+    auto lck2 = bind_mutex_to_lock(other._mtx);
+
+    if (lck1.mutex() && lck2.mutex()) {
+      std::lock(lck1, lck2);
+    } else if (lck1.mutex()) {
+      lck1.lock();
+    } else if (lck2.mutex()) {
+      lck2.lock();
+    }
+
+    return _it == other._it;
+  }
+
   bool operator!=(const PixelIteratorWrapper& other) const { return !(*this == other); }
 
   const Pixel& operator*() {
-    _value = *_it;
+    {
+      [[maybe_unused]] const auto lck = lock();
+      _value = *_it;
+    }
     return _value;
   }
   const Pixel* operator->() { return &(**this); }
 
   PixelIteratorWrapper& operator++() {
-    std::ignore = ++_it;
+    {
+      [[maybe_unused]] const auto lck = lock();
+      std::ignore = ++_it;
+    }
     return *this;
   }
 
   PixelIteratorWrapper operator++(int) {
+    [[maybe_unused]] const auto lck = lock();
     auto it = *this;
     std::ignore = ++_it;
     return it;
+  }
+
+ private:
+  [[nodiscard]] std::unique_lock<Mutex> lock() {
+    if (_mtx) {
+      return std::unique_lock{*_mtx};
+    }
+    return {};
   }
 };
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::iterator make_bg2_iterable(
-    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width) {
+    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width,
+    CoolerGlobalLock::UniqueLock::Mutex* mtx) {
   if constexpr (std::is_floating_point_v<N> && !std::is_same_v<N, double>) {
-    return make_bg2_iterable<double>(sel, diagonal_band_width);
+    return make_bg2_iterable<double>(sel, diagonal_band_width, mtx);
   } else if constexpr (std::is_integral_v<N> && !std::is_same_v<N, std::int64_t>) {
-    return make_bg2_iterable<std::int64_t>(sel, diagonal_band_width);
+    return make_bg2_iterable<std::int64_t>(sel, diagonal_band_width, mtx);
   }
 
   if (diagonal_band_width.has_value()) {
@@ -269,49 +312,69 @@ template <typename N, typename PixelSelector>
                                 *diagonal_band_width);
     const JoinGenomicCoords jsel{band_sel.begin(), band_sel.end(), sel.bins_ptr()};
     return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                             PixelIteratorWrapper(jsel.begin()), PixelIteratorWrapper(jsel.end()));
+                             PixelIteratorWrapper(jsel.begin(), mtx),
+                             PixelIteratorWrapper(jsel.end(), mtx));
   }
 
   const JoinGenomicCoords jsel{sel.template begin<N>(), sel.template end<N>(), sel.bins_ptr()};
   return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                           PixelIteratorWrapper(jsel.begin()), PixelIteratorWrapper(jsel.end()));
+                           PixelIteratorWrapper(jsel.begin(), mtx),
+                           PixelIteratorWrapper(jsel.end(), mtx));
 }
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::iterator make_coo_iterable(
-    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width) {
+    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width,
+    CoolerGlobalLock::UniqueLock::Mutex* mtx) {
   if constexpr (std::is_floating_point_v<N> && !std::is_same_v<N, double>) {
-    return make_coo_iterable<double>(sel, diagonal_band_width);
+    return make_coo_iterable<double>(sel, diagonal_band_width, mtx);
   } else if constexpr (std::is_integral_v<N> && !std::is_same_v<N, std::int64_t>) {
-    return make_coo_iterable<std::int64_t>(sel, diagonal_band_width);
+    return make_coo_iterable<std::int64_t>(sel, diagonal_band_width, mtx);
   }
 
   if (diagonal_band_width.has_value()) {
     const DiagonalBand band_sel(sel.template begin<N>(), sel.template end<N>(),
                                 *diagonal_band_width);
     return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                             PixelIteratorWrapper(band_sel.begin()),
-                             PixelIteratorWrapper(band_sel.end()));
+                             PixelIteratorWrapper(band_sel.begin(), mtx),
+                             PixelIteratorWrapper(band_sel.end(), mtx));
   }
 
   return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                           PixelIteratorWrapper(sel.template begin<N>()),
-                           PixelIteratorWrapper(sel.template end<N>()));
+                           PixelIteratorWrapper(sel.template begin<N>(), mtx),
+                           PixelIteratorWrapper(sel.template end<N>(), mtx));
+}
+
+template <typename SelectorPtr>
+[[nodiscard]] static auto try_get_mutex_ptr(const SelectorPtr& sel_ptr) noexcept {
+  using Mutex = remove_cvref_t<decltype(CoolerGlobalLock::mtx())>;
+  using Selector = remove_cvref_t<decltype(*sel_ptr)>;
+
+  if constexpr (!std::is_same_v<Selector, hictk::cooler::PixelSelector>) {
+    return static_cast<Mutex*>(nullptr);
+  }
+
+  if (!sel_ptr) {
+    return static_cast<Mutex*>(nullptr);
+  }
+
+  return &CoolerGlobalLock::mtx();
 }
 
 nb::iterator PixelSelector::make_iterable() const {
   return std::visit(
       [&](const auto& sel_ptr) -> nb::iterator {
         assert(!!sel_ptr);
+        auto* mtx = try_get_mutex_ptr(sel_ptr);
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::iterator {
               using N = decltype(count);
               HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
               if (pixel_format == PixelFormat::BG2) {
-                return make_bg2_iterable<N>(*sel_ptr, _diagonal_band_width);
+                return make_bg2_iterable<N>(*sel_ptr, _diagonal_band_width, mtx);
               }
               assert(pixel_format == PixelFormat::COO);
-              return make_coo_iterable<N>(*sel_ptr, _diagonal_band_width);
+              return make_coo_iterable<N>(*sel_ptr, _diagonal_band_width, mtx);
             },
             pixel_count);
       },

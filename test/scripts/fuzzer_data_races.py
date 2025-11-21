@@ -347,7 +347,7 @@ def vtable() -> Dict[str, Callable]:
         "call_variance",
         "call_skewness",
         "call_kurtosis",
-        # "call_iterator",
+        "call_iterator",
         "create_cooler",
         "create_hic",
     ]
