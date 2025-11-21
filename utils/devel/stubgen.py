@@ -54,8 +54,12 @@ def main():
     touch_file(os.path.join(args["output-dir"], "py.typed"), args["force"])
 
     process_module("hictkpy._hictkpy", os.path.join(args["output-dir"], "__init__.pyi"), args["force"])
-    process_module("hictkpy._hictkpy.cooler", os.path.join(args["output-dir"], "cooler.pyi"), args["force"])
-    process_module("hictkpy._hictkpy.hic", os.path.join(args["output-dir"], "hic.pyi"), args["force"])
+    for mod in ("cooler", "hic", "logging"):
+        process_module(
+            mod_name=f"hictkpy._hictkpy.{mod}",
+            out_file=os.path.join(args["output-dir"], f"{mod}.pyi"),
+            force=args["force"],
+        )
 
 
 if __name__ == "__main__":

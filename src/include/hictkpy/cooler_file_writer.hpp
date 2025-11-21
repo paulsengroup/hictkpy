@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <hictk/bin_table.hpp>
 #include <hictk/cooler/singlecell_cooler.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -43,7 +46,7 @@ class CoolerFileWriter {
 
   void add_pixels(const nanobind::object& df, bool sorted, bool validate);
 
-  [[nodiscard]] File finalize(std::string_view log_lvl_str, std::size_t chunk_size,
+  [[nodiscard]] File finalize(std::optional<std::string_view> log_lvl_str, std::size_t chunk_size,
                               std::size_t update_frequency);
   [[nodiscard]] bool finalized() const noexcept;
 
@@ -57,9 +60,11 @@ class CoolerFileWriter {
       std::string_view path, const hictk::BinTable& bins, std::string_view assembly,
       const std::filesystem::path& tmpdir_);
 
-  const std::filesystem::path& tmpdir() const;
-  [[nodiscard]] const hictk::cooler::SingleCellFile& w() const;
-  [[nodiscard]] hictk::cooler::SingleCellFile& w();
+  void reset();
+
+  [[nodiscard]] const std::filesystem::path& tmpdir() const;
+  [[nodiscard]] const hictk::cooler::SingleCellFile& get() const;
+  [[nodiscard]] hictk::cooler::SingleCellFile& get();
 };
 
 }  // namespace hictkpy

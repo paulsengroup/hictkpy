@@ -18,6 +18,10 @@ project(
   DESCRIPTION "Python bindings for hictk."
 )
 
+if(NOT DEFINED CMAKE_FIND_PACKAGE_PREFER_CONFIG)
+  set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(
   _hictkpy_project_options
@@ -121,6 +125,9 @@ dynamic_project_options(
         "${CUDA_WARNINGS}"
 )
 
+# gitignore build folders
+file(WRITE "${CMAKE_BINARY_DIR}/.gitignore" "*")
+
 target_compile_features(
   hictkpy_project_options
   INTERFACE
@@ -142,11 +149,10 @@ target_compile_definitions(
     HICTK_WITH_ARROW
     HICTK_WITH_EIGEN
     # Tweak spdlog
-    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_$<IF:$<CONFIG:Debug>,DEBUG,INFO>
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG
     SPDLOG_CLOCK_COARSE
     SPDLOG_FMT_EXTERNAL
     SPDLOG_NO_THREAD_ID
-    SPDLOG_NO_ATOMIC_LEVELS
     # Windows-specific tweaks
     $<$<BOOL:${WIN32}>:NOMINMAX>
     $<$<BOOL:${WIN32}>:_CRT_SECURE_NO_WARNINGS>

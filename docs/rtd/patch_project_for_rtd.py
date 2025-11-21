@@ -98,19 +98,22 @@ def patch_conanfile(path: pathlib.Path, inplace: bool):
     logging.info('Patching "%s"...', path)
     packages = (
         "arrow",
-        "boost",
         "hdf5",
         "highfive",
         "libdeflate",
         "zstd",
     )
 
+    # drop build_requirements()
+    pattern = re.compile(r"def build_requirements\(self\):((.|\n)*?)\s+def", re.MULTILINE)
+
+    payload = pattern.sub("def", path.read_text()).splitlines(keepends=True)
+
+    # drop unwanted packages
     pattern = "|".join(f"{p}/" for p in packages)
     pattern += "|"
     pattern += "|".join(rf"{p}\"" for p in packages)
     pattern = re.compile(rf"^(\s*)(.*\"({pattern}).*)$")
-
-    payload = path.read_text().splitlines(keepends=True)
 
     num_replacements = 0
     for i, line in enumerate(payload):

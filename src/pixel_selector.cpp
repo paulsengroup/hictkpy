@@ -28,6 +28,7 @@
 #include <hictk/transformers/to_sparse_matrix.hpp>
 #include <hictkpy/common.hpp>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -38,6 +39,7 @@
 #include <variant>
 #include <vector>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/pixel_aggregator.hpp"
@@ -45,7 +47,10 @@
 #include "hictkpy/to_pyarrow.hpp"
 #include "hictkpy/type.hpp"
 
+#define HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED [[maybe_unused]] const auto lck = lock();
+
 namespace nb = nanobind;
+using namespace hictk::transformers;
 
 namespace hictkpy {
 
@@ -119,7 +124,8 @@ hictk::PixelCoordinates PixelSelector::coord1() const noexcept {
   assert(!selector.valueless_by_exception());
   return std::visit(
       [](const auto& s) -> hictk::PixelCoordinates {
-        if constexpr (std::is_same_v<std::decay_t<decltype(*s)>, hictk::hic::PixelSelectorAll>) {
+        using SelT = std::decay_t<decltype(*s)>;
+        if constexpr (std::is_same_v<SelT, hictk::hic::PixelSelectorAll>) {
           return {};
         } else {
           return s->coord1();
@@ -133,7 +139,8 @@ hictk::PixelCoordinates PixelSelector::coord2() const noexcept {
   assert(!selector.valueless_by_exception());
   return std::visit(
       [](const auto& s) -> hictk::PixelCoordinates {
-        if constexpr (std::is_same_v<std::decay_t<decltype(*s)>, hictk::hic::PixelSelectorAll>) {
+        using SelT = std::decay_t<decltype(*s)>;
+        if constexpr (std::is_same_v<SelT, hictk::hic::PixelSelectorAll>) {
           return {};
         } else {
           return s->coord2();
@@ -217,95 +224,157 @@ nb::type_object PixelSelector::dtype() const {
 
   unreachable_code();
 }
-template <typename PixelIt>
+
+template <typename PixelIt, typename Mutex>
 class PixelIteratorWrapper {
   PixelIt _it{};
   Pixel _value;
+  Mutex* _mtx{};
 
  public:
-  PixelIteratorWrapper() = default;
+  PixelIteratorWrapper() = delete;
   // NOLINTNEXTLINE(*-explicit-conversions)
-  PixelIteratorWrapper(PixelIt it) noexcept : _it(std::move(it)) {}
+  PixelIteratorWrapper(PixelIt it, Mutex* mtx) noexcept : _it(std::move(it)), _mtx(mtx) {}
 
-  bool operator==(const PixelIteratorWrapper& other) const { return _it == other._it; }
+  bool operator==(const PixelIteratorWrapper& other) const {
+    if (this == &other) {
+      return true;
+    }
+
+    auto bind_mutex_to_lock = [](auto* mtx) -> std::unique_lock<Mutex> {
+      if (!mtx) {
+        return {};
+      }
+      return std::unique_lock<Mutex>{*mtx, std::defer_lock};
+    };
+
+    auto lck1 = bind_mutex_to_lock(_mtx);
+    auto lck2 = bind_mutex_to_lock(other._mtx);
+
+    if (lck1.mutex() && lck2.mutex()) {
+      std::lock(lck1, lck2);
+    } else if (lck1.mutex()) {
+      lck1.lock();
+    } else if (lck2.mutex()) {
+      lck2.lock();
+    }
+
+    return _it == other._it;
+  }
+
   bool operator!=(const PixelIteratorWrapper& other) const { return !(*this == other); }
 
   const Pixel& operator*() {
-    _value = *_it;
+    {
+      [[maybe_unused]] const auto lck = lock();
+      _value = *_it;
+    }
     return _value;
   }
   const Pixel* operator->() { return &(**this); }
 
   PixelIteratorWrapper& operator++() {
-    std::ignore = ++_it;
+    {
+      [[maybe_unused]] const auto lck = lock();
+      std::ignore = ++_it;
+    }
     return *this;
   }
 
   PixelIteratorWrapper operator++(int) {
+    [[maybe_unused]] const auto lck = lock();
     auto it = *this;
     std::ignore = ++_it;
     return it;
+  }
+
+ private:
+  [[nodiscard]] std::unique_lock<Mutex> lock() {
+    if (_mtx) {
+      return std::unique_lock{*_mtx};
+    }
+    return {};
   }
 };
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::iterator make_bg2_iterable(
-    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width) {
+    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width,
+    CoolerGlobalLock::UniqueLock::Mutex* mtx) {
   if constexpr (std::is_floating_point_v<N> && !std::is_same_v<N, double>) {
-    return make_bg2_iterable<double>(sel, diagonal_band_width);
+    return make_bg2_iterable<double>(sel, diagonal_band_width, mtx);
   } else if constexpr (std::is_integral_v<N> && !std::is_same_v<N, std::int64_t>) {
-    return make_bg2_iterable<std::int64_t>(sel, diagonal_band_width);
+    return make_bg2_iterable<std::int64_t>(sel, diagonal_band_width, mtx);
   }
 
   if (diagonal_band_width.has_value()) {
-    const hictk::transformers::DiagonalBand band_sel(sel.template begin<N>(), sel.template end<N>(),
-                                                     *diagonal_band_width);
-    const hictk::transformers::JoinGenomicCoords jsel{band_sel.begin(), band_sel.end(),
-                                                      sel.bins_ptr()};
+    const DiagonalBand band_sel(sel.template begin<N>(), sel.template end<N>(),
+                                *diagonal_band_width);
+    const JoinGenomicCoords jsel{band_sel.begin(), band_sel.end(), sel.bins_ptr()};
     return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                             PixelIteratorWrapper(jsel.begin()), PixelIteratorWrapper(jsel.end()));
+                             PixelIteratorWrapper(jsel.begin(), mtx),
+                             PixelIteratorWrapper(jsel.end(), mtx));
   }
 
-  const hictk::transformers::JoinGenomicCoords jsel{sel.template begin<N>(), sel.template end<N>(),
-                                                    sel.bins_ptr()};
+  const JoinGenomicCoords jsel{sel.template begin<N>(), sel.template end<N>(), sel.bins_ptr()};
   return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                           PixelIteratorWrapper(jsel.begin()), PixelIteratorWrapper(jsel.end()));
+                           PixelIteratorWrapper(jsel.begin(), mtx),
+                           PixelIteratorWrapper(jsel.end(), mtx));
 }
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::iterator make_coo_iterable(
-    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width) {
+    const PixelSelector& sel, std::optional<std::uint64_t> diagonal_band_width,
+    CoolerGlobalLock::UniqueLock::Mutex* mtx) {
   if constexpr (std::is_floating_point_v<N> && !std::is_same_v<N, double>) {
-    return make_coo_iterable<double>(sel, diagonal_band_width);
+    return make_coo_iterable<double>(sel, diagonal_band_width, mtx);
   } else if constexpr (std::is_integral_v<N> && !std::is_same_v<N, std::int64_t>) {
-    return make_coo_iterable<std::int64_t>(sel, diagonal_band_width);
+    return make_coo_iterable<std::int64_t>(sel, diagonal_band_width, mtx);
   }
 
   if (diagonal_band_width.has_value()) {
-    const hictk::transformers::DiagonalBand band_sel(sel.template begin<N>(), sel.template end<N>(),
-                                                     *diagonal_band_width);
+    const DiagonalBand band_sel(sel.template begin<N>(), sel.template end<N>(),
+                                *diagonal_band_width);
     return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                             PixelIteratorWrapper(band_sel.begin()),
-                             PixelIteratorWrapper(band_sel.end()));
+                             PixelIteratorWrapper(band_sel.begin(), mtx),
+                             PixelIteratorWrapper(band_sel.end(), mtx));
   }
 
   return nb::make_iterator(nb::type<hictkpy::PixelSelector>(), "PixelIterator",
-                           PixelIteratorWrapper(sel.template begin<N>()),
-                           PixelIteratorWrapper(sel.template end<N>()));
+                           PixelIteratorWrapper(sel.template begin<N>(), mtx),
+                           PixelIteratorWrapper(sel.template end<N>(), mtx));
+}
+
+template <typename SelectorPtr>
+[[nodiscard]] static auto try_get_mutex_ptr(const SelectorPtr& sel_ptr) noexcept {
+  using Mutex = remove_cvref_t<decltype(CoolerGlobalLock::mtx())>;
+  using Selector = remove_cvref_t<decltype(*sel_ptr)>;
+
+  if constexpr (!std::is_same_v<Selector, hictk::cooler::PixelSelector>) {
+    return static_cast<Mutex*>(nullptr);
+  }
+
+  if (!sel_ptr) {
+    return static_cast<Mutex*>(nullptr);
+  }
+
+  return &CoolerGlobalLock::mtx();
 }
 
 nb::iterator PixelSelector::make_iterable() const {
   return std::visit(
       [&](const auto& sel_ptr) -> nb::iterator {
         assert(!!sel_ptr);
+        auto* mtx = try_get_mutex_ptr(sel_ptr);
         return std::visit(
             [&]([[maybe_unused]] auto count) -> nb::iterator {
               using N = decltype(count);
+              HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
               if (pixel_format == PixelFormat::BG2) {
-                return make_bg2_iterable<N>(*sel_ptr, _diagonal_band_width);
+                return make_bg2_iterable<N>(*sel_ptr, _diagonal_band_width, mtx);
               }
               assert(pixel_format == PixelFormat::COO);
-              return make_coo_iterable<N>(*sel_ptr, _diagonal_band_width);
+              return make_coo_iterable<N>(*sel_ptr, _diagonal_band_width, mtx);
             },
             pixel_count);
       },
@@ -314,32 +383,30 @@ nb::iterator PixelSelector::make_iterable() const {
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static std::shared_ptr<arrow::Table> make_bg2_arrow_df(
-    const PixelSelector& sel, hictk::transformers::QuerySpan span,
-    std::optional<std::uint64_t> diagonal_band_width) {
+    const PixelSelector& sel, QuerySpan span, std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
     return make_bg2_arrow_df<double>(sel, span, diagonal_band_width);
   } else {
-    return hictk::transformers::ToDataFrame(
-        sel, sel.template end<N>(), hictk::transformers::DataFrameFormat::BG2, sel.bins_ptr(), span,
-        false, 256'000, diagonal_band_width)();
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
+    return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::BG2, sel.bins_ptr(), span,
+                       false, 256'000, diagonal_band_width)();
   }
 }
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static std::shared_ptr<arrow::Table> make_coo_arrow_df(
-    const PixelSelector& sel, hictk::transformers::QuerySpan span,
-    std::optional<std::uint64_t> diagonal_band_width) {
+    const PixelSelector& sel, QuerySpan span, std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
     return make_coo_arrow_df<double>(sel, span, diagonal_band_width);
   } else {
-    return hictk::transformers::ToDataFrame(
-        sel, sel.template end<N>(), hictk::transformers::DataFrameFormat::COO, sel.bins_ptr(), span,
-        false, 256'000, diagonal_band_width)();
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
+    return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::COO, sel.bins_ptr(), span,
+                       false, 256'000, diagonal_band_width)();
   }
 }
 
-nb::object PixelSelector::to_arrow(std::string_view span) const {
-  std::ignore = import_pyarrow_checked();
+std::optional<nb::object> PixelSelector::to_arrow(std::string_view span) const {
+  check_pyarrow_is_importable();
 
   const auto query_span = parse_span(span);
   auto table = std::visit(
@@ -348,6 +415,7 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
         return std::visit(
             [&]([[maybe_unused]] auto count) -> std::shared_ptr<arrow::Table> {
               using N = decltype(count);
+              HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
               if (pixel_format == PixelFormat::BG2) {
                 return make_bg2_arrow_df<N>(*sel_ptr, query_span, _diagonal_band_width);
               }
@@ -358,76 +426,102 @@ nb::object PixelSelector::to_arrow(std::string_view span) const {
       },
       selector);
 
-  return export_pyarrow_table(std::move(table));
+  return [&table]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    return std::make_optional(export_pyarrow_table(std::move(table)));
+  }();
+}
+
+[[nodiscard]] static nb::object to_arrow_unwrapped(const PixelSelector& sel,
+                                                   std::string_view span) {
+  auto df = sel.to_arrow(span);
+  return std::move(*df);  // NOLINT(*-unchecked-optional-access)
 }
 
 nb::object PixelSelector::to_pandas(std::string_view span) const {
-  import_module_checked("pandas");
-  return to_arrow(span).attr("to_pandas")(nb::arg("self_destruct") = true);
+  check_module_is_importable("pandas");
+  auto df = to_arrow(span);
+
+  // clang-format off
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  return [dff = std::move(df)]() { return dff->attr("to_pandas")(nb::arg("self_destruct") = true); }();
+  // clang-format on
 }
 
-nb::object PixelSelector::to_df(std::string_view span) const { return to_pandas(span); }
-
 template <typename N, typename PixelSelector>
-[[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
-                                                hictk::transformers::QuerySpan span,
-                                                std::optional<std::uint64_t> diagonal_band_width) {
+[[nodiscard]] static auto make_csr_matrix(std::shared_ptr<const PixelSelector> sel, QuerySpan span,
+                                          std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
     return make_csr_matrix<double>(std::move(sel), span, diagonal_band_width);
   } else {
-    return nb::cast(hictk::transformers::ToSparseMatrix(std::move(sel), N{}, span, false,
-                                                        diagonal_band_width)());
+    return ToSparseMatrix(std::move(sel), N{}, span, false, diagonal_band_width)();
   }
 }
 
-nb::object PixelSelector::to_csr(std::string_view span) const {
-  import_module_checked("scipy");
+std::optional<nb::object> PixelSelector::to_csr(std::string_view span) const {
+  check_module_is_importable("scipy");
   const auto query_span = parse_span(span);
 
   return std::visit(
-      [&](auto sel_ptr) -> nb::object {
+      [&]([[maybe_unused]] auto count) -> std::optional<nb::object> {
         return std::visit(
-            [&]([[maybe_unused]] auto count) -> nb::object {
-              using N = decltype(count);
-              return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+            [&](const auto& sel_ptr) -> std::optional<nb::object> {
+              auto m = [&]() {
+                using N = decltype(count);
+                HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+                return make_csr_matrix<N>(sel_ptr, query_span, _diagonal_band_width);
+              }();
+
+              HICTKPY_GIL_SCOPED_ACQUIRE
+              return std::make_optional(nb::cast(std::move(m)));
             },
-            pixel_count);
+            selector);
       },
-      selector);
+      pixel_count);
 }
 
 nb::object PixelSelector::to_coo(std::string_view span) const {
-  import_module_checked("scipy");
-  return to_csr(span).attr("tocoo")(false);
+  check_module_is_importable("scipy");
+  auto csr_m = to_csr(span);
+
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  auto coo_m = csr_m->attr("tocoo")(false);
+  csr_m.reset();
+  return coo_m;
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] static nb::object make_numpy_matrix(
-    std::shared_ptr<const PixelSelector> sel, hictk::transformers::QuerySpan span,
-    std::optional<std::uint64_t> diagonal_band_width) {
+[[nodiscard]] static auto make_eigen_matrix(std::shared_ptr<const PixelSelector> sel,
+                                            QuerySpan span,
+                                            std::optional<std::uint64_t> diagonal_band_width) {
   if constexpr (std::is_same_v<N, long double>) {
-    return make_numpy_matrix<double>(std::move(sel), span, diagonal_band_width);
+    return make_eigen_matrix<double>(std::move(sel), span, diagonal_band_width);
   } else {
-    return nb::cast(
-        hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)());
+    return ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)();
   }
 }
 
 nb::object PixelSelector::to_numpy(std::string_view span) const {
-  std::ignore = import_module_checked("numpy");
+  check_module_is_importable("numpy");
 
   const auto query_span = parse_span(span);
 
   return std::visit(
-      [&](auto sel_ptr) -> nb::object {
+      [&]([[maybe_unused]] auto count) -> nb::object {
         return std::visit(
-            [&]([[maybe_unused]] auto count) -> nb::object {
-              using N = decltype(count);
-              return make_numpy_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width);
+            [&](const auto& sel_ptr) -> nb::object {
+              auto m = [&]() {
+                using N = decltype(count);
+                HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+                return make_eigen_matrix<N>(sel_ptr, query_span, _diagonal_band_width);
+              }();
+
+              HICTKPY_GIL_SCOPED_ACQUIRE
+              return nb::cast(std::move(m));
             },
-            pixel_count);
+            selector);
       },
-      selector);
+      pixel_count);
 }
 
 template <typename PixelIt>
@@ -492,9 +586,7 @@ template <typename PixelIt>
               auto last = sel_ptr->template end<N>();
 
               if (diagonal_band_width.has_value()) {
-                hictk::transformers::DiagonalBand sel_diag{
-                    std::move(first), std::move(last),
-                    static_cast<std::uint64_t>(*diagonal_band_width)};
+                DiagonalBand sel_diag{std::move(first), std::move(last), *diagonal_band_width};
                 return aggregate_pixels(sel_diag.begin(), sel_diag.end(),
                                         fixed_bin_size ? sel_ptr->size() : 0, keep_nans, keep_infs,
                                         keep_zeros, exact, metrics);
@@ -510,13 +602,16 @@ template <typename PixelIt>
 
 nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool keep_nans,
                                  bool keep_infs, bool keep_zeros, bool exact) const {
-  const auto stats =
-      aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
-                       _diagonal_band_width, {metrics.begin(), metrics.end()});
+  const auto stats = [&]() {
+    HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+    return aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
+                            _diagonal_band_width, {metrics.begin(), metrics.end()});
+  }();
 
   using StatsDict =
       nanobind::typed<nanobind::dict, std::string, std::variant<std::int64_t, double>>;
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   StatsDict stats_py{};
 
   for (const auto& metric : metrics) {
@@ -527,16 +622,13 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
     stats_py["nnz"] = *stats.nnz;
   }
   if (stats.sum) {
-    stats_py["sum"] =
-        std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
+    stats_py["sum"] = *stats.sum;
   }
   if (stats.min) {
-    stats_py["min"] =
-        std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
+    stats_py["min"] = *stats.min;
   }
   if (stats.max) {
-    stats_py["max"] =
-        std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
+    stats_py["max"] = *stats.max;
   }
   if (stats.mean) {
     stats_py["mean"] = *stats.mean;
@@ -555,48 +647,59 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
 }
 
 std::int64_t PixelSelector::nnz(bool keep_nans, bool keep_infs) const {
+  HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
                            _diagonal_band_width, {"nnz"})
               .nnz;
 }
 
-nb::object PixelSelector::sum(bool keep_nans, bool keep_infs) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
-                                      _diagonal_band_width, {"sum"});
-  return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.sum);
+std::optional<std::variant<std::int64_t, double>> PixelSelector::sum(bool keep_nans,
+                                                                     bool keep_infs) const {
+  HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+  return aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
+                          _diagonal_band_width, {"sum"})
+      .sum;
 }
 
-nb::object PixelSelector::min(bool keep_nans, bool keep_infs, bool keep_zeros) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros,
-                                      false, _diagonal_band_width, {"min"});
-  return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.min);
+std::optional<std::variant<std::int64_t, double>> PixelSelector::min(bool keep_nans, bool keep_infs,
+                                                                     bool keep_zeros) const {
+  HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+  return aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
+                          _diagonal_band_width, {"min"})
+      .min;
 }
 
-nb::object PixelSelector::max(bool keep_nans, bool keep_infs, bool keep_zeros) const {
-  const auto stats = aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros,
-                                      false, _diagonal_band_width, {"max"});
-  return std::visit([](const auto n) -> nb::object { return nb::cast(n); }, *stats.max);
+std::optional<std::variant<std::int64_t, double>> PixelSelector::max(bool keep_nans, bool keep_infs,
+                                                                     bool keep_zeros) const {
+  HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+  return aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
+                          _diagonal_band_width, {"max"})
+      .max;
 }
 
 double PixelSelector::mean(bool keep_nans, bool keep_infs, bool keep_zeros) const {
+  HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
                            _diagonal_band_width, {"mean"})
               .mean;
 }
 
 double PixelSelector::variance(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"variance"})
               .variance;
 }
 
 double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"skewness"})
               .skewness;
 }
 
 double PixelSelector::kurtosis(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
+  HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"kurtosis"})
               .kurtosis;
@@ -659,6 +762,14 @@ std::string_view PixelSelector::count_type_to_str(const PixelVar& var) {
   unreachable_code();
 }
 
+[[nodiscard]] CoolerGlobalLock::UniqueLock PixelSelector::lock() const noexcept {
+  using T = std::shared_ptr<const hictk::cooler::PixelSelector>;
+  if (std::get_if<T>(&selector) != nullptr) {
+    return CoolerGlobalLock::lock();
+  }
+  return {};
+}
+
 void PixelSelector::bind(nb::module_& m) {
   auto sel = nb::class_<PixelSelector>(
       m, "PixelSelector",
@@ -696,24 +807,30 @@ void PixelSelector::bind(nb::module_& m) {
           "Implement iter(self). The resulting iterator yields objects of type hictkpy.Pixel.",
           nb::rv_policy::take_ownership);
 
-  sel.def("to_arrow", &PixelSelector::to_arrow, nb::arg("query_span") = "upper_triangle",
+  sel.def("to_arrow", &to_arrow_unwrapped, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_arrow(self, query_span: str = \"upper_triangle\") -> pyarrow.Table"),
           "Retrieve interactions as a pyarrow.Table.", nb::rv_policy::take_ownership);
-  sel.def("to_pandas", &PixelSelector::to_pandas, nb::arg("query_span") = "upper_triangle",
+  sel.def("to_pandas", &PixelSelector::to_pandas, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_pandas(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Retrieve interactions as a pandas DataFrame.", nb::rv_policy::take_ownership);
-  sel.def("to_df", &PixelSelector::to_df, nb::arg("query_span") = "upper_triangle",
+  sel.def("to_df", &PixelSelector::to_pandas, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "upper_triangle",
           nb::sig("def to_df(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Alias to to_pandas().", nb::rv_policy::take_ownership);
-  sel.def("to_numpy", &PixelSelector::to_numpy, nb::arg("query_span") = "full",
+  sel.def("to_numpy", &PixelSelector::to_numpy, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "full",
           nb::sig("def to_numpy(self, query_span: str = \"full\") -> numpy.ndarray"),
           "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::move);
   sel.def(
-      "to_coo", &PixelSelector::to_coo, nb::arg("query_span") = "upper_triangle",
+      "to_coo", &PixelSelector::to_coo, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
       "Retrieve interactions as a SciPy COO matrix.", nb::rv_policy::take_ownership);
   sel.def(
-      "to_csr", &PixelSelector::to_csr, nb::arg("query_span") = "upper_triangle",
+      "to_csr", &PixelSelector::to_csr, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("query_span") = "upper_triangle",
       nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
       "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::move);
 
@@ -733,54 +850,60 @@ void PixelSelector::bind(nb::module_& m) {
           "The estimates are stable and usually very accurate. "
           "However, if you require exact values, you can specify exact=True."),
       fmt::join(known_metrics, ", "));
-  sel.def("describe", &PixelSelector::describe, nb::arg("metrics") = known_metrics,
-          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
-          nb::arg("exact") = false, describe_cmd_help.c_str());
-  sel.def("nnz", &PixelSelector::nnz, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
+  sel.def("describe", &PixelSelector::describe, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("metrics") = known_metrics, nb::arg("keep_nans") = false,
+          nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+          describe_cmd_help.c_str());
+  sel.def("nnz", &PixelSelector::nnz, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
           "Get the number of non-zero entries for the current pixel selection. See documentation "
           "for describe() for more details.");
-  sel.def("sum", &PixelSelector::sum, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
+  sel.def("sum", &PixelSelector::sum, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
           nb::sig("def sum(self, keep_nans: bool = False, keep_infs: bool = False) -> int | float"),
           "Get the total number of interactions for the current pixel selection. See documentation "
           "for describe() for more details.");
   sel.def(
-      "min", &PixelSelector::min, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::arg("keep_zeros") = false,
+      "min", &PixelSelector::min, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
       nb::sig("def min(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> int | float | None"),
       "Get the minimum number of interactions for the current pixel selection. See documentation "
       "for describe() for more details.");
   sel.def(
-      "max", &PixelSelector::max, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::arg("keep_zeros") = false,
+      "max", &PixelSelector::max, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
       nb::sig("def max(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> int | float | None"),
       "Get the maximum number of interactions for the current pixel selection. See documentation "
       "for describe() for more details.");
   sel.def(
-      "mean", &PixelSelector::mean, nb::arg("keep_nans") = false, nb::arg("keep_infs") = false,
-      nb::arg("keep_zeros") = false,
+      "mean", &PixelSelector::mean, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
       nb::sig("def mean(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: bool = "
               "False) -> float | None"),
       "Get the average number of interactions for the current pixel selection. See documentation "
       "for describe() for more details.");
   sel.def(
-      "variance", &PixelSelector::variance, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      "variance", &PixelSelector::variance, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
+      nb::arg("exact") = false,
       nb::sig("def variance(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
       "Get the variance of the number of interactions for the current pixel selection. See "
       "documentation for describe() for more details.");
   sel.def(
-      "skewness", &PixelSelector::skewness, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      "skewness", &PixelSelector::skewness, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
+      nb::arg("exact") = false,
       nb::sig("def skewness(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
       "Get the skewness of the number of interactions for the current pixel selection. See "
       "documentation for describe() for more details.");
   sel.def(
-      "kurtosis", &PixelSelector::kurtosis, nb::arg("keep_nans") = false,
-      nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false, nb::arg("exact") = false,
+      "kurtosis", &PixelSelector::kurtosis, nb::call_guard<nb::gil_scoped_release>(),
+      nb::arg("keep_nans") = false, nb::arg("keep_infs") = false, nb::arg("keep_zeros") = false,
+      nb::arg("exact") = false,
       nb::sig("def kurtosis(self, keep_nans: bool = False, keep_infs: bool = False, keep_zeros: "
               "bool = False, exact: bool = False) -> float | None"),
       "Get the kurtosis of the number of interactions for the current pixel selection. See "

@@ -9,7 +9,13 @@
 #include <winsock2.h>
 #endif
 
+#include <H5public.h>
+#include <arrow/array/array_base.h>
+#include <arrow/buffer.h>
+#include <arrow/table.h>
+#include <arrow/type.h>
 #include <fmt/format.h>
+#include <parallel_hashmap/phmap.h>
 
 #include <algorithm>
 #include <cassert>
@@ -25,17 +31,20 @@
 #include <hictk/hic.hpp>
 #include <hictk/hic/common.hpp>
 #include <hictk/hic/validation.hpp>
+#include <hictk/numeric_variant.hpp>
 #include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/reference.hpp"
@@ -53,7 +62,10 @@ static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
       [&](const auto &ff) -> hictkpy::PixelSelector {
         using FileT = remove_cvref_t<decltype(ff)>;
         if constexpr (std::is_same_v<FileT, hictk::cooler::File>) {
-          auto sel = ff.fetch(normalization, diagonal_band_width.has_value());
+          auto sel = [&]() {
+            HICTKPY_LOCK_COOLER_MTX_SCOPED
+            return ff.fetch(normalization, diagonal_band_width.has_value());
+          }();
           using SelT = decltype(sel);
           return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
                   diagonal_band_width};
@@ -90,7 +102,10 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f, const hictk::Geno
           return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
                   diagonal_band_width};
         } else {
-          auto sel = ff.fetch(chrom1, start1, end1, chrom2, start2, end2, normalization);
+          auto sel = [&]() {
+            HICTKPY_LOCK_COOLER_MTX_SCOPED
+            return ff.fetch(chrom1, start1, end1, chrom2, start2, end2, normalization);
+          }();
 
           using SelT = decltype(sel);
           return {std::make_shared<const SelT>(std::move(sel)), count_type, join,
@@ -101,8 +116,8 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f, const hictk::Geno
 }
 
 static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
-                                         std::optional<std::string_view> range1,
-                                         std::optional<std::string_view> range2,
+                                         const std::optional<std::string_view> &range1,
+                                         const std::optional<std::string_view> &range2,
                                          const hictk::balancing::Method &normalization,
                                          hictk::internal::NumericVariant count_type, bool join,
                                          hictk::GenomicInterval::Type query_type,
@@ -113,7 +128,8 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
   }
 
   if (!range2.has_value() || range2->empty()) {
-    range2 = range1;
+    return fetch_impl(f, range1, range1, normalization, count_type, join, query_type,
+                      diagonal_band_width);
   }
 
   return fetch_impl(
@@ -124,9 +140,9 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
   );
 }
 
-static hictkpy::PixelSelector fetch(const File &f, std::optional<std::string_view> range1,
-                                    std::optional<std::string_view> range2,
-                                    std::optional<std::string_view> normalization,
+static hictkpy::PixelSelector fetch(const File &f, const std::optional<std::string_view> &range1,
+                                    const std::optional<std::string_view> &range2,
+                                    const std::optional<std::string_view> &normalization,
                                     std::variant<nb::type_object, std::string_view> count_type,
                                     bool join, std::string_view query_type,
                                     std::optional<std::int64_t> diagonal_band_width) {
@@ -141,7 +157,7 @@ static hictkpy::PixelSelector fetch(const File &f, std::optional<std::string_vie
   }
 
   return fetch_impl(
-      *f, std::move(range1), std::move(range2), normalization_method,
+      *f, range1, range2, normalization_method,
       std::visit([](const auto &ct) { return map_py_numeric_to_cpp_type(ct); }, count_type), join,
       query_type == "UCSC" ? hictk::GenomicInterval::Type::UCSC : hictk::GenomicInterval::Type::BED,
       diagonal_band_width);
@@ -277,8 +293,6 @@ static nb::object get_weights_df(const File &f, const std::vector<std::string> &
 
   for (const auto &normalization : normalizations) {
     if (normalization == "NONE") {
-      fields.resize(fields.size() - 1);
-      columns.resize(columns.size() - 1);
       continue;
     }
 
@@ -332,17 +346,35 @@ static void ctx_exit(File &f, [[maybe_unused]] nb::handle exc_type,
   return static_cast<std::uint32_t>(*resolution);
 }
 
-File::File(hictk::File f) : _fp(std::move(f)), _uri(_fp->uri()) {}
+[[nodiscard]] static std::string get_uri_ts(const hictk::File &f) {
+  if (f.is_cooler()) {
+    HICTKPY_LOCK_COOLER_MTX_SCOPED
+    return f.uri();
+  }
+  return f.uri();
+}
+
+File::File(hictk::File f) : _fp(std::move(f)), _uri(get_uri_ts(*_fp)) {}
 
 File::File(hictk::cooler::File f) : File(hictk::File(std::move(f))) {}
 
 File::File(hictk::hic::File f) : File(hictk::File(std::move(f))) {}
 
+[[nodiscard]] static hictk::File open_file_ts(const std::filesystem::path &path,
+                                              std::optional<std::int32_t> resolution,
+                                              std::string_view matrix_type,
+                                              std::string_view matrix_unit) {
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return hictk::File{path.string(), sanitize_resolution(resolution),
+                     hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
+                     hictk::hic::ParseUnitStr(std::string{matrix_unit})};
+}
+
 File::File(const std::filesystem::path &path, std::optional<std::int32_t> resolution,
            std::string_view matrix_type, std::string_view matrix_unit)
-    : File(hictk::File{path.string(), sanitize_resolution(resolution),
-                       hictk::hic::ParseMatrixTypeStr(std::string{matrix_type}),
-                       hictk::hic::ParseUnitStr(std::string{matrix_unit})}) {}
+    : File(open_file_ts(path, resolution, matrix_type, matrix_unit)) {}
+
+File::~File() noexcept { std::ignore = try_close(); }
 
 hictk::File *File::operator->() { return &**this; }
 
@@ -362,7 +394,12 @@ const hictk::File &File::operator*() const {
   throw_closed_file_exc(_uri);
 }
 
-void File::close() { _fp.reset(); }
+void File::close() {
+  if (_fp.has_value()) {
+    [[maybe_unused]] const auto lck = lock();
+    _fp.reset();
+  }
+}
 
 bool File::try_close() noexcept {
   if (!_fp) {
@@ -374,11 +411,11 @@ bool File::try_close() noexcept {
       close();
       return true;
     } catch (const std::exception &e) {
-      nanobind::module_::import_("warnings").attr("warn")(e.what());
+      raise_python_runtime_warning(FMT_STRING("an error occurred while closing file \"{}\": {}"),
+                                   _uri, e.what());
     } catch (...) {
-      nanobind::module_::import_("warnings")
-          .attr("warn")(fmt::format(
-              FMT_STRING("an error occurred while closing file \"{}\": unknown error"), _uri));
+      raise_python_runtime_warning(
+          FMT_STRING("an error occurred while closing file \"{}\": unknown error"), _uri);
     }
   } catch (...) {  // NOLINT
   }
@@ -387,10 +424,18 @@ bool File::try_close() noexcept {
 }
 
 bool File::is_cooler(const std::filesystem::path &uri) {
-  return bool(hictk::cooler::utils::is_cooler(uri.string()));
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return static_cast<bool>(hictk::cooler::utils::is_cooler(uri.string()));
 }
 
 bool File::is_hic(const std::filesystem::path &uri) { return hictk::hic::utils::is_hic_file(uri); }
+
+CoolerGlobalLock::UniqueLock File::lock() const {
+  if (_fp.has_value() && _fp->is_cooler()) {
+    return CoolerGlobalLock::lock();
+  }
+  return {};
+}
 
 void File::bind(nb::module_ &m) {
   auto file =
@@ -461,6 +506,15 @@ void File::bind(nb::module_ &m) {
       nb::sig("def weights(self, names: collections.abc.Sequence[str], divisive: bool = True) -> "
               "pandas.DataFrame"),
       nb::rv_policy::take_ownership);
+}
+
+void cooler::init_global_state() {
+  // this should be called early on during module declaration, and it is mostly useful to avoid
+  // false positives from the sanitizers
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  if (H5open() < 0) {
+    throw std::runtime_error("failed to initialize HDF5 library!");
+  }
 }
 
 }  // namespace hictkpy

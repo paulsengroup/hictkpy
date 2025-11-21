@@ -10,7 +10,7 @@ on:
       - ".github/workflows/fuzzy-testing.yml"
       - "cmake/**"
       - "src/**"
-      - "test/scripts/fuzzer.py"
+      - "test/scripts/fuzzer*.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -20,7 +20,7 @@ on:
       - ".github/workflows/fuzzy-testing.yml"
       - "cmake/**"
       - "src/**"
-      - "test/scripts/fuzzer.py"
+      - "test/scripts/fuzzer*.py"
       - "CMakeLists.txt"
       - "conanfile.py"
       - "pyproject.toml"
@@ -59,7 +59,10 @@ jobs:
   cache-test-datasets:
     if: ${{ github.event_name != 'workflow_dispatch' }}
     name: "Cache test datasets"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/paulsengroup/ci-docker-images/ubuntu-python-314
+      options: "--user=root"
     outputs:
       cache-key: ${{ steps.generate-cache-key.outputs.key }}
     steps:
@@ -68,6 +71,9 @@ jobs:
         with:
           repository: "paulsengroup/hictk"
           ref: v2.2.0
+
+      - name: Fix permissions
+        run: chown -R "$(id -u):$(id -g)" "$PWD"
 
       - name: Generate cache key
         id: generate-cache-key
@@ -87,6 +93,8 @@ jobs:
       - name: Download test datasets
         if: steps.cache-dset.outputs.cache-hit != 'true'
         run: |
+          export PATH="/opt/python/rel/bin:$PATH"
+
           test/fuzzer/scripts/download_test_datasets.py \
             test/fuzzer/test_files.json \
             . \
@@ -94,6 +102,14 @@ jobs:
             --resolution 50000 \
             --dataset 4DNFIYECESRC \
             --nproc 3
+
+          test/fuzzer/scripts/download_test_datasets.py \
+            test/fuzzer/test_files.json \
+            . \
+            --format cool hic9 \
+            --resolution 250000 \
+            --dataset 4DNFIYECESRC \
+            --nproc 2
 
           test/fuzzer/scripts/download_test_datasets.py \
             test/fuzzer/test_files.json \
@@ -132,58 +148,85 @@ jobs:
               format: "cool",
               normalization: "NONE",
               bin-type: "fixed",
+              resolution: "50000",
+              tsan: "false",
             }
           - {
               dataset: "4DNFIYECESRC",
               format: "cool",
               normalization: "weight",
               bin-type: "fixed",
+              resolution: "50000",
+              tsan: "false",
             }
           - {
               dataset: "4DNFIYECESRC",
               format: "cool",
               normalization: "VC",
               bin-type: "fixed",
+              resolution: "50000",
+              tsan: "false",
             }
           - {
               dataset: "4DNFIYECESRC",
               format: "cool",
               normalization: "NONE",
               bin-type: "variable",
+              resolution: "0",
+              tsan: "false",
             }
           - {
               dataset: "4DNFIYECESRC",
               format: "hic8",
               normalization: "NONE",
               bin-type: "fixed",
+              resolution: "50000",
+              tsan: "false",
             }
           - {
               dataset: "4DNFIYECESRC",
               format: "hic8",
               normalization: "KR",
               bin-type: "fixed",
+              resolution: "50000",
+              tsan: "false",
             }
           - {
               dataset: "4DNFIYECESRC",
               format: "hic9",
               normalization: "NONE",
               bin-type: "fixed",
+              resolution: "50000",
+              tsan: "false",
             }
           - {
               dataset: "4DNFIYECESRC",
               format: "hic9",
               normalization: "VC",
               bin-type: "fixed",
+              resolution: "50000",
+              tsan: "false",
+            }
+          - {
+              dataset: "4DNFIYECESRC",
+              format: "hic9",
+              normalization: "NONE",
+              bin-type: "fixed",
+              resolution: "250000",
+              tsan: "true",
             }
 
     container:
-      image: ghcr.io/paulsengroup/ci-docker-images/ubuntu-24.04-cxx-clang-19
+      image: ghcr.io/paulsengroup/ci-docker-images/ubuntu-python-314
       options: "--user=root"
 
     env:
+      CC: "clang"
+      CXX: "clang++"
       CCACHE_DISABLE: "1"
       CONAN_HOME: "/opt/conan/"
       HICTK_CI: "1"
+      TSAN_OPTIONS: "report_bugs=0"
 
     steps:
       - name: Clone hictkpy
@@ -195,23 +238,33 @@ jobs:
       - name: Detect CI type
         id: ci-type
         run: |
+          apt-get update
+          apt-get install -y -q git
           if git log --format=%B -n 1 '${{ github.event.after }}' | grep -qF '[ci full]'; then
             echo 'type=full' >> "$GITHUB_OUTPUT"
           else
             echo 'type=short' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Prepare for test
+      - name: Restore cache
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ needs.cache-test-datasets.outputs.cache-key }}
+          path: /tmp/test/data/
+          fail-on-cache-miss: true
+
+      - name: Generate test parameters
         id: test-params
         run: |
           duration=120
           if [[ ${{ github.event_name }} == 'workflow_dispatch' ]]; then
             duration='${{ inputs.duration }}'
           elif [[ '${{ steps.ci-type.outputs.type }}' == 'full' ]]; then
-            duration=3600
+            duration=1800
           fi
 
-          resolution=50000
+          resolution='${{ matrix.resolution }}'
           if [[ ${{ github.event_name }} == 'workflow_dispatch' ]]; then
             if [[ '${{ inputs.resolution }}' == 'random' ]]; then
               resolution="$(
@@ -233,41 +286,60 @@ jobs:
           echo "duration=$duration" | tee -a "$GITHUB_OUTPUT"
           echo "resolution=$resolution" | tee -a "$GITHUB_OUTPUT"
 
-      - name: Restore cache
-        if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/cache/restore@v4
-        with:
-          key: ${{ needs.cache-test-datasets.outputs.cache-key }}
-          path: /tmp/test/data/
-          fail-on-cache-miss: true
-
-      - name: Prepare test dataset
-        if: ${{ github.event_name != 'workflow_dispatch' }}
+      - name: Prepare test datasets
+        id: prepare-test-dsets
         run: |
           resolution='${{ steps.test-params.outputs.resolution }}'
           if [[ "$resolution" == 0 ]]; then
             resolution='variable'
           fi
 
-          mv /tmp/test/data/*".$resolution.cool" .
+          reference_file="/tmp/test/data/${{ matrix.dataset }}.$resolution.cool"
+          test_file="${reference_file%.cool}.${{ matrix.format }}"
 
-          if [[ '${{ matrix.format }}' != cool ]]; then
-            mv /tmp/test/data/*".$resolution.${{ matrix.format }}" .
+          echo "reference-file=$reference_file" | tee -a "$GITHUB_OUTPUT"
+          echo "test-file=$test_file" | tee -a "$GITHUB_OUTPUT"
+
+          if [[ ! -f "$reference_file" ]] || [[ ! -f "$test_file" ]]; then
+            rm -rf /tmp/test
+            echo 'data-available=false' | tee -a "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-          rm -rf /tmp/test
+          echo 'data-available=true' | tee -a "$GITHUB_OUTPUT"
 
       - name: Generate cache key
         id: cache-key
         run: |
-          hash="${{ hashFiles('conanfile.py') }}"
+          hash='${{ hashFiles('conanfile.py') }}'
 
-          echo "key=fuzzer-$hash" >> "$GITHUB_OUTPUT"
+          key='fuzzer-'
+          if [[ '${{ matrix.tsan }}' == true ]]; then
+            key+=tsan-
+          fi
+          key+="$hash"
 
-      - name: Install Python
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Build deps
         run: |
           apt-get update
-          apt-get install -y python3.12 python3.12-dev
+          apt-get install -y -q build-essential clang git
+
+      - name: Setup Python
+        run: |
+          if [[ '${{ matrix.tsan }}' == true ]]; then
+            PATH="/opt/python/tsan/bin:$PATH"
+          else
+            PATH="/opt/python/rel/bin:$PATH"
+          fi
+
+          which python3
+          python3 --version
+
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+
+          pip3 install 'conan>=2.22' --no-cache-dir
 
       - name: Restore Conan cache
         id: cache-conan
@@ -276,24 +348,28 @@ jobs:
           key: conan-${{ steps.cache-key.outputs.key }}
           path: ${{ env.CONAN_HOME }}/p
 
-      - name: Configure Conan
-        if: steps.cache-conan.outputs.cache-hit != 'true'
-        run: conan remote update conancenter --url https://center2.conan.io
-
       - name: Clean Conan cache (pre-build)
         if: steps.cache-conan.outputs.cache-hit != 'true'
+        run: rm -rf ${{ env.CONAN_HOME }}/p
+
+      - name: Patch project to use TSAN
+        if: matrix.tsan == 'true'
         run: |
-          conan cache clean "*" --build
-          conan cache clean "*" --download
-          conan cache clean "*" --source
-          conan remove --confirm "*"
+          sed -i 's/^cmake\.build-type = .*$/cmake.build-type = "RelWithDebInfo"/' pyproject.toml
+
+          sed -i '/tool\.scikit-build\.cmake\.define/a CMAKE_C_FLAGS = "-fsanitize=thread"' pyproject.toml
+          sed -i '/tool\.scikit-build\.cmake\.define/a CMAKE_CXX_FLAGS = "-fsanitize=thread"' pyproject.toml
+          sed -i '/tool\.scikit-build\.cmake\.define/a CMAKE_SHARED_LINKER_FLAGS = "-fsanitize=thread"' pyproject.toml
 
       - name: Build and install
-        run: pip install --verbose '.[all]'
+        run: |
+          SETUPTOOLS_SCM_PRETEND_VERSION=0.0.1 \
+          pip3 install --verbose --no-cache-dir '.[all]'
 
       - name: Clean Conan cache (post-build)
         if: steps.cache-conan.outputs.cache-hit != 'true'
         run: |
+          pip3 install --no-cache-dir 'conan>2'
           conan cache clean "*" --build
           conan cache clean "*" --download
           conan cache clean "*" --source
@@ -308,10 +384,10 @@ jobs:
           ZSTD_CLEVEL: 19
 
       - name: Install test dependencies
-        run: pip install --no-cache-dir 'cooler==0.10.*' 'numpy<2'
+        run: pip3 install --no-cache-dir 'cooler==0.10.*'
 
       - name: Clone hictk
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.prepare-test-dsets.outputs.data-available != 'true' }}
         uses: actions/checkout@v5
         with:
           repository: "paulsengroup/hictk"
@@ -319,11 +395,13 @@ jobs:
           ref: v2.2.0
 
       - name: Download test datasets
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.prepare-test-dsets.outputs.data-available != 'true' }}
         run: |
+          rm -rf /tmp/test/data/
+          mkdir -p /tmp/test/data/
           hictk/test/fuzzer/scripts/download_test_datasets.py \
             hictk/test/fuzzer/test_files.json \
-            . \
+            /tmp/test/data/ \
             --format cool '${{ matrix.format }}' \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
             --dataset '${{ matrix.dataset }}' \
@@ -332,6 +410,7 @@ jobs:
           rm -rf hictk/
 
       - name: Run test (df)
+        if: matrix.tsan != 'true'
         run: |
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
@@ -339,10 +418,11 @@ jobs:
             --normalization '${{ matrix.normalization }}' \
             --nproc "$(nproc)" \
             --format df \
-            ./*'.${{ matrix.format }}' \
-            ./*.cool
+            '${{ steps.prepare-test-dsets.outputs.test-file }}' \
+            '${{ steps.prepare-test-dsets.outputs.reference-file }}'
 
       - name: Run test (numpy)
+        if: matrix.tsan != 'true'
         run: |
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
@@ -350,10 +430,11 @@ jobs:
             --normalization '${{ matrix.normalization }}' \
             --nproc "$(nproc)" \
             --format numpy \
-            ./*'.${{ matrix.format }}' \
-            ./*.cool
+            '${{ steps.prepare-test-dsets.outputs.test-file }}' \
+            '${{ steps.prepare-test-dsets.outputs.reference-file }}'
 
-      - name: Run test (coo)
+      - name: Run test (csr)
+        if: matrix.tsan != 'true'
         run: |
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
@@ -361,10 +442,11 @@ jobs:
             --normalization '${{ matrix.normalization }}' \
             --nproc "$(nproc)" \
             --format csr \
-            ./*'.${{ matrix.format }}' \
-            ./*.cool
+            '${{ steps.prepare-test-dsets.outputs.test-file }}' \
+            '${{ steps.prepare-test-dsets.outputs.reference-file }}'
 
       - name: Run test (describe)
+        if: matrix.tsan != 'true'
         run: |
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
@@ -372,9 +454,29 @@ jobs:
             --normalization '${{ matrix.normalization }}' \
             --nproc "$(nproc)" \
             --format describe \
-            ./*'.${{ matrix.format }}' \
-            ./*.cool \
+            '${{ steps.prepare-test-dsets.outputs.test-file }}' \
+            '${{ steps.prepare-test-dsets.outputs.reference-file }}' \
             --excluded-chroms chrY chrM
+
+      - name: Run test (TSAN)
+        if: matrix.tsan == 'true'
+        run: |
+          apt-get install -y -q llvm
+          which llvm-symbolizer
+
+          TSAN_OPTIONS='verbosity=1'
+          TSAN_OPTIONS+=" external_symbolizer_path=$(which llvm-symbolizer)"
+          TSAN_OPTIONS+=" suppressions=$PWD/utils/devel/hictkpy.tsan.suppression.txt"
+          export TSAN_OPTIONS
+          echo "$TSAN_OPTIONS"
+
+          test/scripts/fuzzer_data_races.py \
+            --resolution '${{ steps.test-params.outputs.resolution }}' \
+            --nthreads "$(nproc)" \
+            --duration '${{ steps.test-params.outputs.duration }}' \
+            --range1 chr1 \
+            '${{ steps.prepare-test-dsets.outputs.test-file }}' \
+            '${{ steps.prepare-test-dsets.outputs.reference-file }}'
 
   fuzzy-testing-status-check:
     name: Status Check (fuzzy-testing)

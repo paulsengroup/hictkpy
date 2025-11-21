@@ -672,8 +672,10 @@ def setup_logger(level=logging.INFO):
     fmt = "[%(asctime)s] %(levelname)s: %(message)s"
     logging.basicConfig(format=fmt)
     logging.getLogger().setLevel(level)
+    hictkpy.logging.setLevel(logging.WARN)
 
 
 if __name__ == "__main__":
+    mp.set_start_method("spawn")
     setup_logger()
     sys.exit(main())

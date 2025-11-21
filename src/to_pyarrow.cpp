@@ -10,7 +10,6 @@
 #include <arrow/table.h>
 #include <fmt/format.h>
 
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
@@ -19,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace nb = nanobind;
@@ -30,6 +30,7 @@ namespace hictkpy {
 
 // NOLINTBEGIN(*-owning-memory,*-no-malloc)
 static void release_arrow_schemaPyCapsule(PyObject* capsule) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
   auto* schema = static_cast<ArrowSchema*>(PyCapsule_GetPointer(capsule, "arrow_schema"));
   if (schema->release) {
     schema->release(schema);
@@ -38,6 +39,7 @@ static void release_arrow_schemaPyCapsule(PyObject* capsule) {
 }
 
 static void release_arrow_array_streamPyCapsule(PyObject* capsule) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
   auto* stream =
       static_cast<ArrowArrayStream*>(PyCapsule_GetPointer(capsule, "arrow_array_stream"));
   if (stream->release) {
@@ -60,6 +62,7 @@ static void release_arrow_array_streamPyCapsule(PyObject* capsule) {
         FMT_STRING("Failed to export arrow::Schema as ArrowSchema: {}"), status.message()));
   }
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   auto* capsule =
       PyCapsule_New(static_cast<void*>(schema), "arrow_schema", release_arrow_schemaPyCapsule);
   if (!capsule) {
@@ -92,6 +95,7 @@ static void release_arrow_array_streamPyCapsule(PyObject* capsule) {
                     status.message()));
   }
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   auto* capsule = PyCapsule_New(static_cast<void*>(array_stream), "arrow_array_stream",
                                 release_arrow_array_streamPyCapsule);
   if (!capsule) {
@@ -114,11 +118,11 @@ static void release_arrow_array_streamPyCapsule(PyObject* capsule) {
 nb::object export_pyarrow_table(std::shared_ptr<arrow::Table> arrow_table) {
   assert(arrow_table);
 
+  HICTKPY_GIL_SCOPED_ACQUIRE
   const auto pa = import_pyarrow_checked();
 
-  std::vector<nb::object> columns_py(static_cast<std::size_t>(arrow_table->num_columns()));
-  std::vector<std::shared_ptr<arrow::ChunkedArray>> columns(columns_py.size());
-  std::copy(arrow_table->columns().begin(), arrow_table->columns().end(), columns.begin());
+  std::vector columns(arrow_table->columns().begin(), arrow_table->columns().end());
+  std::vector<nb::object> columns_py(columns.size());
 
   auto schema = pa.attr("schema")(export_arrow_schema(*arrow_table->schema()));
   arrow_table.reset();

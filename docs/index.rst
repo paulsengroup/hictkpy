@@ -73,6 +73,7 @@ discourse:
    installation
    quickstart
    creating_cool_hic_files
+   multithreading_and_multiprocessing
 
 .. toctree::
    :caption: API Reference

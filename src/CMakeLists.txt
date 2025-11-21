@@ -14,6 +14,7 @@ find_package(
 
 find_package(Arrow REQUIRED QUIET)
 find_package(FMT REQUIRED QUIET)
+find_package(HDF5 REQUIRED QUIET COMPONENTS C)
 find_package(nanobind REQUIRED QUIET)
 find_package(phmap REQUIRED QUIET)
 find_package(spdlog REQUIRED QUIET)
@@ -22,7 +23,6 @@ find_package(Filesystem REQUIRED QUIET)
 if(CMAKE_BUILD_TYPE STREQUAL Release)
   set(
     HICTKPY_MODULE_ARGS
-    NB_SUPPRESS_WARNINGS
     LTO
     NOMINSIZE
   )
@@ -35,6 +35,7 @@ nanobind_add_module(
         NB_DOMAIN hictkpy
         NB_STATIC
         ${HICTKPY_MODULE_ARGS}
+        NB_SUPPRESS_WARNINGS
         MODULE
         "${CMAKE_CURRENT_SOURCE_DIR}/bin_table.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cooler_file_writer.cpp"
@@ -50,12 +51,7 @@ nanobind_add_module(
         "${CMAKE_CURRENT_SOURCE_DIR}/type.cpp"
 )
 
-target_include_directories(
-  _hictkpy
-  PRIVATE
-    include
-    "${Python_NumPy_INCLUDE_DIR}"
-)
+target_include_directories(_hictkpy PRIVATE include)
 
 target_link_libraries(
   _hictkpy
@@ -68,7 +64,9 @@ target_link_libraries(
     hictk::transformers
     Arrow::arrow_$<IF:$<BOOL:${BUILD_SHARED_LIBS}>,shared,static>
     fmt::fmt-header-only
+    HDF5::HDF5
     phmap
+    Python::Module
     spdlog::spdlog_header_only
     std::filesystem
 )

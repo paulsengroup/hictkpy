@@ -1,0 +1,6 @@
+# Copyright (C) 2025 Roberto Rossini <roberros@uio.no>
+#
+# SPDX-License-Identifier: MIT
+
+# race occurring when calling pyarrow.Table.to_pandas()
+race:*pyarrow*lib*to_pandas*
