@@ -579,11 +579,7 @@ template <typename N, typename PixelSelector,
   auto* data_ptr = matrix->data();
 
   HICTKPY_GIL_SCOPED_ACQUIRE
-  // NOLINTNEXTLINE
-  nb::capsule owner{matrix.get(), [](void* m) noexcept { delete static_cast<Matrix*>(m); }};
-  matrix.release();
-
-  return {data_ptr, {num_rows, num_cols}, std::move(owner)};
+  return {data_ptr, {num_rows, num_cols}, make_capsule(std::move(matrix))};
 }
 
 auto PixelSelector::to_numpy(std::string_view span) const -> DenseMatrix {

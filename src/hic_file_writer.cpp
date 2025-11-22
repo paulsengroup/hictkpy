@@ -29,6 +29,7 @@
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/to_numpy.hpp"
 
 namespace nb = nanobind;
 
@@ -158,21 +159,7 @@ void HiCFileWriter::try_cleanup() noexcept {
 std::filesystem::path HiCFileWriter::path() const noexcept { return std::filesystem::path{_path}; }
 
 auto HiCFileWriter::resolutions() const {
-  using ResolutionVector = nb::ndarray<nb::numpy, nb::ndim<1>, std::int64_t>;
-
-  auto resolutions = std::make_unique<std::vector<std::int64_t>>(_w->resolutions().size());
-  auto *resolutions_ptr = resolutions.get();
-
-  HICTKPY_GIL_SCOPED_ACQUIRE
-  nb::capsule owner{resolutions_ptr, [](void *ptr) noexcept {
-                      delete static_cast<std::vector<std::int64_t> *>(ptr);  // NOLINT
-                    }};
-  resolutions.release();  // NOLINT
-
-  std::transform(_w->resolutions().begin(), _w->resolutions().end(), resolutions_ptr->begin(),
-                 [](const auto res) { return static_cast<std::int64_t>(res); });
-
-  return ResolutionVector{resolutions_ptr->data(), {resolutions_ptr->size()}, std::move(owner)};
+  return make_owning_numpy<std::int64_t>(_w->resolutions());
 }
 
 const hictk::Reference &HiCFileWriter::chromosomes() const { return w().chromosomes(); }
