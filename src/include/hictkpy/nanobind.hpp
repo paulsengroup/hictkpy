@@ -164,4 +164,28 @@ inline void raise_python_runtime_warning(fmt::format_string<T...> fmt, T&&... ar
   raise_python_warning(PyExc_RuntimeWarning, fmt, std::forward<T>(args)...);
 }
 
+template <typename T>
+[[nodiscard]] inline nanobind::capsule make_capsule(std::unique_ptr<T> ptr) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  nanobind::capsule owner{ptr.get(), [](void* p) noexcept {
+                            delete static_cast<T*>(p);  // NOLINT
+                          }};
+  ptr.release();
+  return owner;
+}
+
+template <typename T>
+[[nodiscard]] inline nanobind::capsule make_capsule(std::unique_ptr<T> ptr, const char* name) {
+  if (!name) {
+    return make_capsule(std::move(ptr));
+  }
+
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  nanobind::capsule owner{ptr.get(), name, [](void* p) noexcept {
+                            delete static_cast<T*>(p);  // NOLINT
+                          }};
+  ptr.release();
+  return owner;
+}
+
 }  // namespace hictkpy

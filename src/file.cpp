@@ -48,6 +48,7 @@
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/to_numpy.hpp"
 #include "hictkpy/to_pyarrow.hpp"
 #include "hictkpy/type.hpp"
 
@@ -260,24 +261,15 @@ static std::int64_t get_nchroms(const File &f, bool include_ALL) {
 static std::filesystem::path get_path(const File &f) { return std::filesystem::path{f->path()}; }
 
 static auto get_weights(const File &f, std::string_view normalization, bool divisive) {
-  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, double>;
+  using WeightVector = nb::ndarray<nb::numpy, nb::ndim<1>, nb::c_contig, double>;
   if (normalization == "NONE") {
-    return WeightVector{};
+    return std::optional<WeightVector>{};
   }
 
   const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
                              : hictk::balancing::Weights::Type::MULTIPLICATIVE;
 
-  auto weights =
-      std::make_unique<std::vector<double>>(f->normalization(normalization).to_vector(type));
-  auto *weights_ptr = weights.get();
-
-  nb::capsule owner{weights_ptr, [](void *ptr) noexcept {
-                      delete static_cast<std::vector<double> *>(ptr);  // NOLINT
-                    }};
-  weights.release();  // NOLINT
-
-  return WeightVector{weights_ptr->data(), {weights_ptr->size()}, std::move(owner)};
+  return std::make_optional(make_owning_numpy(f->normalization(normalization).to_vector(type)));
 }
 
 static nb::object get_weights_df(const File &f, const std::vector<std::string> &normalizations,
