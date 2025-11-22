@@ -7,8 +7,6 @@
 #include <Python.h>
 #include <fmt/format.h>
 #include <fmt/std.h>
-#include <nanobind/eigen/dense.h>
-#include <nanobind/eigen/sparse.h>
 #include <nanobind/make_iterator.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
@@ -164,6 +162,30 @@ inline void raise_python_deprecation_warning(fmt::format_string<T...> fmt, T&&..
 template <typename... T>
 inline void raise_python_runtime_warning(fmt::format_string<T...> fmt, T&&... args) noexcept {
   raise_python_warning(PyExc_RuntimeWarning, fmt, std::forward<T>(args)...);
+}
+
+template <typename T>
+[[nodiscard]] inline nanobind::capsule make_capsule(std::unique_ptr<T> ptr) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  nanobind::capsule owner{ptr.get(), [](void* p) noexcept {
+                            delete static_cast<T*>(p);  // NOLINT
+                          }};
+  ptr.release();
+  return owner;
+}
+
+template <typename T>
+[[nodiscard]] inline nanobind::capsule make_capsule(std::unique_ptr<T> ptr, const char* name) {
+  if (!name) {
+    return make_capsule(std::move(ptr));
+  }
+
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  nanobind::capsule owner{ptr.get(), name, [](void* p) noexcept {
+                            delete static_cast<T*>(p);  // NOLINT
+                          }};
+  ptr.release();
+  return owner;
 }
 
 }  // namespace hictkpy

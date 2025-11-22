@@ -20,6 +20,7 @@
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/singlecell_file.hpp"
+#include "hictkpy/to_pyarrow.hpp"
 
 namespace nb = nanobind;
 namespace hictkpy {
@@ -145,6 +146,8 @@ NB_MODULE(_hictkpy, m) {
 
   CoolerFileWriter::bind(m);
   HiCFileWriter::bind(m);
+
+  m.def("test_import_table", &test_import_table, nb::arg("df"), nb::arg("names"));
 }
 
 }  // namespace hictkpy
