@@ -451,18 +451,23 @@ nb::object PixelSelector::to_pandas(std::string_view span) const {
 template <typename N, typename PixelSelector,
           typename M = std::conditional_t<std::is_same_v<N, long double>, double, N>>
 [[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
-                                                hictk::transformers::QuerySpan span,
+                                                QuerySpan span,
                                                 std::optional<std::uint64_t> diagonal_band_width,
-                                                bool low_memory) {
+                                                bool low_memory,
+                                                CoolerGlobalLock::UniqueLock::Mutex* mtx) {
   static_assert(std::is_arithmetic_v<N>);
 
   using Matrix = decltype(hictk::transformers::ToSparseMatrix(sel, M{})());
-  auto ss = import_module_checked("scipy.sparse");
+  check_module_is_importable("scipy.sparse");
 
   // This seems to be the only reliable way to construct a scipy.sparse.csr_matrix without copying
   // data around
-  auto matrix = hictk::transformers::ToSparseMatrix(std::move(sel), M{}, span, low_memory,
-                                                    diagonal_band_width)();
+  auto matrix = [&]() {
+    using Mutex = std::remove_pointer_t<decltype(mtx)>;
+    [[maybe_unused]] const auto lck = mtx ? std::unique_lock{*mtx} : std::unique_lock<Mutex>{};
+    return hictk::transformers::ToSparseMatrix(std::move(sel), M{}, span, low_memory,
+                                               diagonal_band_width)();
+  }();
   matrix.makeCompressed();
 
   // We need to make a copy of all the relevant pointers and matrix member variable before calling
@@ -487,6 +492,7 @@ template <typename N, typename PixelSelector,
   auto rc_matrix = std::make_unique<RefCountedMatrix>(std::move(matrix));
 
   auto make_capsule = [rc_matrix_ptr = rc_matrix.get()]() noexcept {
+    HICTKPY_GIL_SCOPED_ACQUIRE
     return nb::capsule{rc_matrix_ptr, [](void* ptr) noexcept {
                          auto* m = static_cast<RefCountedMatrix*>(ptr);
                          if (!!m && ++m->count == 3) {
@@ -506,10 +512,12 @@ template <typename N, typename PixelSelector,
   using I2 = const std::remove_pointer_t<decltype(indptr_ptr)>;
 
   // clang-format off
+  HICTKPY_GIL_SCOPED_ACQUIRE
   nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, T> data{data_ptr, {nnz}, std::move(owner1)};
   nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, I1> indices{indices_ptr, {nnz}, std::move(owner2)};
   nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, I2> indptr{indptr_ptr, {indptr_size}, std::move(owner3)};
 
+  auto ss = import_module_checked("scipy.sparse");
   return ss.attr("csr_matrix")(
       std::make_tuple(std::move(data), std::move(indices), std::move(indptr)),
       nb::arg("shape") = std::make_tuple(num_rows, num_cols),
@@ -524,12 +532,13 @@ std::optional<nb::object> PixelSelector::to_csr(std::string_view span, bool low_
 
   return std::visit(
       [&](auto sel_ptr) -> std::optional<nb::object> {
+        auto* mtx = try_get_mutex_ptr(sel_ptr);
         return std::visit(
             [&]([[maybe_unused]] auto count) -> std::optional<nb::object> {
               using N = decltype(count);
               HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
               return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width,
-                                        low_memory);
+                                        low_memory, mtx);
             },
             pixel_count);
       },
