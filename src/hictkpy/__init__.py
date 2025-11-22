@@ -25,6 +25,7 @@ from ._hictkpy import (
     is_mcool_file,
     is_scool_file,
     logging,
+    test_import_table,
 )
 
 __version__ = _get_hictkpy_version()
@@ -44,6 +45,7 @@ __all__ = [
     "logging",
     "hic",
     "__hictk_version__",
+    "test_import_table",
 ]
 
 del _get_hictkpy_version

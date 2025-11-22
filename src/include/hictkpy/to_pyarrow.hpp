@@ -5,6 +5,8 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "hictkpy/nanobind.hpp"
 
@@ -16,5 +18,7 @@ class Table;
 namespace hictkpy {
 
 [[nodiscard]] nanobind::object export_pyarrow_table(std::shared_ptr<arrow::Table> arrow_table);
+
+void test_import_table(const nanobind::object& df, const std::vector<std::string>& column_names);
 
 }  // namespace hictkpy
