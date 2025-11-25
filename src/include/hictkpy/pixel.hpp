@@ -4,6 +4,11 @@
 
 #pragma once
 
+#include <arrow/array/array_base.h>
+#include <arrow/array/array_primitive.h>
+#include <arrow/compute/cast.h>
+#include <arrow/table.h>
+#include <arrow/type.h>
 #include <fmt/compile.h>
 #include <fmt/format.h>
 
@@ -240,28 +245,261 @@ inline void py_string_to_cpp(const nanobind::object &obj, std::string &buff) {
 
 }  // namespace internal
 
-template <typename N>
-inline std::vector<hictk::ThinPixel<N>> coo_df_to_thin_pixels(const nanobind::object &df,
-                                                              bool sort) {
-  auto bin1_ids_np = internal::get_column_as_numpy<std::uint64_t>(df, "bin1_id");
-  auto bin2_ids_np = internal::get_column_as_numpy<std::uint64_t>(df, "bin2_id");
-  auto counts_np = internal::get_column_as_numpy<N>(df, "count");
+namespace coo {
+template <typename ArrowBin, typename ArrowCount, typename Count>
+static void process_chunk(const std::shared_ptr<arrow::NumericArray<ArrowBin>> &bin1_ids_chunk,
+                          const std::shared_ptr<arrow::NumericArray<ArrowBin>> &bin2_ids_chunk,
+                          const std::shared_ptr<arrow::NumericArray<ArrowCount>> &counts_chunk,
+                          std::vector<hictk::ThinPixel<Count>> &buff) {
+  const auto size = bin1_ids_chunk->data()->length;
+  assert(bin2_ids_chunk->data()->length == size);
+  assert(counts_chunk->data()->length == size);
 
-  const auto bin1_ids = bin1_ids_np.view();
-  const auto bin2_ids = bin2_ids_np.view();
-  const auto counts = counts_np.view();
-
-  std::vector<hictk::ThinPixel<N>> buffer(bin1_ids_np.size());
-  for (std::size_t i = 0; i < bin1_ids_np.size(); ++i) {
-    buffer[i] = hictk::ThinPixel<N>{bin1_ids(i), bin2_ids(i), counts(i)};
+  if (size == 0) {
+    return;
   }
 
-  if (sort) {
-    std::sort(buffer.begin(), buffer.end());
-  }
+  for (std::int64_t i = 0; i < size; ++i) {
+    const auto b1 = bin1_ids_chunk->Value(i);
+    const auto b2 = bin2_ids_chunk->Value(i);
+    const auto count = counts_chunk->Value(i);
 
-  return buffer;
+    if constexpr (std::is_signed_v<decltype(b1)>) {
+      if (b1 < 0) {
+        throw std::runtime_error("found negative value in bin1_id column");
+      }
+      if (b2 < 0) {
+        throw std::runtime_error("found negative value in bin2_id column");
+      }
+    }
+    buff.emplace_back(hictk::ThinPixel<Count>{conditional_static_cast<std::uint64_t>(b1),
+                                              conditional_static_cast<std::uint64_t>(b2),
+                                              conditional_static_cast<Count>(count)});
+  }
 }
+
+template <typename ArrowCount, typename Count>
+static void process_chunk(const std::shared_ptr<arrow::Array> &bin1_ids_chunk,
+                          const std::shared_ptr<arrow::Array> &bin2_ids_chunk,
+                          const std::shared_ptr<arrow::NumericArray<ArrowCount>> &counts_chunk,
+                          std::vector<hictk::ThinPixel<Count>> &buff) {
+  assert(bin1_ids_chunk->type()->id() == bin2_ids_chunk->type()->id());
+
+  using T = arrow::Type::type;
+  switch (bin1_ids_chunk->type()->id()) {
+    case T::UINT8: {
+      process_chunk(std::static_pointer_cast<arrow::UInt8Array>(bin1_ids_chunk),
+                    std::static_pointer_cast<arrow::UInt8Array>(bin2_ids_chunk), counts_chunk,
+                    buff);
+      return;
+    }
+    case T::UINT16: {
+      process_chunk(std::static_pointer_cast<arrow::UInt16Array>(bin1_ids_chunk),
+                    std::static_pointer_cast<arrow::UInt16Array>(bin2_ids_chunk), counts_chunk,
+                    buff);
+      return;
+    }
+    case T::UINT32: {
+      process_chunk(std::static_pointer_cast<arrow::UInt32Array>(bin1_ids_chunk),
+                    std::static_pointer_cast<arrow::UInt32Array>(bin2_ids_chunk), counts_chunk,
+                    buff);
+      return;
+    }
+    case T::UINT64: {
+      process_chunk(std::static_pointer_cast<arrow::UInt64Array>(bin1_ids_chunk),
+                    std::static_pointer_cast<arrow::UInt64Array>(bin2_ids_chunk), counts_chunk,
+                    buff);
+      return;
+    }
+    case T::INT8: {
+      process_chunk(std::static_pointer_cast<arrow::Int8Array>(bin1_ids_chunk),
+                    std::static_pointer_cast<arrow::Int8Array>(bin2_ids_chunk), counts_chunk, buff);
+      return;
+    }
+    case T::INT16: {
+      process_chunk(std::static_pointer_cast<arrow::Int16Array>(bin1_ids_chunk),
+                    std::static_pointer_cast<arrow::Int16Array>(bin2_ids_chunk), counts_chunk,
+                    buff);
+      return;
+    }
+    case T::INT32: {
+      process_chunk(std::static_pointer_cast<arrow::Int32Array>(bin1_ids_chunk),
+                    std::static_pointer_cast<arrow::Int32Array>(bin2_ids_chunk), counts_chunk,
+                    buff);
+      return;
+    }
+    case T::INT64: {
+      process_chunk(std::static_pointer_cast<arrow::Int64Array>(bin1_ids_chunk),
+                    std::static_pointer_cast<arrow::Int64Array>(bin2_ids_chunk), counts_chunk,
+                    buff);
+      return;
+    }
+    default:
+      throw std::invalid_argument("failed to infer dtype for bin{1,2}_id columns: unknown error");
+  }
+}
+
+template <typename Count>
+static void process_chunk(const std::shared_ptr<arrow::Array> &bin1_ids_chunk,
+                          const std::shared_ptr<arrow::Array> &bin2_ids_chunk,
+                          const std::shared_ptr<arrow::Array> &counts_chunk,
+                          std::vector<hictk::ThinPixel<Count>> &buff) {
+  using T = arrow::Type::type;
+  switch (counts_chunk->type()->id()) {
+    case T::UINT8: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::UInt8Array>(counts_chunk), buff);
+      return;
+    }
+    case T::UINT16: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::UInt16Array>(counts_chunk), buff);
+      return;
+    }
+    case T::UINT32: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::UInt32Array>(counts_chunk), buff);
+      return;
+    }
+    case T::UINT64: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::UInt64Array>(counts_chunk), buff);
+      return;
+    }
+    case T::INT8: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::Int8Array>(counts_chunk), buff);
+      return;
+    }
+    case T::INT16: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::Int16Array>(counts_chunk), buff);
+      return;
+    }
+    case T::INT32: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::Int32Array>(counts_chunk), buff);
+      return;
+    }
+    case T::INT64: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::Int64Array>(counts_chunk), buff);
+      return;
+    }
+    case T::FLOAT: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::FloatArray>(counts_chunk), buff);
+      return;
+    }
+    case T::DOUBLE: {
+      process_chunk(bin1_ids_chunk, bin2_ids_chunk,
+                    std::static_pointer_cast<arrow::DoubleArray>(counts_chunk), buff);
+      return;
+    }
+    default:
+      throw std::invalid_argument("failed to infer dtype for count column: unknown error");
+  }
+}
+
+template <typename N>
+inline std::vector<hictk::ThinPixel<N>> convert_table_thin_pixels(std::shared_ptr<arrow::Table> df,
+                                                                  bool sort) {
+  try {
+    // we assume that the array types have already been validated
+    auto bin1_ids = df->GetColumnByName("bin1_id");
+    auto bin2_ids = df->GetColumnByName("bin2_id");
+    auto counts = df->GetColumnByName("count");
+
+    if (*bin1_ids->type() != *bin2_ids->type()) {
+      if (*bin1_ids->type() != *arrow::int64()) {
+        SPDLOG_DEBUG(FMT_STRING("casting bin1_id from {} to {}..."), bin1_ids->type()->ToString(),
+                     arrow::int64()->ToString());
+        auto res = arrow::compute::Cast(bin1_ids, arrow::int64());
+        if (!res.ok()) {
+          throw std::runtime_error(fmt::format(
+              FMT_STRING("failed to cast array of type {} to type {}: {}"),
+              bin1_ids->type()->ToString(), arrow::int64()->ToString(), res.status().message()));
+        }
+        bin1_ids = res.ValueUnsafe().chunked_array();
+      }
+
+      if (*bin2_ids->type() != *arrow::int64()) {
+        SPDLOG_DEBUG(FMT_STRING("casting bin2_id from {} to {}..."), bin2_ids->type()->ToString(),
+                     arrow::int64()->ToString());
+        auto res = arrow::compute::Cast(bin2_ids, arrow::int64());
+        if (!res.ok()) {
+          throw std::runtime_error(fmt::format(
+              FMT_STRING("failed to cast array of type {} to type {}: {}"),
+              bin2_ids->type()->ToString(), arrow::int64()->ToString(), res.status().message()));
+        }
+        bin2_ids = res.ValueUnsafe().chunked_array();
+      }
+    }
+
+    // ensure columns have the same number of chunks
+    bool uneven_chunks = false;
+    if (bin1_ids->num_chunks() != bin2_ids->num_chunks() ||
+        bin1_ids->num_chunks() != counts->num_chunks()) {
+      uneven_chunks = true;
+    }
+
+    const auto num_chunks = bin1_ids->num_chunks();
+    using I = remove_cvref_t<decltype(num_chunks)>;
+    if (!uneven_chunks) {
+      // ensure chunks have the same size
+      for (I i = 0; i < num_chunks; ++i) {
+        const auto chunk1 = bin1_ids->chunk(i);
+        const auto chunk2 = bin2_ids->chunk(i);
+        const auto chunk3 = counts->chunk(i);
+
+        if (chunk1->length() != chunk2->length() || chunk1->length() != chunk3->length()) {
+          uneven_chunks = true;
+          break;
+        }
+      }
+    }
+
+    if (uneven_chunks) {
+      SPDLOG_DEBUG("found uneven chunks while converting arrow::Table to hictk::ThinPixels");
+      auto res = df->CombineChunks();
+      if (!res.ok()) {
+        throw std::runtime_error(fmt::format(
+            FMT_STRING("failed to combine arrow::Table chunks: {}"), res.status().message()));
+      }
+      df = res.MoveValueUnsafe();
+    }
+
+    std::vector<hictk::ThinPixel<N>> buffer;
+    buffer.reserve(static_cast<std::size_t>(df->num_rows()));
+
+    for (I i = 0; i < num_chunks; ++i) {
+      const auto chunk1 = bin1_ids->chunk(i);
+      const auto chunk2 = bin2_ids->chunk(i);
+      const auto chunk3 = counts->chunk(i);
+      process_chunk(chunk1, chunk2, chunk3, buffer);
+    }
+
+    assert(buffer.size() == static_cast<std::size_t>(df->num_rows()));
+    df.reset();
+
+    if (sort) {
+      std::sort(buffer.begin(), buffer.end());
+    }
+
+    return buffer;
+  } catch (const std::invalid_argument &e) {
+    throw std::invalid_argument(
+        fmt::format(FMT_STRING("failed to convert DataFrame to a COO pixels: {}"), e.what()));
+
+  } catch (const std::runtime_error &e) {
+    throw std::invalid_argument(
+        fmt::format(FMT_STRING("failed to convert DataFrame to a COO pixels: {}"), e.what()));
+  } catch (...) {
+    throw std::invalid_argument("failed to convert DataFrame to a COO pixels: unknown error");
+  }
+}
+
+}  // namespace coo
 
 template <typename N>
 inline std::vector<hictk::ThinPixel<N>> bg2_df_to_thin_pixels(const hictk::BinTable &bin_table,

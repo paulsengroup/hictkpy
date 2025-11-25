@@ -48,8 +48,8 @@
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/table.hpp"
 #include "hictkpy/to_numpy.hpp"
-#include "hictkpy/to_pyarrow.hpp"
 #include "hictkpy/type.hpp"
 
 namespace nb = nanobind;

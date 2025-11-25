@@ -34,7 +34,7 @@
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/reference.hpp"
-#include "hictkpy/to_pyarrow.hpp"
+#include "hictkpy/table.hpp"
 
 namespace nb = nanobind;
 

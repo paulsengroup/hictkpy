@@ -47,7 +47,7 @@ nanobind_add_module(
         "${CMAKE_CURRENT_SOURCE_DIR}/pixel_selector.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/reference.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/singlecell_file.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/to_pyarrow.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/table.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/type.cpp"
 )
 

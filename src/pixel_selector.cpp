@@ -44,7 +44,7 @@
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/pixel_aggregator.hpp"
 #include "hictkpy/pixel_selector.hpp"
-#include "hictkpy/to_pyarrow.hpp"
+#include "hictkpy/table.hpp"
 #include "hictkpy/type.hpp"
 
 #define HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED [[maybe_unused]] const auto lck = lock();

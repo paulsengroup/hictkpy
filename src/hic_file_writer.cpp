@@ -25,6 +25,7 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/file_writer_helpers.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
@@ -174,13 +175,14 @@ void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
         "caught attempt to add_pixels() to a .hic file that has already been finalized!");
   }
 
-  const auto coo_format = [&]() {
-    HICTKPY_GIL_SCOPED_ACQUIRE
-    return nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
-  }();
+  auto table = import_pyarrow_table(df);
 
-  const auto pixels = coo_format
-                          ? coo_df_to_thin_pixels<float>(df, false)
+  if (table.type() != PyArrowTable::Type::BG2 && table.type() != PyArrowTable::Type::COO) {
+    internal::raise_invalid_table_format();
+  }
+
+  const auto pixels = table.type() == PyArrowTable::Type::COO
+                          ? coo::convert_table_thin_pixels<float>(table.get(), false)
                           : bg2_df_to_thin_pixels<float>(w().bins(_base_resolution), df, false);
 
   SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), w().path());

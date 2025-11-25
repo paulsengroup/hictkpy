@@ -4,6 +4,7 @@
 
 #include "hictkpy/cooler_file_writer.hpp"
 
+#include <arrow/table.h>
 #include <fmt/format.h>
 #include <fmt/std.h>
 #include <spdlog/spdlog.h>
@@ -30,10 +31,12 @@
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
 #include "hictkpy/file.hpp"
+#include "hictkpy/file_writer_helpers.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/table.hpp"
 #include "hictkpy/type.hpp"
 
 namespace nb = nanobind;
@@ -101,24 +104,19 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
   auto attrs = hictk::cooler::Attributes::init(resolution());
   attrs.assembly = get().attributes().assembly;
 
-  const auto coo_format = [&]() {
-    HICTKPY_GIL_SCOPED_ACQUIRE
-    return nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
-  }();
+  auto table = import_pyarrow_table(df);
 
-  const auto dtype_str = [&]() {
-    HICTKPY_GIL_SCOPED_ACQUIRE
-    auto dtype = df.attr("__getitem__")("count").attr("dtype");
-    return nb::cast<std::string>(dtype.attr("__str__")());
-  }();
+  if (table.type() != PyArrowTable::Type::BG2 && table.type() != PyArrowTable::Type::COO) {
+    internal::raise_invalid_table_format();
+  }
 
-  const auto var = map_py_numeric_to_cpp_type(dtype_str);
-
+  const auto count_type = internal::infer_count_type(table.get());
   std::visit(
-      [&](const auto &n) {
+      [&]([[maybe_unused]] const auto &n) {
         using N = remove_cvref_t<decltype(n)>;
-        const auto pixels = coo_format ? coo_df_to_thin_pixels<N>(df, !sorted)
-                                       : bg2_df_to_thin_pixels<N>(_w->bins(), df, !sorted);
+        const auto pixels = table.type() == PyArrowTable::Type::COO
+                                ? coo::convert_table_thin_pixels<N>(table.get(), !sorted)
+                                : bg2_df_to_thin_pixels<N>(_w->bins(), df, !sorted);
 
         HICTKPY_LOCK_COOLER_MTX_SCOPED
         auto clr = [&]() {
@@ -127,12 +125,12 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
         }();
 
         SPDLOG_INFO(FMT_STRING("adding {} pixels of type {} to file \"{}\"..."), pixels.size(),
-                    dtype_str, clr.uri());
+                    type_to_str<N>(), clr.uri());
 
         clr.append_pixels(pixels.begin(), pixels.end(), validate);
         clr.flush();
       },
-      var);
+      count_type);
 }
 
 File CoolerFileWriter::finalize(std::optional<std::string_view> log_lvl_str, std::size_t chunk_size,
