@@ -495,9 +495,9 @@ template <typename N, typename PixelSelector>
   auto owner3 = make_capsule();
   rc_matrix.release();
 
-  using T = const std::remove_pointer_t<decltype(data_ptr)>;
-  using I1 = const std::remove_pointer_t<decltype(indices_ptr)>;
-  using I2 = const std::remove_pointer_t<decltype(indptr_ptr)>;
+  using T = std::remove_pointer_t<decltype(data_ptr)>;
+  using I1 = std::remove_pointer_t<decltype(indices_ptr)>;
+  using I2 = std::remove_pointer_t<decltype(indptr_ptr)>;
 
   // clang-format off
   nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, T> data{data_ptr, {nnz}, std::move(owner1)};
