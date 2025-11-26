@@ -114,9 +114,10 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
   std::visit(
       [&]([[maybe_unused]] const auto &n) {
         using N = remove_cvref_t<decltype(n)>;
-        const auto pixels = table.type() == PyArrowTable::Type::COO
-                                ? coo::convert_table_thin_pixels<N>(table.get(), !sorted)
-                                : bg2_df_to_thin_pixels<N>(_w->bins(), df, !sorted);
+        const auto pixels =
+            table.type() == PyArrowTable::Type::COO
+                ? coo::convert_table_thin_pixels<N>(table.get(), !sorted)
+                : bg2::convert_table_thin_pixels<N>(_w->bins(), table.get(), !sorted);
 
         HICTKPY_LOCK_COOLER_MTX_SCOPED
         auto clr = [&]() {

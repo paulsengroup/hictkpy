@@ -181,9 +181,10 @@ void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
     internal::raise_invalid_table_format();
   }
 
-  const auto pixels = table.type() == PyArrowTable::Type::COO
-                          ? coo::convert_table_thin_pixels<float>(table.get(), false)
-                          : bg2_df_to_thin_pixels<float>(w().bins(_base_resolution), df, false);
+  const auto pixels =
+      table.type() == PyArrowTable::Type::COO
+          ? coo::convert_table_thin_pixels<float>(table.get(), false)
+          : bg2::convert_table_thin_pixels<float>(w().bins(_base_resolution), table.get(), false);
 
   SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), w().path());
   w().add_pixels(_base_resolution, pixels.begin(), pixels.end(), validate);
