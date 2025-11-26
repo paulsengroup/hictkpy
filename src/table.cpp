@@ -416,11 +416,6 @@ void PyArrowTable::set_owner(nanobind::object owner) { _owner = std::move(owner)
   return PyArrowTable{std::move(table), df};
 }
 
-[[nodiscard]] static PyArrowTable import_pandas_dataframe_slow(
-    const nb::object& df, const std::vector<std::string>& column_names) {
-  throw std::runtime_error("TODO not implemented!");
-}
-
 [[nodiscard]] static bool is_pyarrow_table(const nb::object& df) noexcept {
   try {
     HICTKPY_GIL_SCOPED_ACQUIRE
@@ -443,44 +438,34 @@ void PyArrowTable::set_owner(nanobind::object owner) { _owner = std::move(owner)
 
 [[nodiscard]] static PyArrowTable import_pandas_dataframe(
     const nb::object& df, const std::vector<std::string>& column_names) {
-  auto log_failure = [](const char* msg) {
-    SPDLOG_WARN(FMT_STRING("failed to import pandas.DataFrame using pyarrow ({}): falling back to "
-                           "a slower method"),
-                msg);
-  };
-
-  try {
-    auto pyarrow_table = [&]() {
-      HICTKPY_GIL_SCOPED_ACQUIRE
-      auto pa = import_pyarrow_checked();
-      if (column_names.empty()) {
-        return std::make_optional(pa.attr("Table").attr("from_pandas")(df));
-      }
-      return std::make_optional(
-          pa.attr("Table").attr("from_pandas")(df, nb::arg("columns") = column_names));
-    }();
-
-    // NOLINTNEXTLINE(*-unchecked-optional-access)
-    auto table = import_arrow_table(*pyarrow_table, column_names);
-    {
-      HICTKPY_GIL_SCOPED_ACQUIRE
-      pyarrow_table.reset();
+  auto pyarrow_table = [&]() {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    auto pa = import_pyarrow_checked();
+    if (column_names.empty()) {
+      return std::make_optional(pa.attr("Table").attr("from_pandas")(df));
     }
-    return table;
-  } catch (const nb::builtin_exception& e) {
-    if (e.type() != nb::exception_type::import_error) {
-      log_failure(e.what());
-    }
-  } catch (const std::exception& e) {
-    log_failure(e.what());
-  } catch (...) {
-    log_failure("unknown error");
+    return std::make_optional(
+        pa.attr("Table").attr("from_pandas")(df, nb::arg("columns") = column_names));
+  }();
+
+  // NOLINTNEXTLINE(*-unchecked-optional-access)
+  auto table = import_arrow_table(*pyarrow_table, column_names);
+  {
+    HICTKPY_GIL_SCOPED_ACQUIRE
+    pyarrow_table.reset();
   }
-  return import_pandas_dataframe_slow(df, column_names);
+  return table;
 }
 
 PyArrowTable import_pyarrow_table(const nb::object& df,
                                   const std::vector<std::string>& column_names) {
+  try {
+    check_pyarrow_is_importable();
+  } catch (nanobind::python_error& e) {
+    nanobind::raise_from(e, PyExc_ModuleNotFoundError,
+                         "Loading interactions from a DataFrame requires pyarrow");
+  }
+
   if (is_pyarrow_table(df)) {
     return import_arrow_table(df, column_names);
   }
