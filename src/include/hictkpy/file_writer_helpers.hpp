@@ -7,7 +7,6 @@
 #include <arrow/table.h>
 #include <fmt/format.h>
 
-#include <hictk/numeric_variant.hpp>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
@@ -15,39 +14,30 @@
 
 #include "hictkpy/common.hpp"
 #include "hictkpy/table.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace hictkpy::internal {
 
-[[nodiscard]] inline hictk::internal::NumericVariant infer_count_type(
-    const std::shared_ptr<arrow::Table>& df) {
+[[nodiscard]] inline NumericDtype infer_count_type(const std::shared_ptr<arrow::Table>& df) {
   const auto type = infer_column_dtype(df, "count");
-
-  if (!type) {
-    const auto col = df->GetColumnByName("count");
-    if (!col) {
-      throw std::runtime_error(
-          "unable to infer dtype for column \"count\": column does not exist!");
-    }
-    throw std::runtime_error(
-        fmt::format(FMT_STRING("unable to infer dtype for column \"count\": unable to map type "
-                               "\"{}\" to a known numeric type"),
-                    col->type()->ToString()));
-  }
-
   return std::visit(
-      [&df](const auto& x) -> hictk::internal::NumericVariant {
+      [&df](const auto& x) -> NumericDtype {
         using T = remove_cvref_t<decltype(x)>;
         if constexpr (std::is_arithmetic_v<T>) {
           return x;
         } else {
           const auto col = df->GetColumnByName("count");
+          if (!col) {
+            throw std::runtime_error(
+                "unable to infer dtype for column \"count\": column does not exist!");
+          }
           throw std::runtime_error(fmt::format(
-              FMT_STRING(
-                  "unable to infer dtype for column \"count\": type \"{}\" is not a numeric type!"),
+              FMT_STRING("unable to infer dtype for column \"count\": unable to map type "
+                         "\"{}\" to a known numeric type"),
               col->type()->ToString()));
         }
       },
-      *type);
+      type);
 }
 
 [[noreturn]] inline void raise_invalid_table_format() {

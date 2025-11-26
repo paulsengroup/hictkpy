@@ -8,12 +8,12 @@
 
 #include <cstdint>
 #include <exception>
-#include <hictk/numeric_variant.hpp>
 #include <string>
 #include <string_view>
 
 #include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace hictkpy {
 
@@ -57,7 +57,7 @@ namespace nb = nanobind;
   return nb::cast<bool>(np.attr("issubdtype")(dtype1, np.attr(dtype2)));
 }
 
-hictk::internal::NumericVariant map_py_numeric_to_cpp_type(const nb::type_object& dtype) {
+NumericDtype map_py_numeric_to_cpp_type(const nb::type_object& dtype) {
   const auto np = import_module_checked("numpy");
   if (!issubdtype(np, dtype, "number")) {
     throw_exception(dtype, "Not a subdtype of numpy.number.");
@@ -99,7 +99,7 @@ hictk::internal::NumericVariant map_py_numeric_to_cpp_type(const nb::type_object
   throw_exception(dtype);
 }
 
-hictk::internal::NumericVariant map_py_numeric_to_cpp_type(std::string_view dtype) {
+NumericDtype map_py_numeric_to_cpp_type(std::string_view dtype) {
   // NOLINTBEGIN(*-avoid-magic-numbers)
   static_assert(sizeof(unsigned) == 4);
   static_assert(sizeof(int) == 4);

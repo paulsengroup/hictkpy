@@ -16,7 +16,6 @@
 #include <hictk/bin_table.hpp>
 #include <hictk/cooler/cooler.hpp>
 #include <hictk/file.hpp>
-#include <hictk/numeric_variant.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
 #include <memory>
@@ -34,10 +33,10 @@
 #include "hictkpy/file_writer_helpers.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
-#include "hictkpy/pixel.hpp"
+#include "hictkpy/pixel_table.hpp"
 #include "hictkpy/reference.hpp"
-#include "hictkpy/table.hpp"
 #include "hictkpy/type.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace nb = nanobind;
 
@@ -111,14 +110,11 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
   }
 
   const auto count_type = internal::infer_count_type(table.get());
-  std::visit(
-      [&]([[maybe_unused]] const auto &n) {
-        using N = remove_cvref_t<decltype(n)>;
-        const auto pixels =
-            table.type() == PyArrowTable::Type::COO
-                ? coo::convert_table_thin_pixels<N>(table.get(), !sorted)
-                : bg2::convert_table_thin_pixels<N>(_w->bins(), table.get(), !sorted);
+  const auto pixel_buff = convert_table_to_thin_pixels(_w->bins(), table, !sorted, count_type);
 
+  std::visit(
+      [&](const auto &pixels) {
+        using N = remove_cvref_t<decltype(pixels.front().count)>;
         HICTKPY_LOCK_COOLER_MTX_SCOPED
         auto clr = [&]() {
           return get().create_cell<N>(cell_id, std::move(attrs),
@@ -131,7 +127,7 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
         clr.append_pixels(pixels.begin(), pixels.end(), validate);
         clr.flush();
       },
-      count_type);
+      pixel_buff);
 }
 
 File CoolerFileWriter::finalize(std::optional<std::string_view> log_lvl_str, std::size_t chunk_size,
@@ -155,12 +151,21 @@ File CoolerFileWriter::finalize(std::optional<std::string_view> log_lvl_str, std
   }
 
   SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), _path.string());
-  hictk::internal::NumericVariant count_type{std::int32_t{}};
+  NumericDtype count_type{std::int32_t{}};
   auto writer = [&]() {
     HICTKPY_GIL_SCOPED_ACQUIRE
     HICTKPY_LOCK_COOLER_MTX_SCOPED
     if (!get().cells().empty()) {
-      count_type = get().open("0").pixel_variant();
+      std::visit(
+          [&](const auto &t) {
+            using N = remove_cvref_t<decltype(t)>;
+            if constexpr (std::is_same_v<N, long double>) {
+              count_type = double{};
+            } else {
+              count_type = N{};
+            }
+          },
+          get().open("0").pixel_variant());
     }
 
     decltype(_w) w = std::move(_w);

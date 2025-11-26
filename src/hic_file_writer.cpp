@@ -28,7 +28,7 @@
 #include "hictkpy/file_writer_helpers.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
-#include "hictkpy/pixel.hpp"
+#include "hictkpy/pixel_table.hpp"
 #include "hictkpy/reference.hpp"
 #include "hictkpy/to_numpy.hpp"
 
@@ -181,10 +181,8 @@ void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
     internal::raise_invalid_table_format();
   }
 
-  const auto pixels =
-      table.type() == PyArrowTable::Type::COO
-          ? coo::convert_table_thin_pixels<float>(table.get(), false)
-          : bg2::convert_table_thin_pixels<float>(w().bins(_base_resolution), table.get(), false);
+  const auto pixels = std::get<ThinPixelBuffer<float>>(
+      convert_table_to_thin_pixels(w().bins(_base_resolution), table, false, float{}));
 
   SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), w().path());
   w().add_pixels(_base_resolution, pixels.begin(), pixels.end(), validate);

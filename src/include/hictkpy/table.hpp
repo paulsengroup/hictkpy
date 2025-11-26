@@ -4,19 +4,16 @@
 
 #pragma once
 
+#include <arrow/type_fwd.h>
+
 #include <cstdint>
-#include <hictk/generic_variant.hpp>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "hictkpy/nanobind.hpp"
-
-namespace arrow {
-class Table;
-
-}  // namespace arrow
+#include "hictkpy/variant.hpp"
 
 namespace hictkpy {
 
@@ -53,7 +50,15 @@ class PyArrowTable {
 [[nodiscard]] PyArrowTable import_pyarrow_table(const nanobind::object& df,
                                                 const std::vector<std::string>& column_names = {});
 
-[[nodiscard]] std::optional<hictk::internal::GenericVariant> infer_column_dtype(
-    const std::shared_ptr<const arrow::Table>& df, const std::string& column_name);
+[[nodiscard]] Dtype infer_column_dtype(const std::shared_ptr<const arrow::Table>& df,
+                                       const std::string& column_name);
+
+[[nodiscard]] constexpr bool is_dictionary_dtype(arrow::Type::type type) noexcept;
+[[nodiscard]] constexpr bool is_string_dtype(arrow::Type::type type) noexcept;
+[[nodiscard]] constexpr bool is_integral_dtype(arrow::Type::type type) noexcept;
+[[nodiscard]] constexpr bool is_floating_point_dtype(arrow::Type::type type) noexcept;
+[[nodiscard]] constexpr bool is_numeric_dtype(arrow::Type::type type) noexcept;
 
 }  // namespace hictkpy
+
+#include "../../table_impl.hpp"

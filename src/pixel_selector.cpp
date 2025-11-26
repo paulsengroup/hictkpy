@@ -218,9 +218,6 @@ nb::type_object PixelSelector::dtype() const {
   if (HICTKPY_LIKELY(std::holds_alternative<double>(pixel_count))) {
     return np.attr("float64");
   }
-  if (std::holds_alternative<long double>(pixel_count)) {
-    return np.attr("float64");
-  }
 
   unreachable_code();
 }
@@ -384,25 +381,17 @@ nb::iterator PixelSelector::make_iterable() const {
 template <typename N, typename PixelSelector>
 [[nodiscard]] static std::shared_ptr<arrow::Table> make_bg2_arrow_df(
     const PixelSelector& sel, QuerySpan span, std::optional<std::uint64_t> diagonal_band_width) {
-  if constexpr (std::is_same_v<N, long double>) {
-    return make_bg2_arrow_df<double>(sel, span, diagonal_band_width);
-  } else {
-    HICTKPY_LOCK_COOLER_MTX_SCOPED
-    return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::BG2, sel.bins_ptr(), span,
-                       false, 256'000, diagonal_band_width)();
-  }
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::BG2, sel.bins_ptr(), span, false,
+                     256'000, diagonal_band_width)();
 }
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static std::shared_ptr<arrow::Table> make_coo_arrow_df(
     const PixelSelector& sel, QuerySpan span, std::optional<std::uint64_t> diagonal_band_width) {
-  if constexpr (std::is_same_v<N, long double>) {
-    return make_coo_arrow_df<double>(sel, span, diagonal_band_width);
-  } else {
-    HICTKPY_LOCK_COOLER_MTX_SCOPED
-    return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::COO, sel.bins_ptr(), span,
-                       false, 256'000, diagonal_band_width)();
-  }
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::COO, sel.bins_ptr(), span, false,
+                     256'000, diagonal_band_width)();
 }
 
 std::optional<nb::object> PixelSelector::to_arrow(std::string_view span) const {
@@ -448,8 +437,7 @@ nb::object PixelSelector::to_pandas(std::string_view span) const {
   // clang-format on
 }
 
-template <typename N, typename PixelSelector,
-          typename M = std::conditional_t<std::is_same_v<N, long double>, double, N>>
+template <typename N, typename PixelSelector>
 [[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
                                                 QuerySpan span,
                                                 std::optional<std::uint64_t> diagonal_band_width,
@@ -457,7 +445,7 @@ template <typename N, typename PixelSelector,
                                                 CoolerGlobalLock::UniqueLock::Mutex* mtx) {
   static_assert(std::is_arithmetic_v<N>);
 
-  using Matrix = decltype(hictk::transformers::ToSparseMatrix(sel, M{})());
+  using Matrix = decltype(hictk::transformers::ToSparseMatrix(sel, N{})());
   check_module_is_importable("scipy.sparse");
 
   // This seems to be the only reliable way to construct a scipy.sparse.csr_matrix without copying
@@ -465,7 +453,7 @@ template <typename N, typename PixelSelector,
   auto matrix = [&]() {
     using Mutex = std::remove_pointer_t<decltype(mtx)>;
     [[maybe_unused]] const auto lck = mtx ? std::unique_lock{*mtx} : std::unique_lock<Mutex>{};
-    return hictk::transformers::ToSparseMatrix(std::move(sel), M{}, span, low_memory,
+    return hictk::transformers::ToSparseMatrix(std::move(sel), N{}, span, low_memory,
                                                diagonal_band_width)();
   }();
   matrix.makeCompressed();
@@ -559,19 +547,18 @@ nb::object PixelSelector::to_coo(std::string_view span, bool low_memory) const {
   return coo_m;
 }
 
-template <typename N, typename PixelSelector,
-          typename M = std::conditional_t<std::is_same_v<N, long double>, double, N>>
-[[nodiscard]] static nb::ndarray<nb::numpy, M, nb::ndim<2>, nb::c_contig> make_numpy_matrix(
+template <typename N, typename PixelSelector>
+[[nodiscard]] static nb::ndarray<nb::numpy, N, nb::ndim<2>, nb::c_contig> make_numpy_matrix(
     std::shared_ptr<const PixelSelector> sel, QuerySpan span,
     std::optional<std::uint64_t> diagonal_band_width, CoolerGlobalLock::UniqueLock::Mutex* mtx) {
   static_assert(std::is_arithmetic_v<N>);
-  using Matrix = typename ToDenseMatrix<M, hictk::cooler::PixelSelector>::MatrixT;
+  using Matrix = typename ToDenseMatrix<N, hictk::cooler::PixelSelector>::MatrixT;
 
   auto matrix = [&]() {
     using Mutex = std::remove_pointer_t<decltype(mtx)>;
     [[maybe_unused]] const auto lck = mtx ? std::unique_lock{*mtx} : std::unique_lock<Mutex>{};
     return std::make_unique<Matrix>(
-        hictk::transformers::ToDenseMatrix(std::move(sel), M{}, span, diagonal_band_width)());
+        hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)());
   }();
 
   const auto num_rows = static_cast<std::size_t>(matrix->rows());

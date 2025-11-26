@@ -8,7 +8,6 @@
 #include <hictk/bin_table.hpp>
 #include <hictk/cooler/pixel_selector.hpp>
 #include <hictk/hic/pixel_selector.hpp>
-#include <hictk/numeric_variant.hpp>
 #include <hictk/pixel.hpp>
 #include <hictk/transformers/common.hpp>
 #include <hictk/transformers/to_dataframe.hpp>
@@ -22,6 +21,7 @@
 
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace hictkpy {
 
@@ -32,7 +32,7 @@ struct PixelSelector {
                  std::shared_ptr<const hictk::hic::PixelSelector>,
                  std::shared_ptr<const hictk::hic::PixelSelectorAll>>;
   // clang-format on
-  using PixelVar = hictk::internal::NumericVariant;
+  using PixelVar = NumericDtype;
   using QuerySpan = hictk::transformers::QuerySpan;
   using PixelFormat = hictk::transformers::DataFrameFormat;
   using DenseMatrix = nanobind::ndarray<nanobind::numpy, nanobind::ndim<2>, nanobind::c_contig>;

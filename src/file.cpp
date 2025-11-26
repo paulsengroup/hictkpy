@@ -31,7 +31,6 @@
 #include <hictk/hic.hpp>
 #include <hictk/hic/common.hpp>
 #include <hictk/hic/validation.hpp>
-#include <hictk/numeric_variant.hpp>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -51,13 +50,14 @@
 #include "hictkpy/table.hpp"
 #include "hictkpy/to_numpy.hpp"
 #include "hictkpy/type.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace nb = nanobind;
 
 namespace hictkpy {
 static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
                                             const hictk::balancing::Method &normalization,
-                                            hictk::internal::NumericVariant count_type, bool join,
+                                            NumericDtype count_type, bool join,
                                             std::optional<std::int64_t> diagonal_band_width) {
   return std::visit(
       [&](const auto &ff) -> hictkpy::PixelSelector {
@@ -83,7 +83,7 @@ static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
 static hictkpy::PixelSelector fetch_impl(const hictk::File &f, const hictk::GenomicInterval &range1,
                                          const hictk::GenomicInterval &range2,
                                          const hictk::balancing::Method &normalization,
-                                         hictk::internal::NumericVariant count_type, bool join,
+                                         NumericDtype count_type, bool join,
                                          std::optional<std::int64_t> diagonal_band_width) {
   const auto chrom1 = range1.chrom().name();
   const auto start1 = range1.start();
@@ -120,7 +120,7 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
                                          const std::optional<std::string_view> &range1,
                                          const std::optional<std::string_view> &range2,
                                          const hictk::balancing::Method &normalization,
-                                         hictk::internal::NumericVariant count_type, bool join,
+                                         NumericDtype count_type, bool join,
                                          hictk::GenomicInterval::Type query_type,
                                          std::optional<std::int64_t> diagonal_band_width) {
   if (!range1.has_value() || range1->empty()) {

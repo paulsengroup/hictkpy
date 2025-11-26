@@ -16,7 +16,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdlib>
-#include <hictk/generic_variant.hpp>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -28,6 +27,7 @@
 #include "hictkpy/common.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace nb = nanobind;
 
@@ -71,44 +71,6 @@ static constexpr std::array<std::string_view, 3> bed3_columns{"chrom", "start", 
 static constexpr std::array<std::string_view, 7> bg2_columns{"chrom1", "start1", "end1", "chrom2",
                                                              "start2", "end2",   "count"};
 // clang-format off
-
-[[nodiscard]] static constexpr bool is_dictionary_dtype(arrow::Type::type type) noexcept {
-  return type == arrow::Type::DICTIONARY;
-}
-
-[[nodiscard]] static constexpr bool is_string_dtype(arrow::Type::type type) noexcept {
-  using T = decltype(type);
-  // clang-format off
-  constexpr std::array<arrow::Type::type, 3> string_types{
-    T::STRING,
-    T::STRING_VIEW,
-    T::LARGE_STRING
-  };
-  // clang-format on
-  const auto* match = std::find(string_types.begin(), string_types.end(), type);
-  return match != string_types.end();
-}
-
-[[nodiscard]] static constexpr bool is_integral_dtype(arrow::Type::type type) noexcept {
-  using T = decltype(type);
-  // clang-format off
-  constexpr std::array<arrow::Type::type, 8> integral_types{
-    T::UINT8, T::UINT16, T::UINT32, T::UINT64,
-    T::INT8,  T::INT16,  T::INT32,  T::INT64
-  };
-  // clang-format on
-  const auto* match = std::find(integral_types.begin(), integral_types.end(), type);
-  return match != integral_types.end();
-}
-
-[[nodiscard]] static constexpr bool is_floating_point_dtype(arrow::Type::type type) noexcept {
-  using T = decltype(type);
-  return type == T::FLOAT || type == T::DOUBLE;
-}
-
-[[nodiscard]] static constexpr bool is_numeric_dtype(arrow::Type::type type) noexcept {
-  return is_integral_dtype(type) || is_floating_point_dtype(type);
-}
 
 [[nodiscard]] static bool is_valid_chrom_col(std::string_view name,
                                              const arrow::ChunkedArray& col) noexcept {
@@ -533,14 +495,13 @@ PyArrowTable import_pyarrow_table(const nb::object& df,
     type = type.attr("__name__");
   }
 
-  const std::string type_name{nb::str(type).c_str()};
   throw std::invalid_argument(fmt::format(
       FMT_STRING("expected table to be of type pandas.DataFrame or pyarrow.Table, found {}"),
-      type_name));
+      nb::cast<std::string>(type)));
 }
 
-std::optional<hictk::internal::GenericVariant> infer_column_dtype(
-    const std::shared_ptr<const arrow::Table>& df, const std::string& column_name) {
+Dtype infer_column_dtype(const std::shared_ptr<const arrow::Table>& df,
+                         const std::string& column_name) {
   const auto col = df->GetColumnByName(column_name);
   if (!col) {
     return {};
@@ -578,7 +539,7 @@ std::optional<hictk::internal::GenericVariant> infer_column_dtype(
       return std::string{};
     default: {
       assert(dtype->id() != T::DICTIONARY);
-      return std::nullopt;
+      return {};
     }
   }
 }
