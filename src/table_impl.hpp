@@ -6,9 +6,6 @@
 
 #include <arrow/type_fwd.h>
 
-#include <algorithm>
-#include <array>
-
 namespace hictkpy {
 
 constexpr bool is_dictionary_dtype(arrow::Type::type type) noexcept {
@@ -17,27 +14,31 @@ constexpr bool is_dictionary_dtype(arrow::Type::type type) noexcept {
 
 constexpr bool is_string_dtype(arrow::Type::type type) noexcept {
   using T = decltype(type);
-  // clang-format off
-  constexpr std::array<arrow::Type::type, 3> string_types{
-    T::STRING,
-    T::STRING_VIEW,
-    T::LARGE_STRING
-  };
-  // clang-format on
-  const auto* match = std::find(string_types.begin(), string_types.end(), type);
-  return match != string_types.end();
+  return type == T::STRING || type == T::STRING_VIEW || type == T::LARGE_STRING;
 }
 
 constexpr bool is_integral_dtype(arrow::Type::type type) noexcept {
-  using T = decltype(type);
-  // clang-format off
-  constexpr std::array<arrow::Type::type, 8> integral_types{
-    T::UINT8, T::UINT16, T::UINT32, T::UINT64,
-    T::INT8,  T::INT16,  T::INT32,  T::INT64
-  };
-  // clang-format on
-  const auto* match = std::find(integral_types.begin(), integral_types.end(), type);
-  return match != integral_types.end();
+  switch (type) {
+    using T = decltype(type);
+    case T::UINT8:
+      return true;
+    case T::UINT16:
+      return true;
+    case T::UINT32:
+      return true;
+    case T::UINT64:
+      return true;
+    case T::INT8:
+      return true;
+    case T::INT16:
+      return true;
+    case T::INT32:
+      return true;
+    case T::INT64:
+      return true;
+    default:
+      return false;
+  }
 }
 
 constexpr bool is_floating_point_dtype(arrow::Type::type type) noexcept {
