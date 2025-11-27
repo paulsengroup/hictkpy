@@ -286,11 +286,14 @@ void HiCFileWriter::bind(nb::module_ &m) {
 
   writer.def(
       "add_pixels", &hictkpy::HiCFileWriter::add_pixels, nb::call_guard<nb::gil_scoped_release>(),
-      nb::sig("def add_pixels(self, pixels: pandas.DataFrame, validate: bool = True) -> None"),
+      nb::sig("def add_pixels(self, pixels: pandas.DataFrame | pyarrow.Table, validate: bool = "
+              "True) -> None"),
       nb::arg("pixels"), nb::arg("validate") = true,
-      "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
-      "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
-      "chrom2, start2, end2, count].\n"
+      "Add pixels from a pandas.DataFrame or pyarrow.Table containing pixels in COO or BG2 format "
+      "(i.e. either with columns=[bin1_id, bin2_id, count] or with "
+      "columns=[chrom1, start1, end1, chrom2, start2, end2, count]).\n"
+      "When sorted is True, pixels are assumed to be sorted by their genomic coordinates in "
+      "ascending order.\n"
       "When validate is True, hictkpy will perform some basic sanity checks on the given "
       "pixels before adding them to the .hic file.");
   writer.def("finalize", &hictkpy::HiCFileWriter::finalize,

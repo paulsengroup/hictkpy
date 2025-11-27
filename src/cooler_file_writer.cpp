@@ -318,18 +318,20 @@ void CoolerFileWriter::bind(nb::module_ &m) {
   writer.def("bins", &get_bins_from_object<hictkpy::CoolerFileWriter>, "Get table of bins.",
              nb::sig("def bins(self) -> hictkpy.BinTable"), nb::rv_policy::move);
 
-  writer.def("add_pixels", &hictkpy::CoolerFileWriter::add_pixels,
-             nb::call_guard<nb::gil_scoped_release>(),
-             nb::sig("def add_pixels(self, pixels: pandas.DataFrame, sorted: bool = False, "
-                     "validate: bool = True) -> None"),
-             nb::arg("pixels"), nb::arg("sorted") = false, nb::arg("validate") = true,
-             "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
-             "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
-             "chrom2, start2, end2, count].\n"
-             "When sorted is True, pixels are assumed to be sorted by their genomic coordinates in "
-             "ascending order.\n"
-             "When validate is True, hictkpy will perform some basic sanity checks on the given "
-             "pixels before adding them to the Cooler file.");
+  writer.def(
+      "add_pixels", &hictkpy::CoolerFileWriter::add_pixels,
+      nb::call_guard<nb::gil_scoped_release>(),
+      nb::sig(
+          "def add_pixels(self, pixels: pandas.DataFrame | pyarrow.Table, sorted: bool = False, "
+          "validate: bool = True) -> None"),
+      nb::arg("pixels"), nb::arg("sorted") = false, nb::arg("validate") = true,
+      "Add pixels from a pandas.DataFrame or pyarrow.Table containing pixels in COO or BG2 format "
+      "(i.e. either with columns=[bin1_id, bin2_id, count] or with "
+      "columns=[chrom1, start1, end1, chrom2, start2, end2, count]).\n"
+      "When sorted is True, pixels are assumed to be sorted by their genomic coordinates in "
+      "ascending order.\n"
+      "When validate is True, hictkpy will perform some basic sanity checks on the given "
+      "pixels before adding them to the Cooler file.");
   // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def("finalize", &hictkpy::CoolerFileWriter::finalize,
              nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = nb::none(),
