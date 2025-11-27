@@ -23,7 +23,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestFileAccessors:
     def test_attributes(self, file, resolution):
         with hictkpy.File(file, resolution) as f:
             assert f.resolution() == 100_000

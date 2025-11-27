@@ -21,7 +21,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestFetchStatsMin:
     def test_fetch_min(self, file, resolution):
         with hictkpy.File(file, resolution) as f:
             # venv/bin/python test/scripts/compute_stats_for_testing.py test/data/cooler_test_file.mcool 100000 --metrics min --range "" chr2R chr2L --range2 "" chr2R chr2R --normalization NONE VC weight

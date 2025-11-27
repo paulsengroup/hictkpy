@@ -24,7 +24,7 @@ pytestmark = pytest.mark.parametrize(
 
 
 @pytest.mark.skipif(not pandas_avail() or not pyarrow_avail(), reason="either pandas or pyarrow are not available")
-class TestClass:
+class TestFileCreationCooler:
     @staticmethod
     def setup_method():
         logging.basicConfig(level="INFO", force=True)

@@ -34,7 +34,7 @@ def issymmetric(m) -> bool:
 
 
 @pytest.mark.skipif(not numpy_avail(), reason="numpy is not available")
-class TestClass:
+class TestFetchDense:
     def test_genome_wide(self, file, resolution):
         with hictkpy.File(file, resolution) as f:
             m = f.fetch().to_numpy()

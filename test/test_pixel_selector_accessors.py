@@ -22,7 +22,7 @@ pytestmark = pytest.mark.parametrize(
 
 
 @pytest.mark.skipif(not numpy_avail(), reason="numpy is not available")
-class TestClass:
+class TestPixelSelectorAccessors:
     def test_repr(self, file, resolution):
         with hictkpy.File(file, resolution) as f:
             sel = f.fetch()

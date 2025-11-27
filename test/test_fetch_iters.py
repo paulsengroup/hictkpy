@@ -28,7 +28,7 @@ def compute_nnz(sel):
     return sum(1 for _ in sel)
 
 
-class TestClass:
+class TestFetchIterator:
     def test_genome_wide(self, file, resolution):
         with hictkpy.File(file, resolution) as f:
             sel = f.fetch()

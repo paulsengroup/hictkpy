@@ -11,7 +11,7 @@ import hictkpy
 testdir = pathlib.Path(__file__).resolve().parent
 
 
-class TestClass:
+class TestFileCTXManager:
     pattern = "caught an attempt to access file .*, which has already been closed"
 
     def test_single_resolution(self):

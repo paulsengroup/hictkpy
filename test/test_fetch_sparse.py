@@ -25,7 +25,7 @@ pytestmark = pytest.mark.parametrize(
 
 
 @pytest.mark.skipif(not scipy_avail(), reason="scipy is not available")
-class TestClass:
+class TestFetchSparse:
     def test_genome_wide(self, file, resolution, low_memory):
         with hictkpy.File(file, resolution) as f:
             m = f.fetch().to_coo(low_memory=low_memory)

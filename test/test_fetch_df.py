@@ -23,7 +23,7 @@ pytestmark = pytest.mark.parametrize(
 
 
 @pytest.mark.skipif(not pandas_avail() or not pyarrow_avail(), reason="either pandas or pyarrow are not available")
-class TestClass:
+class TestFetchDF:
     def test_genome_wide(self, file, resolution):
         with hictkpy.File(file, resolution) as f:
             df = f.fetch().to_df()

@@ -14,7 +14,7 @@ file = testdir / "data" / "cooler_test_file.mcool"
 resolution = 100_000
 
 
-class TestClass:
+class TestPixel:
     def test_coo_int_pixel(self):
         p = hictkpy.Pixel(0, 1, 123)
 

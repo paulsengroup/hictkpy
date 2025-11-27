@@ -20,7 +20,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestFetchStatsMax:
     def test_fetch_max(self, file, resolution):
         with hictkpy.File(file, resolution) as f:
             assert f.fetch().max() == 660_210

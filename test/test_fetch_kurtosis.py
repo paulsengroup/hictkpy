@@ -20,7 +20,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestFetchStatsKurtosis:
     @staticmethod
     def _test_fetch_kurtosis(file, resolution, exact):
         def isclose(n1, n2) -> bool:
@@ -130,7 +130,7 @@ class TestClass:
                 )
 
     def test_fetch_kurtosis_exact(self, file, resolution):
-        TestClass._test_fetch_kurtosis(file, resolution, exact=True)
+        TestFetchStatsKurtosis._test_fetch_kurtosis(file, resolution, exact=True)
 
     def test_fetch_kurtosis_single_pass(self, file, resolution):
-        TestClass._test_fetch_kurtosis(file, resolution, exact=False)
+        TestFetchStatsKurtosis._test_fetch_kurtosis(file, resolution, exact=False)

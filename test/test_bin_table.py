@@ -12,7 +12,7 @@ import hictkpy
 from .helpers import numpy_avail, pandas_avail, pyarrow_avail
 
 
-class TestClass:
+class TestBinTable:
     def test_ctor_fixed_bins(self):
         chroms = {"chr1": 1000, "chr2": 500}
         bins = hictkpy.BinTable(chroms, 100)

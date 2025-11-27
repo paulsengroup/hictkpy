@@ -20,7 +20,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestFetchStatsSkewness:
     @staticmethod
     def _test_fetch_skewness(file, resolution, exact):
         def isclose(n1, n2) -> bool:
@@ -104,7 +104,7 @@ class TestClass:
             )
 
     def test_skewness_exact(self, file, resolution):
-        TestClass._test_fetch_skewness(file, resolution, exact=True)
+        TestFetchStatsSkewness._test_fetch_skewness(file, resolution, exact=True)
 
     def test_skewness_single_pass(self, file, resolution):
-        TestClass._test_fetch_skewness(file, resolution, exact=False)
+        TestFetchStatsSkewness._test_fetch_skewness(file, resolution, exact=False)

@@ -19,7 +19,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestFileConstructor:
     def test_resolution_mismatch(self, file, resolution):
         with hictkpy.MultiResFile(file) as f:
 

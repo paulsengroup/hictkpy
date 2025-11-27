@@ -18,7 +18,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestSingleCellFileAccessors:
     def test_accessors(self, file):
         with hictkpy.cooler.SingleCellFile(file) as f:
             assert str(f).startswith("SingleCellFile(")

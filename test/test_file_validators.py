@@ -14,7 +14,7 @@ scool_file = testdir / "data" / "cooler_test_file.scool"
 hic_file = testdir / "data" / "hic_test_file.hic"
 
 
-class TestClass:
+class TestFileValidators:
     def test_valid_formats(self):
         assert hictkpy.is_cooler(cool_file)
         assert not hictkpy.is_cooler(hic_file)

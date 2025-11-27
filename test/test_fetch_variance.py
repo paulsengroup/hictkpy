@@ -20,7 +20,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestFetchStatsVariance:
     @staticmethod
     def _test_fetch_variance(file, resolution, exact):
         def isclose(n1, n2) -> bool:
@@ -105,7 +105,7 @@ class TestClass:
             )
 
     def test_fetch_variance_exact(self, file, resolution):
-        TestClass._test_fetch_variance(file, resolution, exact=True)
+        TestFetchStatsVariance._test_fetch_variance(file, resolution, exact=True)
 
     def test_fetch_variance_single_pass(self, file, resolution):
-        TestClass._test_fetch_variance(file, resolution, exact=False)
+        TestFetchStatsVariance._test_fetch_variance(file, resolution, exact=False)

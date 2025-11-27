@@ -20,7 +20,7 @@ def isclose(n1, n2) -> bool:
 
 
 @pytest.mark.skipif(not numpy_avail() or not pandas_avail(), reason="either numpy or pandas are not available")
-class TestClass:
+class TestFetchDescribe:
     @staticmethod
     def generate_pixels(insert_nan: bool = False, insert_neg_inf: bool = False, insert_pos_inf: bool = False):
         import numpy as np

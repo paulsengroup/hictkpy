@@ -19,7 +19,7 @@ pytestmark = pytest.mark.parametrize(
 )
 
 
-class TestClass:
+class TestMultiResFileAccessors:
     def test_accessors(self, file, format):
         with hictkpy.MultiResFile(file) as f:
             assert str(f).startswith("MultiResFile(")
