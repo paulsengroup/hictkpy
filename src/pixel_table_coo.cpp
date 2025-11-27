@@ -22,6 +22,7 @@
 
 #include "hictkpy/common.hpp"
 #include "hictkpy/pixel_table.hpp"
+#include "hictkpy/pixel_table_helpers.hpp"
 #include "hictkpy/variant.hpp"
 
 namespace hictkpy::coo {
@@ -52,9 +53,9 @@ static void process_chunk(const std::shared_ptr<arrow::NumericArray<ArrowBin>> &
         throw std::runtime_error("found negative value in bin2_id column");
       }
     }
-    buff.emplace_back(hictk::ThinPixel<Count>{conditional_static_cast<std::uint64_t>(b1),
-                                              conditional_static_cast<std::uint64_t>(b2),
-                                              conditional_static_cast<Count>(count)});
+    buff.emplace_back(hictk::ThinPixel<Count>{safe_numeric_cast<std::uint64_t>("bin1_id", b1),
+                                              safe_numeric_cast<std::uint64_t>("bin2_id", b2),
+                                              safe_numeric_cast<Count>("count", count)});
   }
 }
 

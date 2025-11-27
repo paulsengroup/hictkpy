@@ -10,6 +10,9 @@
 #include <hictk/bin_table.hpp>
 #include <hictk/pixel.hpp>
 #include <memory>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -84,6 +87,31 @@ namespace coo {
 [[nodiscard]] ThinPixelBufferVar convert_table_thin_pixels(const hictk::BinTable &bins,
                                                            const PyArrowTable &df, bool sort,
                                                            const NumericDtype &count_type);
+
+template <typename N_OUT>
+struct SafeNumericConverter {
+  static_assert(std::is_arithmetic_v<N_OUT>);
+
+  SafeNumericConverter() = delete;
+
+  template <typename N_IN, typename std::enable_if_t<std::is_integral_v<N_OUT> &&
+                                                     std::is_integral_v<N_IN>> * = nullptr>
+  static constexpr bool can_convert(N_IN count) noexcept;
+  template <typename N_IN, typename std::enable_if_t<std::is_floating_point_v<N_OUT> &&
+                                                     std::is_floating_point_v<N_IN>> * = nullptr>
+  static constexpr bool can_convert(N_IN count) noexcept;
+  template <typename N_IN, typename std::enable_if_t<std::is_floating_point_v<N_OUT> !=
+                                                     std::is_floating_point_v<N_IN>> * = nullptr>
+  static constexpr bool can_convert(N_IN count) noexcept;
+  template <typename N_IN>
+  [[nodiscard]] static N_OUT convert(N_IN count);
+};
+
+template <typename N_OUT, typename N_IN>
+[[nodiscard]] N_OUT safe_numeric_cast(N_IN n);
+
+template <typename T_OUT, typename T_IN>
+[[nodiscard]] T_OUT safe_numeric_cast(std::string_view field_name, T_IN n);
 
 }  // namespace hictkpy
 

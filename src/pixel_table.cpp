@@ -21,8 +21,8 @@
 #include <vector>
 
 #include "hictkpy/common.hpp"
+#include "hictkpy/pixel_table_helpers.hpp"
 #include "hictkpy/table.hpp"
-#include "hictkpy/table_helpers.hpp"
 #include "hictkpy/variant.hpp"
 
 namespace hictkpy {

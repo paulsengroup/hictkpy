@@ -28,7 +28,7 @@
 
 #include "hictkpy/common.hpp"
 #include "hictkpy/pixel_table.hpp"
-#include "hictkpy/table_helpers.hpp"
+#include "hictkpy/pixel_table_helpers.hpp"
 #include "hictkpy/variant.hpp"
 
 namespace hictkpy::bg2 {
@@ -47,8 +47,7 @@ class ChromosomeIDArray {
   const hictk::Reference *_chroms{};
 
  public:
-  ChromosomeIDArray(const hictk::Reference &chroms,
-                    std::shared_ptr<arrow::Array> chroms_arrow) noexcept
+  ChromosomeIDArray(const hictk::Reference &chroms, std::shared_ptr<arrow::Array> chroms_arrow)
       : _chrom_ids(allocate_chrom_id_buffer(chroms)),
         _chroms_arrow(std::move(chroms_arrow)),
         _chroms(&chroms) {
@@ -170,12 +169,14 @@ class ChromosomeIDArray {
   }
 
   void encode() {
+    // NOLINTBEGIN(*-avoid-return-with-void-value)
     switch (_chroms_arrow->type()->id()) {
       using T = arrow::Type::type;
       case T::STRING:
         return encode(std::make_shared<arrow::StringArray>(_chroms_arrow->data()));
       case T::STRING_VIEW:
         return encode(std::make_shared<arrow::StringViewArray>(_chroms_arrow->data()));
+
       case T::LARGE_STRING:
         return encode(std::make_shared<arrow::LargeStringArray>(_chroms_arrow->data()));
       case T::DICTIONARY:
@@ -183,6 +184,7 @@ class ChromosomeIDArray {
       default:
         unreachable_code();
     }
+    // NOLINTEND(*-avoid-return-with-void-value)
   }
 };
 
@@ -234,12 +236,23 @@ static void process_chunk(const hictk::BinTable &bins, const std::vector<ChromID
               "end position of a bin cannot be smaller than its start position");
         }
 
+        // clang-format off
         const hictk::Pixel p{
-            get_bin_checked(1, chrom1_id, conditional_static_cast<std::uint32_t>(start1),
-                            conditional_static_cast<std::uint32_t>(end1)),
-            get_bin_checked(2, chrom2_id, conditional_static_cast<std::uint32_t>(start2),
-                            conditional_static_cast<std::uint32_t>(end2)),
-            conditional_static_cast<Count>(count)};
+            get_bin_checked(
+              1,
+              chrom1_id,
+              safe_numeric_cast<std::uint32_t>("start1", start1),
+              safe_numeric_cast<std::uint32_t>("end1", end1)
+            ),
+            get_bin_checked(
+              2,
+              chrom2_id,
+              safe_numeric_cast<std::uint32_t>("start2", start2),
+              safe_numeric_cast<std::uint32_t>("end2", end2)
+            ),
+            safe_numeric_cast<Count>("count", count)
+        };
+        // clang-format on
         buff.emplace_back(p.to_thin());
       } catch (const std::exception &e) {
         throw std::runtime_error(
@@ -369,7 +382,7 @@ static void process_chunk(const hictk::BinTable &bins,
     }
   }();
 
-  return std::visit(
+  std::visit(
       [&]([[maybe_unused]] const auto &array) {
         using T = remove_cvref_t<decltype(*array)>;
         process_chunk(bins, chrom1_chunk, start1_chunk, end1_chunk, chrom2_chunk, start2_chunk,

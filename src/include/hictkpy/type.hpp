@@ -46,15 +46,17 @@ template <typename T>
         unreachable_code();
     }
   }
-  switch (sizeof(T)) {
-    case 2:
-      return "float16";
-    case 4:
-      return "float32";
-    case 8:
-      return "float64";
-    default:
-      unreachable_code();
+  if constexpr (std::is_floating_point_v<T>) {
+    switch (sizeof(T)) {
+      case 2:
+        return "float16";
+      case 4:
+        return "float32";
+      case 8:
+        return "float64";
+      default:
+        unreachable_code();
+    }
   }
 
   throw std::runtime_error("Unable to infer dtype.");

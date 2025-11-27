@@ -7,8 +7,8 @@
 #include <hictk/bin_table.hpp>
 #include <memory>
 
+#include "hictkpy/pixel_table_helpers.hpp"
 #include "hictkpy/table.hpp"
-#include "hictkpy/table_helpers.hpp"
 #include "hictkpy/variant.hpp"
 
 namespace arrow {
