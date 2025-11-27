@@ -2,27 +2,27 @@
 #
 # SPDX-License-Identifier: MIT
 
-import pathlib
 
 import pytest
 
 import hictkpy
 
-testdir = pathlib.Path(__file__).resolve().parent
+from .helpers import get_test_dir
 
 
-class TestMultiResFileCTXManager:
+class TestFileCTXManager:
     pattern = "caught an attempt to access file .*, which has already been closed"
 
-    def test_multi_resolution(self):
-        path = testdir / "data" / "cooler_test_file.mcool"
-        with hictkpy.MultiResFile(path) as f:
+    def test_single_resolution(self):
+        path = get_test_dir() / "data" / "cooler_test_file.mcool"
+        resolution = 100_000
+        with hictkpy.File(path, resolution) as f:
             assert f.path() == path
 
         with pytest.raises(RuntimeError, match=self.pattern):
-            f.path()
+            f.uri()
 
-        with hictkpy.MultiResFile(path) as f:
+        with hictkpy.File(path, resolution) as f:
             f.close()
             f.close()  # no-op
 

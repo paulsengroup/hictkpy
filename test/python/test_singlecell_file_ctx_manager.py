@@ -2,20 +2,18 @@
 #
 # SPDX-License-Identifier: MIT
 
-import pathlib
-
 import pytest
 
 import hictkpy
 
-testdir = pathlib.Path(__file__).resolve().parent
+from .helpers import get_test_dir
 
 
 class TestSingleCellFileCTXManager:
     pattern = "caught an attempt to access file .*, which has already been closed"
 
     def test_single_cell(self):
-        path = testdir / "data" / "cooler_test_file.scool"
+        path = get_test_dir() / "data" / "cooler_test_file.scool"
         with hictkpy.cooler.SingleCellFile(path) as f:
             assert f.path() == path
 

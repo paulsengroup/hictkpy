@@ -6,12 +6,12 @@ import pathlib
 
 import hictkpy
 
-testdir = pathlib.Path(__file__).resolve().parent
+from .helpers import get_test_dir
 
-cool_file = (testdir / "data" / "cooler_test_file.mcool::/resolutions/100000").as_posix()
-mcool_file = testdir / "data" / "cooler_test_file.mcool"
-scool_file = testdir / "data" / "cooler_test_file.scool"
-hic_file = testdir / "data" / "hic_test_file.hic"
+cool_file = (get_test_dir() / "data" / "cooler_test_file.mcool::/resolutions/100000").as_posix()
+mcool_file = get_test_dir() / "data" / "cooler_test_file.mcool"
+scool_file = get_test_dir() / "data" / "cooler_test_file.scool"
+hic_file = get_test_dir() / "data" / "hic_test_file.hic"
 
 
 class TestFileValidators:
@@ -37,7 +37,7 @@ class TestFileValidators:
         assert not hictkpy.is_hic(path)
 
     def test_invalid_files(self):
-        non_existing_file = testdir / "foobar.123"
+        non_existing_file = get_test_dir() / "foobar.123"
         assert not non_existing_file.exists()
 
         assert not hictkpy.is_cooler(non_existing_file)
@@ -45,7 +45,7 @@ class TestFileValidators:
         assert not hictkpy.is_scool_file(non_existing_file)
         assert not hictkpy.is_hic(non_existing_file)
 
-        folder = testdir
+        folder = get_test_dir()
         assert folder.is_dir()
 
         assert not hictkpy.is_cooler(folder)

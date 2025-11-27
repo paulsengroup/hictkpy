@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+import pathlib
+
 
 def numpy_avail() -> bool:
     try:
@@ -37,3 +39,7 @@ def scipy_avail() -> bool:
         return False
 
     return True
+
+
+def get_test_dir() -> pathlib.Path:
+    return pathlib.Path(__file__).resolve().parent.parent

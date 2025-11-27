@@ -3,14 +3,14 @@
 # SPDX-License-Identifier: MIT
 
 import math
-import pathlib
 
 import pytest
 
 import hictkpy
 
-testdir = pathlib.Path(__file__).resolve().parent
-file = testdir / "data" / "cooler_test_file.mcool"
+from .helpers import get_test_dir
+
+file = get_test_dir() / "data" / "cooler_test_file.mcool"
 resolution = 100_000
 
 

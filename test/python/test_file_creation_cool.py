@@ -9,16 +9,13 @@ import pytest
 
 import hictkpy
 
-from .helpers import pandas_avail, pyarrow_avail
-
-testdir = pathlib.Path(__file__).resolve().parent
-
+from .helpers import get_test_dir, pandas_avail, pyarrow_avail
 
 pytestmark = pytest.mark.parametrize(
     "file,resolution",
     [
-        (testdir / "data" / "cooler_test_file.mcool", 100_000),
-        (testdir / "data" / "cooler_variable_bins_test_file.cool", None),
+        (get_test_dir() / "data" / "cooler_test_file.mcool", 100_000),
+        (get_test_dir() / "data" / "cooler_variable_bins_test_file.cool", None),
     ],
 )
 

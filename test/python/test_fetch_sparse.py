@@ -3,23 +3,20 @@
 # SPDX-License-Identifier: MIT
 
 import math
-import pathlib
 
 import pytest
 
 import hictkpy
 
-from .helpers import numpy_avail, scipy_avail
-
-testdir = pathlib.Path(__file__).resolve().parent
+from .helpers import get_test_dir, numpy_avail, scipy_avail
 
 pytestmark = pytest.mark.parametrize(
     "file,resolution,low_memory",
     [
-        (testdir / "data" / "cooler_test_file.mcool", 100_000, False),
-        (testdir / "data" / "hic_test_file.hic", 100_000, False),
-        (testdir / "data" / "cooler_test_file.mcool", 100_000, True),
-        (testdir / "data" / "hic_test_file.hic", 100_000, True),
+        (get_test_dir() / "data" / "cooler_test_file.mcool", 100_000, False),
+        (get_test_dir() / "data" / "hic_test_file.hic", 100_000, False),
+        (get_test_dir() / "data" / "cooler_test_file.mcool", 100_000, True),
+        (get_test_dir() / "data" / "hic_test_file.hic", 100_000, True),
     ],
 )
 
