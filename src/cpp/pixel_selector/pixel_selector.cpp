@@ -7,7 +7,6 @@
 #include <winsock2.h>
 #endif
 
-#include <arrow/table.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <parallel_hashmap/phmap.h>
@@ -26,7 +25,6 @@
 #include <hictk/transformers/to_dataframe.hpp>
 #include <hictk/transformers/to_dense_matrix.hpp>
 #include <hictk/transformers/to_sparse_matrix.hpp>
-#include <hictkpy/common.hpp>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -39,6 +37,7 @@
 #include <variant>
 #include <vector>
 
+#include "hictkpy/common.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel.hpp"
@@ -51,6 +50,10 @@
 
 namespace nb = nanobind;
 using namespace hictk::transformers;
+
+namespace arrow {
+class Table;
+}
 
 namespace hictkpy {
 

@@ -4,7 +4,6 @@
 
 #include "hictkpy/table.hpp"
 
-#include <Python.h>
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
 #include <arrow/chunked_array.h>

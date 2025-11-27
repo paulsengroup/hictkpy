@@ -135,6 +135,7 @@ target_compile_features(
 )
 
 option(HICTKPY_BUILD_PORTABLE_WHEELS_WIN "Build portable Windows wheels" OFF)
+option(HICTKPY_ENABLE_TESTING "Build native C++ tests" OFF)
 
 # Tweak fmt
 target_compile_definitions(
