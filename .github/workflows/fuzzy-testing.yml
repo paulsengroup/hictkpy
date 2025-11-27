@@ -67,7 +67,7 @@ jobs:
       cache-key: ${{ steps.generate-cache-key.outputs.key }}
     steps:
       - name: Clone hictk
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: "paulsengroup/hictk"
           ref: v2.2.0
@@ -230,7 +230,7 @@ jobs:
 
     steps:
       - name: Clone hictkpy
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Fix permissions
         run: chown -R "$(id -u):$(id -g)" "$PWD"
@@ -389,7 +389,7 @@ jobs:
 
       - name: Clone hictk
         if: ${{ steps.prepare-test-dsets.outputs.data-available != 'true' }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: "paulsengroup/hictk"
           path: hictk
