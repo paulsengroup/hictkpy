@@ -6,13 +6,13 @@
 
 #include <patchlevel.h>
 
-#include <hictk/numeric_variant.hpp>
 #include <stdexcept>
 #include <string_view>
 #include <type_traits>
 
 #include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace hictkpy {
 
@@ -46,15 +46,17 @@ template <typename T>
         unreachable_code();
     }
   }
-  switch (sizeof(T)) {
-    case 2:
-      return "float16";
-    case 4:
-      return "float32";
-    case 8:
-      return "float64";
-    default:
-      unreachable_code();
+  if constexpr (std::is_floating_point_v<T>) {
+    switch (sizeof(T)) {
+      case 2:
+        return "float16";
+      case 4:
+        return "float32";
+      case 8:
+        return "float64";
+      default:
+        unreachable_code();
+    }
   }
 
   throw std::runtime_error("Unable to infer dtype.");
@@ -69,8 +71,7 @@ template <typename T>
 #endif
 }
 
-[[nodiscard]] hictk::internal::NumericVariant map_py_numeric_to_cpp_type(
-    const nanobind::type_object& dtype);
-[[nodiscard]] hictk::internal::NumericVariant map_py_numeric_to_cpp_type(std::string_view dtype);
+[[nodiscard]] NumericDtype map_py_numeric_to_cpp_type(const nanobind::type_object& dtype);
+[[nodiscard]] NumericDtype map_py_numeric_to_cpp_type(std::string_view dtype);
 
 }  // namespace hictkpy

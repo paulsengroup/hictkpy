@@ -11,16 +11,17 @@
 #include <hictk/cooler/multires_cooler.hpp>
 #include <hictk/cooler/validation.hpp>
 #include <hictk/hic.hpp>
-#include <hictk/multires_file.hpp>
 #include <limits>
-#include <stdexcept>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "hictkpy/file.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/to_numpy.hpp"
 
 namespace nb = nanobind;
 
@@ -64,16 +65,7 @@ static std::filesystem::path get_path(const MultiResFile& mrf) {
 }
 
 static auto get_resolutions(const MultiResFile& mrf) {
-  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
-
-  // NOLINTNEXTLINE
-  auto* resolutions_ptr = new std::vector<std::uint32_t>(mrf->resolutions());
-
-  auto capsule = nb::capsule(resolutions_ptr, [](void* vect_ptr) noexcept {
-    delete reinterpret_cast<std::vector<std::uint32_t>*>(vect_ptr);  // NOLINT
-  });
-
-  return WeightVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
+  return make_owning_numpy<std::int64_t>(mrf->resolutions());
 }
 
 static nb::dict get_attrs(const hictk::hic::File& hf) {

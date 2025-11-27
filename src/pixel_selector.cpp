@@ -44,7 +44,7 @@
 #include "hictkpy/pixel.hpp"
 #include "hictkpy/pixel_aggregator.hpp"
 #include "hictkpy/pixel_selector.hpp"
-#include "hictkpy/to_pyarrow.hpp"
+#include "hictkpy/table.hpp"
 #include "hictkpy/type.hpp"
 
 #define HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED [[maybe_unused]] const auto lck = lock();
@@ -218,9 +218,6 @@ nb::type_object PixelSelector::dtype() const {
   if (HICTKPY_LIKELY(std::holds_alternative<double>(pixel_count))) {
     return np.attr("float64");
   }
-  if (std::holds_alternative<long double>(pixel_count)) {
-    return np.attr("float64");
-  }
 
   unreachable_code();
 }
@@ -384,25 +381,17 @@ nb::iterator PixelSelector::make_iterable() const {
 template <typename N, typename PixelSelector>
 [[nodiscard]] static std::shared_ptr<arrow::Table> make_bg2_arrow_df(
     const PixelSelector& sel, QuerySpan span, std::optional<std::uint64_t> diagonal_band_width) {
-  if constexpr (std::is_same_v<N, long double>) {
-    return make_bg2_arrow_df<double>(sel, span, diagonal_band_width);
-  } else {
-    HICTKPY_LOCK_COOLER_MTX_SCOPED
-    return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::BG2, sel.bins_ptr(), span,
-                       false, 256'000, diagonal_band_width)();
-  }
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::BG2, sel.bins_ptr(), span, false,
+                     256'000, diagonal_band_width)();
 }
 
 template <typename N, typename PixelSelector>
 [[nodiscard]] static std::shared_ptr<arrow::Table> make_coo_arrow_df(
     const PixelSelector& sel, QuerySpan span, std::optional<std::uint64_t> diagonal_band_width) {
-  if constexpr (std::is_same_v<N, long double>) {
-    return make_coo_arrow_df<double>(sel, span, diagonal_band_width);
-  } else {
-    HICTKPY_LOCK_COOLER_MTX_SCOPED
-    return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::COO, sel.bins_ptr(), span,
-                       false, 256'000, diagonal_band_width)();
-  }
+  HICTKPY_LOCK_COOLER_MTX_SCOPED
+  return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::COO, sel.bins_ptr(), span, false,
+                     256'000, diagonal_band_width)();
 }
 
 std::optional<nb::object> PixelSelector::to_arrow(std::string_view span) const {
@@ -449,75 +438,150 @@ nb::object PixelSelector::to_pandas(std::string_view span) const {
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] static auto make_csr_matrix(std::shared_ptr<const PixelSelector> sel, QuerySpan span,
-                                          std::optional<std::uint64_t> diagonal_band_width) {
-  if constexpr (std::is_same_v<N, long double>) {
-    return make_csr_matrix<double>(std::move(sel), span, diagonal_band_width);
-  } else {
-    return ToSparseMatrix(std::move(sel), N{}, span, false, diagonal_band_width)();
-  }
+[[nodiscard]] static nb::object make_csr_matrix(std::shared_ptr<const PixelSelector> sel,
+                                                QuerySpan span,
+                                                std::optional<std::uint64_t> diagonal_band_width,
+                                                bool low_memory,
+                                                CoolerGlobalLock::UniqueLock::Mutex* mtx) {
+  static_assert(std::is_arithmetic_v<N>);
+
+  using Matrix = decltype(hictk::transformers::ToSparseMatrix(sel, N{})());
+  check_module_is_importable("scipy.sparse");
+
+  // This seems to be the only reliable way to construct a scipy.sparse.csr_matrix without copying
+  // data around
+  auto matrix = [&]() {
+    using Mutex = std::remove_pointer_t<decltype(mtx)>;
+    [[maybe_unused]] const auto lck = mtx ? std::unique_lock{*mtx} : std::unique_lock<Mutex>{};
+    return hictk::transformers::ToSparseMatrix(std::move(sel), N{}, span, low_memory,
+                                               diagonal_band_width)();
+  }();
+  matrix.makeCompressed();
+
+  // We need to make a copy of all the relevant pointers and matrix member variable before calling
+  // .release()
+  const auto nnz = static_cast<std::size_t>(matrix.nonZeros());
+  const auto indptr_size = static_cast<std::size_t>(matrix.outerSize()) + 1;
+  const auto num_rows = static_cast<std::int64_t>(matrix.rows());
+  const auto num_cols = static_cast<std::int64_t>(matrix.cols());
+
+  auto* data_ptr = matrix.valuePtr();
+  auto* indices_ptr = matrix.innerIndexPtr();
+  auto* indptr_ptr = matrix.outerIndexPtr();
+
+  struct RefCountedMatrix {
+    std::unique_ptr<Matrix> data{};
+    std::atomic<std::uint8_t> count{};
+
+    explicit RefCountedMatrix(Matrix ptr) noexcept
+        : data(std::make_unique<Matrix>(std::move(ptr))), count(0) {}
+  };
+
+  auto rc_matrix = std::make_unique<RefCountedMatrix>(std::move(matrix));
+
+  auto make_capsule = [rc_matrix_ptr = rc_matrix.get()]() noexcept {
+    return nb::capsule{rc_matrix_ptr, [](void* ptr) noexcept {
+                         auto* m = static_cast<RefCountedMatrix*>(ptr);
+                         if (!!m && ++m->count == 3) {
+                           delete m;  // NOLINT
+                         }
+                       }};
+  };
+
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  // It's important to have one owner for each ndarray to avoid unnecessary copies
+  auto owner1 = make_capsule();
+  auto owner2 = make_capsule();
+  auto owner3 = make_capsule();
+  rc_matrix.release();
+
+  using T = std::remove_pointer_t<decltype(data_ptr)>;
+  using I1 = std::remove_pointer_t<decltype(indices_ptr)>;
+  using I2 = std::remove_pointer_t<decltype(indptr_ptr)>;
+
+  // clang-format off
+  nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, T> data{data_ptr, {nnz}, std::move(owner1)};
+  nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, I1> indices{indices_ptr, {nnz}, std::move(owner2)};
+  nb::ndarray<nb::numpy, nb::c_contig, nb::ndim<1>, I2> indptr{indptr_ptr, {indptr_size}, std::move(owner3)};
+
+  auto ss = import_module_checked("scipy.sparse");
+  return ss.attr("csr_matrix")(
+      std::make_tuple(std::move(data), std::move(indices), std::move(indptr)),
+      nb::arg("shape") = std::make_tuple(num_rows, num_cols),
+      nb::arg("copy") = false
+  );
+  // clang-format on
 }
 
-std::optional<nb::object> PixelSelector::to_csr(std::string_view span) const {
+[[nodiscard]] static nb::object to_csr_unwrapped(const PixelSelector& sel, std::string_view span,
+                                                 bool low_memory) {
+  auto m = sel.to_csr(span, low_memory);
+  return std::move(*m);  // NOLINT(*-unchecked-optional-access)
+}
+
+std::optional<nb::object> PixelSelector::to_csr(std::string_view span, bool low_memory) const {
   check_module_is_importable("scipy");
   const auto query_span = parse_span(span);
 
   return std::visit(
-      [&]([[maybe_unused]] auto count) -> std::optional<nb::object> {
+      [&](auto sel_ptr) -> std::optional<nb::object> {
+        auto* mtx = try_get_mutex_ptr(sel_ptr);
         return std::visit(
-            [&](const auto& sel_ptr) -> std::optional<nb::object> {
-              auto m = [&]() {
-                using N = decltype(count);
-                HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
-                return make_csr_matrix<N>(sel_ptr, query_span, _diagonal_band_width);
-              }();
-
-              HICTKPY_GIL_SCOPED_ACQUIRE
-              return std::make_optional(nb::cast(std::move(m)));
+            [&]([[maybe_unused]] auto count) -> std::optional<nb::object> {
+              using N = decltype(count);
+              return make_csr_matrix<N>(std::move(sel_ptr), query_span, _diagonal_band_width,
+                                        low_memory, mtx);
             },
-            selector);
+            pixel_count);
       },
-      pixel_count);
+      selector);
 }
 
-nb::object PixelSelector::to_coo(std::string_view span) const {
+nb::object PixelSelector::to_coo(std::string_view span, bool low_memory) const {
   check_module_is_importable("scipy");
-  auto csr_m = to_csr(span);
+  auto csr_m = to_csr(span, low_memory);
 
   HICTKPY_GIL_SCOPED_ACQUIRE
-  auto coo_m = csr_m->attr("tocoo")(false);
+  auto coo_m = csr_m->attr("tocoo")(nb::arg("copy") = false);
   csr_m.reset();
   return coo_m;
 }
 
 template <typename N, typename PixelSelector>
-[[nodiscard]] static auto make_eigen_matrix(std::shared_ptr<const PixelSelector> sel,
-                                            QuerySpan span,
-                                            std::optional<std::uint64_t> diagonal_band_width) {
-  if constexpr (std::is_same_v<N, long double>) {
-    return make_eigen_matrix<double>(std::move(sel), span, diagonal_band_width);
-  } else {
-    return ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)();
-  }
+[[nodiscard]] static nb::ndarray<nb::numpy, N, nb::ndim<2>, nb::c_contig> make_numpy_matrix(
+    std::shared_ptr<const PixelSelector> sel, QuerySpan span,
+    std::optional<std::uint64_t> diagonal_band_width, CoolerGlobalLock::UniqueLock::Mutex* mtx) {
+  static_assert(std::is_arithmetic_v<N>);
+  using Matrix = typename ToDenseMatrix<N, hictk::cooler::PixelSelector>::MatrixT;
+
+  auto matrix = [&]() {
+    using Mutex = std::remove_pointer_t<decltype(mtx)>;
+    [[maybe_unused]] const auto lck = mtx ? std::unique_lock{*mtx} : std::unique_lock<Mutex>{};
+    return std::make_unique<Matrix>(
+        hictk::transformers::ToDenseMatrix(std::move(sel), N{}, span, diagonal_band_width)());
+  }();
+
+  const auto num_rows = static_cast<std::size_t>(matrix->rows());
+  const auto num_cols = static_cast<std::size_t>(matrix->cols());
+  auto* data_ptr = matrix->data();
+
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  return {data_ptr, {num_rows, num_cols}, make_capsule(std::move(matrix))};
 }
 
-nb::object PixelSelector::to_numpy(std::string_view span) const {
+auto PixelSelector::to_numpy(std::string_view span) const -> DenseMatrix {
   check_module_is_importable("numpy");
 
   const auto query_span = parse_span(span);
 
   return std::visit(
-      [&]([[maybe_unused]] auto count) -> nb::object {
+      [&]([[maybe_unused]] auto count) -> DenseMatrix {
         return std::visit(
-            [&](const auto& sel_ptr) -> nb::object {
-              auto m = [&]() {
-                using N = decltype(count);
-                HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
-                return make_eigen_matrix<N>(sel_ptr, query_span, _diagonal_band_width);
-              }();
-
-              HICTKPY_GIL_SCOPED_ACQUIRE
-              return nb::cast(std::move(m));
+            [&](const auto& sel_ptr) -> DenseMatrix {
+              using N = decltype(count);
+              return DenseMatrix{make_numpy_matrix<N>(std::move(sel_ptr), query_span,
+                                                      _diagonal_band_width,
+                                                      try_get_mutex_ptr(sel_ptr))};
             },
             selector);
       },
@@ -820,19 +884,24 @@ void PixelSelector::bind(nb::module_& m) {
           nb::sig("def to_df(self, query_span: str = \"upper_triangle\") -> pandas.DataFrame"),
           "Alias to to_pandas().", nb::rv_policy::take_ownership);
   sel.def("to_numpy", &PixelSelector::to_numpy, nb::call_guard<nb::gil_scoped_release>(),
-          nb::arg("query_span") = "full",
-          nb::sig("def to_numpy(self, query_span: str = \"full\") -> numpy.ndarray"),
-          "Retrieve interactions as a numpy 2D matrix.", nb::rv_policy::move);
-  sel.def(
-      "to_coo", &PixelSelector::to_coo, nb::call_guard<nb::gil_scoped_release>(),
-      nb::arg("query_span") = "upper_triangle",
-      nb::sig("def to_coo(self, query_span: str = \"upper_triangle\") -> scipy.sparse.coo_matrix"),
-      "Retrieve interactions as a SciPy COO matrix.", nb::rv_policy::take_ownership);
-  sel.def(
-      "to_csr", &PixelSelector::to_csr, nb::call_guard<nb::gil_scoped_release>(),
-      nb::arg("query_span") = "upper_triangle",
-      nb::sig("def to_csr(self, query_span: str = \"upper_triangle\") -> scipy.sparse.csr_matrix"),
-      "Retrieve interactions as a SciPy CSR matrix.", nb::rv_policy::move);
+          nb::arg("query_span") = "full", "Retrieve interactions as a numpy 2D matrix.",
+          nb::rv_policy::take_ownership);
+  sel.def("to_coo", &PixelSelector::to_coo, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "upper_triangle", nb::arg("low_memory") = false,
+          nb::sig("def to_coo(self, query_span: str = \"upper_triangle\", low_memory: bool = "
+                  "False) -> scipy.sparse.coo_matrix"),
+          "Retrieve interactions as a SciPy COO matrix. When low_memory=True, the heuristic used "
+          "to minimize the number of memory allocations is turned off, and a two-pass algorithm "
+          "that allocates a matrix with the exact shape is used instead.",
+          nb::rv_policy::take_ownership);
+  sel.def("to_csr", &to_csr_unwrapped, nb::call_guard<nb::gil_scoped_release>(),
+          nb::arg("query_span") = "upper_triangle", nb::arg("low_memory") = false,
+          nb::sig("def to_csr(self, query_span: str = \"upper_triangle\", low_memory: bool = "
+                  "False) -> scipy.sparse.csr_matrix"),
+          "Retrieve interactions as a SciPy CSR matrix. When low_memory=True, the heuristic used "
+          "to minimize the number of memory allocations is turned off, and a two-pass algorithm "
+          "that allocates a matrix with the exact shape is used instead.",
+          nb::rv_policy::take_ownership);
 
   using PixelIt = hictk::ThinPixel<int>*;
   static const std::vector<std::string> known_metrics(

@@ -15,6 +15,7 @@
 #include <hictk/file.hpp>
 #include <hictk/reference.hpp>
 #include <hictk/tmpdir.hpp>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -24,10 +25,12 @@
 
 #include "hictkpy/bin_table.hpp"
 #include "hictkpy/common.hpp"
+#include "hictkpy/file_writer_helpers.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
-#include "hictkpy/pixel.hpp"
+#include "hictkpy/pixel_table.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/to_numpy.hpp"
 
 namespace nb = nanobind;
 
@@ -157,17 +160,7 @@ void HiCFileWriter::try_cleanup() noexcept {
 std::filesystem::path HiCFileWriter::path() const noexcept { return std::filesystem::path{_path}; }
 
 auto HiCFileWriter::resolutions() const {
-  using ResolutionVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, std::uint32_t>;
-
-  // NOLINTNEXTLINE
-  auto *resolutions_ptr = new std::vector<std::uint32_t>(w().resolutions());
-
-  HICTKPY_GIL_SCOPED_ACQUIRE
-  auto capsule = nb::capsule(resolutions_ptr, [](void *vect_ptr) noexcept {
-    delete reinterpret_cast<std::vector<std::uint32_t> *>(vect_ptr);  // NOLINT
-  });
-
-  return ResolutionVector{resolutions_ptr->data(), {resolutions_ptr->size()}, capsule};
+  return make_owning_numpy<std::int64_t>(_w->resolutions());
 }
 
 const hictk::Reference &HiCFileWriter::chromosomes() const { return w().chromosomes(); }
@@ -182,14 +175,14 @@ void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
         "caught attempt to add_pixels() to a .hic file that has already been finalized!");
   }
 
-  const auto coo_format = [&]() {
-    HICTKPY_GIL_SCOPED_ACQUIRE
-    return nb::cast<bool>(df.attr("columns").attr("__contains__")("bin1_id"));
-  }();
+  auto table = import_pyarrow_table(df);
 
-  const auto pixels = coo_format
-                          ? coo_df_to_thin_pixels<float>(df, false)
-                          : bg2_df_to_thin_pixels<float>(w().bins(_base_resolution), df, false);
+  if (table.type() != PyArrowTable::Type::BG2 && table.type() != PyArrowTable::Type::COO) {
+    internal::raise_invalid_table_format();
+  }
+
+  const auto pixels = std::get<ThinPixelBuffer<float>>(
+      convert_table_to_thin_pixels(w().bins(_base_resolution), table, false, float{}));
 
   SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), w().path());
   w().add_pixels(_base_resolution, pixels.begin(), pixels.end(), validate);
@@ -293,11 +286,14 @@ void HiCFileWriter::bind(nb::module_ &m) {
 
   writer.def(
       "add_pixels", &hictkpy::HiCFileWriter::add_pixels, nb::call_guard<nb::gil_scoped_release>(),
-      nb::sig("def add_pixels(self, pixels: pandas.DataFrame, validate: bool = True) -> None"),
+      nb::sig("def add_pixels(self, pixels: pandas.DataFrame | pyarrow.Table, validate: bool = "
+              "True) -> None"),
       nb::arg("pixels"), nb::arg("validate") = true,
-      "Add pixels from a pandas DataFrame containing pixels in COO or BG2 format (i.e. "
-      "either with columns=[bin1_id, bin2_id, count] or with columns=[chrom1, start1, end1, "
-      "chrom2, start2, end2, count].\n"
+      "Add pixels from a pandas.DataFrame or pyarrow.Table containing pixels in COO or BG2 format "
+      "(i.e. either with columns=[bin1_id, bin2_id, count] or with "
+      "columns=[chrom1, start1, end1, chrom2, start2, end2, count]).\n"
+      "When sorted is True, pixels are assumed to be sorted by their genomic coordinates in "
+      "ascending order.\n"
       "When validate is True, hictkpy will perform some basic sanity checks on the given "
       "pixels before adding them to the .hic file.");
   writer.def("finalize", &hictkpy::HiCFileWriter::finalize,

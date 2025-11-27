@@ -285,6 +285,7 @@ jobs:
 
           echo "duration=$duration" | tee -a "$GITHUB_OUTPUT"
           echo "resolution=$resolution" | tee -a "$GITHUB_OUTPUT"
+          echo "timeout=$((duration + 300))" | tee -a "$GITHUB_OUTPUT"
 
       - name: Prepare test datasets
         id: prepare-test-dsets
@@ -412,6 +413,7 @@ jobs:
       - name: Run test (df)
         if: matrix.tsan != 'true'
         run: |
+          timeout --signal=KILL '${{ steps.test-params.outputs.timeout }}s' \
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
             --duration '${{ steps.test-params.outputs.duration }}' \
@@ -424,6 +426,7 @@ jobs:
       - name: Run test (numpy)
         if: matrix.tsan != 'true'
         run: |
+          timeout --signal=KILL '${{ steps.test-params.outputs.timeout }}s' \
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
             --duration '${{ steps.test-params.outputs.duration }}' \
@@ -436,6 +439,7 @@ jobs:
       - name: Run test (csr)
         if: matrix.tsan != 'true'
         run: |
+          timeout --signal=KILL '${{ steps.test-params.outputs.timeout }}s' \
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
             --duration '${{ steps.test-params.outputs.duration }}' \
@@ -448,6 +452,7 @@ jobs:
       - name: Run test (describe)
         if: matrix.tsan != 'true'
         run: |
+          timeout --signal=KILL '${{ steps.test-params.outputs.timeout }}s' \
           test/scripts/fuzzer.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
             --duration '${{ steps.test-params.outputs.duration }}' \
@@ -470,6 +475,7 @@ jobs:
           export TSAN_OPTIONS
           echo "$TSAN_OPTIONS"
 
+          timeout --signal=KILL '${{ steps.test-params.outputs.timeout }}s' \
           test/scripts/fuzzer_data_races.py \
             --resolution '${{ steps.test-params.outputs.resolution }}' \
             --nthreads "$(nproc)" \

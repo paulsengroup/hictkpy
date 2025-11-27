@@ -31,7 +31,6 @@
 #include <hictk/hic.hpp>
 #include <hictk/hic/common.hpp>
 #include <hictk/hic/validation.hpp>
-#include <hictk/numeric_variant.hpp>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -48,15 +47,17 @@
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_selector.hpp"
 #include "hictkpy/reference.hpp"
-#include "hictkpy/to_pyarrow.hpp"
+#include "hictkpy/table.hpp"
+#include "hictkpy/to_numpy.hpp"
 #include "hictkpy/type.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace nb = nanobind;
 
 namespace hictkpy {
 static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
                                             const hictk::balancing::Method &normalization,
-                                            hictk::internal::NumericVariant count_type, bool join,
+                                            NumericDtype count_type, bool join,
                                             std::optional<std::int64_t> diagonal_band_width) {
   return std::visit(
       [&](const auto &ff) -> hictkpy::PixelSelector {
@@ -82,7 +83,7 @@ static hictkpy::PixelSelector fetch_gw_impl(const hictk::File &f,
 static hictkpy::PixelSelector fetch_impl(const hictk::File &f, const hictk::GenomicInterval &range1,
                                          const hictk::GenomicInterval &range2,
                                          const hictk::balancing::Method &normalization,
-                                         hictk::internal::NumericVariant count_type, bool join,
+                                         NumericDtype count_type, bool join,
                                          std::optional<std::int64_t> diagonal_band_width) {
   const auto chrom1 = range1.chrom().name();
   const auto start1 = range1.start();
@@ -119,7 +120,7 @@ static hictkpy::PixelSelector fetch_impl(const hictk::File &f,
                                          const std::optional<std::string_view> &range1,
                                          const std::optional<std::string_view> &range2,
                                          const hictk::balancing::Method &normalization,
-                                         hictk::internal::NumericVariant count_type, bool join,
+                                         NumericDtype count_type, bool join,
                                          hictk::GenomicInterval::Type query_type,
                                          std::optional<std::int64_t> diagonal_band_width) {
   if (!range1.has_value() || range1->empty()) {
@@ -260,23 +261,15 @@ static std::int64_t get_nchroms(const File &f, bool include_ALL) {
 static std::filesystem::path get_path(const File &f) { return std::filesystem::path{f->path()}; }
 
 static auto get_weights(const File &f, std::string_view normalization, bool divisive) {
-  using WeightVector = nb::ndarray<nb::numpy, nb::shape<-1>, nb::c_contig, double>;
-
+  using WeightVector = nb::ndarray<nb::numpy, nb::ndim<1>, nb::c_contig, double>;
   if (normalization == "NONE") {
-    return WeightVector{};
+    return std::optional<WeightVector>{};
   }
 
   const auto type = divisive ? hictk::balancing::Weights::Type::DIVISIVE
                              : hictk::balancing::Weights::Type::MULTIPLICATIVE;
 
-  // NOLINTNEXTLINE
-  auto *weights_ptr = new std::vector<double>(f->normalization(normalization).to_vector(type));
-
-  auto capsule = nb::capsule(weights_ptr, [](void *vect_ptr) noexcept {
-    delete reinterpret_cast<std::vector<double> *>(vect_ptr);  // NOLINT
-  });
-
-  return WeightVector{weights_ptr->data(), {weights_ptr->size()}, capsule};
+  return std::make_optional(make_owning_numpy(f->normalization(normalization).to_vector(type)));
 }
 
 static nb::object get_weights_df(const File &f, const std::vector<std::string> &normalizations,
@@ -496,8 +489,6 @@ void File::bind(nb::module_ &m) {
            "Check whether a given normalization is available.");
   file.def("weights", &get_weights, nb::arg("name"), nb::arg("divisive") = true,
            "Fetch the balancing weights for the given normalization method.",
-           nb::sig("def weights(self, name: str, divisive: bool = True) -> "
-                   "numpy.ndarray[float]"),
            nb::rv_policy::take_ownership);
   file.def(
       "weights", &get_weights_df, nb::arg("names"), nb::arg("divisive") = true,

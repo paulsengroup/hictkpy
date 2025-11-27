@@ -8,7 +8,6 @@
 #include <hictk/bin_table.hpp>
 #include <hictk/cooler/pixel_selector.hpp>
 #include <hictk/hic/pixel_selector.hpp>
-#include <hictk/numeric_variant.hpp>
 #include <hictk/pixel.hpp>
 #include <hictk/transformers/common.hpp>
 #include <hictk/transformers/to_dataframe.hpp>
@@ -22,6 +21,7 @@
 
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/variant.hpp"
 
 namespace hictkpy {
 
@@ -32,9 +32,10 @@ struct PixelSelector {
                  std::shared_ptr<const hictk::hic::PixelSelector>,
                  std::shared_ptr<const hictk::hic::PixelSelectorAll>>;
   // clang-format on
-  using PixelVar = hictk::internal::NumericVariant;
+  using PixelVar = NumericDtype;
   using QuerySpan = hictk::transformers::QuerySpan;
   using PixelFormat = hictk::transformers::DataFrameFormat;
+  using DenseMatrix = nanobind::ndarray<nanobind::numpy, nanobind::ndim<2>, nanobind::c_contig>;
 
   SelectorVar selector{};
   PixelVar pixel_count{std::int32_t{0}};
@@ -72,9 +73,10 @@ struct PixelSelector {
   [[nodiscard]] nanobind::iterator make_iterable() const;
   [[nodiscard]] std::optional<nanobind::object> to_arrow(std::string_view span) const;
   [[nodiscard]] nanobind::object to_pandas(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_coo(std::string_view span) const;
-  [[nodiscard]] std::optional<nanobind::object> to_csr(std::string_view span) const;
-  [[nodiscard]] nanobind::object to_numpy(std::string_view span) const;
+  [[nodiscard]] nanobind::object to_coo(std::string_view span, bool low_memory) const;
+  [[nodiscard]] std::optional<nanobind::object> to_csr(std::string_view span,
+                                                       bool low_memory) const;
+  [[nodiscard]] auto to_numpy(std::string_view span) const -> DenseMatrix;
 
   [[nodiscard]] nanobind::dict describe(const std::vector<std::string>& metrics, bool keep_nans,
                                         bool keep_infs, bool keep_zeros, bool exact) const;
