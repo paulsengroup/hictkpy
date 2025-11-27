@@ -5,19 +5,34 @@
 #pragma once
 
 #include <arrow/compute/cast.h>
+#include <arrow/compute/initialize.h>
 #include <arrow/type.h>
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string_view>
+#include <thread>
 #include <tuple>
 
 #include "hictkpy/common.hpp"
 #include "hictkpy/type.hpp"
 
 namespace hictkpy {
+
+namespace internal {
+inline void init_arrow_compute() {
+  static std::once_flag flag;
+  std::call_once(flag, []() {
+    const auto status = arrow::compute::Initialize();
+    if (!status.ok()) {
+      throw std::runtime_error(status.ToString());
+    }
+  });
+}
+}  // namespace internal
 
 template <typename... ChunkedArrays>
 [[nodiscard]] inline auto normalize_non_uniform_column_types(
@@ -35,6 +50,8 @@ template <typename... ChunkedArrays>
   }
 
   auto cast_array = [&](const auto &array) {
+    internal::init_arrow_compute();
+
     if (!dtype_is_different(array)) {
       return array;
     }
