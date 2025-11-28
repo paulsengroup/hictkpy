@@ -282,11 +282,13 @@ inline void PixelAggregator<PixelIt>::update(N n) noexcept {
   const auto delta_scaled_squared = delta_scaled * delta_scaled;
   const auto term1 = delta * delta_scaled * static_cast<double>(count() - 1);
 
+  // NOLINTBEGIN(*-math-missing-parentheses, *-avoid-magic-numbers)
   _online_mean += delta_scaled;
   _online_m4 += term1 * delta_scaled_squared * ((count_fp * count_fp) - (3 * count_fp) + 3) +
                 6 * delta_scaled_squared * _online_m2 - 4 * delta_scaled * _online_m3;
   _online_m3 += term1 * delta_scaled * (count_fp - 2) - 3 * delta_scaled * _online_m2;
   _online_m2 += term1;
+  // NOLINTEND(*-math-missing-parentheses, *-avoid-magic-numbers)
 }
 
 template <typename PixelIt>

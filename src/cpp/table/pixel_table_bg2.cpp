@@ -176,7 +176,6 @@ class ChromosomeIDArray {
         return encode(std::make_shared<arrow::StringArray>(_chroms_arrow->data()));
       case T::STRING_VIEW:
         return encode(std::make_shared<arrow::StringViewArray>(_chroms_arrow->data()));
-
       case T::LARGE_STRING:
         return encode(std::make_shared<arrow::LargeStringArray>(_chroms_arrow->data()));
       case T::DICTIONARY:

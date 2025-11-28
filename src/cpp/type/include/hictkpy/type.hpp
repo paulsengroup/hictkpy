@@ -18,6 +18,7 @@ namespace hictkpy {
 
 template <typename T>
 [[nodiscard]] constexpr std::string_view type_to_str() {
+  // NOLINTBEGIN(*-avoid-magic-numbers)
   if constexpr (std::is_unsigned_v<T>) {
     switch (sizeof(T)) {
       case 1:
@@ -58,6 +59,7 @@ template <typename T>
         unreachable_code();
     }
   }
+  // NOLINTEND(*-avoid-magic-numbers)
 
   throw std::runtime_error("Unable to infer dtype.");
 }

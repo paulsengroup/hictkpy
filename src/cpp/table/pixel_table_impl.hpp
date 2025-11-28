@@ -94,10 +94,11 @@ constexpr bool SafeNumericConverter<N_OUT>::can_convert(N_IN count) noexcept {
   if constexpr (same_signedness) {
     using NarrowType = N_OUT;
     using WideType = N_IN;
+    // NOLINTNEXTLINE(*-signed-char-misuse, *-str34-c)
     constexpr auto lb = static_cast<WideType>(std::numeric_limits<NarrowType>::lowest());
     constexpr auto ub = static_cast<WideType>(std::numeric_limits<NarrowType>::max());
 
-    return count >= lb && count <= ub;
+    return count >= lb && count <= ub;  // NOLINT(*-redundant-expression)
   }
 
   // N_OUT is unsigned while N_IN is not: casting is unsafe is count is negative

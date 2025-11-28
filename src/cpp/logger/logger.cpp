@@ -95,7 +95,7 @@ static void printdebug(std::string_view msg) noexcept { printdebug(FMT_STRING("{
   try {
     const auto t =
         std::chrono::duration_cast<std::chrono::microseconds>(msg.time.time_since_epoch()).count();
-    return static_cast<double>(t) / 1.0e6;
+    return static_cast<double>(t) / 1.0e6;  // NOLINT(*-avoid-magic-numbers)
   } catch (...) {
     return 0;
   }
@@ -209,7 +209,7 @@ std::optional<LogMessage> MessageQueue::try_dequeue() noexcept {
 }
 
 [[nodiscard]] std::optional<LogMessage> MessageQueue::try_dequeue_timed() noexcept {
-  return try_dequeue_timed(std::chrono::milliseconds{100});
+  return try_dequeue_timed(std::chrono::milliseconds{100});  // NOLINT(*-avoid-magic-numbers)
 }
 
 template <typename Duration>
@@ -304,6 +304,7 @@ std::shared_ptr<spdlog::logger> Logger::init_cpp_logger(spdlog::level::level_enu
   return {};
 }
 
+// NOLINTNEXTLINE(*-function-cognitive-complexity)
 std::thread Logger::start_logger_thread() noexcept {
   auto thr_started = std::make_shared<std::atomic<bool>>(false);
   std::unique_ptr<std::thread> thr{};
@@ -349,7 +350,7 @@ std::thread Logger::start_logger_thread() noexcept {
     }
   }
 
-  while (!*thr_started) {
+  while (!*thr_started) {  // NOLINTNEXTLINE(*-avoid-magic-numbers)
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
   }
   printdebug("hictkpy::Logger: logger thread successfully started!");
@@ -407,6 +408,7 @@ void Logger::set_level(std::int64_t py_level) noexcept {
   }
 
   std::optional<nb::object> previous_level{};
+  // NOLINTNEXTLINE(*-deadcode.DeadStores)
   auto reset_log_level = [&]() {
     try {
       if (previous_level.has_value()) {

@@ -386,7 +386,7 @@ template <typename N, typename PixelSelector>
     const PixelSelector& sel, QuerySpan span, std::optional<std::uint64_t> diagonal_band_width) {
   HICTKPY_LOCK_COOLER_MTX_SCOPED
   return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::BG2, sel.bins_ptr(), span, false,
-                     256'000, diagonal_band_width)();
+                     256'000, diagonal_band_width)();  // NOLINT(*-avoid-magic-numbers)
 }
 
 template <typename N, typename PixelSelector>
@@ -394,7 +394,7 @@ template <typename N, typename PixelSelector>
     const PixelSelector& sel, QuerySpan span, std::optional<std::uint64_t> diagonal_band_width) {
   HICTKPY_LOCK_COOLER_MTX_SCOPED
   return ToDataFrame(sel, sel.template end<N>(), DataFrameFormat::COO, sel.bins_ptr(), span, false,
-                     256'000, diagonal_band_width)();
+                     256'000, diagonal_band_width)();  // NOLINT(*-avoid-magic-numbers)
 }
 
 std::optional<nb::object> PixelSelector::to_arrow(std::string_view span) const {
@@ -545,6 +545,7 @@ nb::object PixelSelector::to_coo(std::string_view span, bool low_memory) const {
   auto csr_m = to_csr(span, low_memory);
 
   HICTKPY_GIL_SCOPED_ACQUIRE
+  // NOLINTNEXTLINE(*-unchecked-optional-access)
   auto coo_m = csr_m->attr("tocoo")(nb::arg("copy") = false);
   csr_m.reset();
   return coo_m;
@@ -653,7 +654,8 @@ template <typename PixelIt>
               auto last = sel_ptr->template end<N>();
 
               if (diagonal_band_width.has_value()) {
-                DiagonalBand sel_diag{std::move(first), std::move(last), *diagonal_band_width};
+                const DiagonalBand sel_diag{std::move(first), std::move(last),
+                                            *diagonal_band_width};
                 return aggregate_pixels(sel_diag.begin(), sel_diag.end(),
                                         fixed_bin_size ? sel_ptr->size() : 0, keep_nans, keep_infs,
                                         keep_zeros, exact, metrics);
@@ -715,6 +717,7 @@ nb::dict PixelSelector::describe(const std::vector<std::string>& metrics, bool k
 
 std::int64_t PixelSelector::nnz(bool keep_nans, bool keep_infs) const {
   HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+  // NOLINTNEXTLINE(*unchecked-optional-access)
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, false, false,
                            _diagonal_band_width, {"nnz"})
               .nnz;
@@ -746,6 +749,7 @@ std::optional<std::variant<std::int64_t, double>> PixelSelector::max(bool keep_n
 
 double PixelSelector::mean(bool keep_nans, bool keep_infs, bool keep_zeros) const {
   HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+  // NOLINTNEXTLINE(*unchecked-optional-access)
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, false,
                            _diagonal_band_width, {"mean"})
               .mean;
@@ -753,6 +757,7 @@ double PixelSelector::mean(bool keep_nans, bool keep_infs, bool keep_zeros) cons
 
 double PixelSelector::variance(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
   HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+  // NOLINTNEXTLINE(*unchecked-optional-access)
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"variance"})
               .variance;
@@ -760,6 +765,7 @@ double PixelSelector::variance(bool keep_nans, bool keep_infs, bool keep_zeros, 
 
 double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
   HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+  // NOLINTNEXTLINE(*unchecked-optional-access)
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"skewness"})
               .skewness;
@@ -767,6 +773,7 @@ double PixelSelector::skewness(bool keep_nans, bool keep_infs, bool keep_zeros, 
 
 double PixelSelector::kurtosis(bool keep_nans, bool keep_infs, bool keep_zeros, bool exact) const {
   HICTKPY_LOCK_PIXEL_SELECTOR_SCOPED
+  // NOLINTNEXTLINE(*unchecked-optional-access)
   return *aggregate_pixels(selector, pixel_count, keep_nans, keep_infs, keep_zeros, exact,
                            _diagonal_band_width, {"kurtosis"})
               .kurtosis;

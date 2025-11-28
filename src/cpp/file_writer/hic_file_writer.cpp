@@ -125,7 +125,7 @@ File HiCFileWriter::finalize(std::optional<std::string_view> log_lvl_str) {
                    "Please use hictkpy.logging.setLevel(\"{0}\") to change the log level instead."),
         log_lvl_str);
   }
-  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), w().path());
+  SPDLOG_INFO(FMT_STRING("finalizing file \"{}\"..."), get().path());
   auto writer = [&]() {
     HICTKPY_GIL_SCOPED_ACQUIRE
     hictk::hic::internal::HiCFileWriter w{std::move(*_w)};
@@ -160,13 +160,13 @@ void HiCFileWriter::try_cleanup() noexcept {
 std::filesystem::path HiCFileWriter::path() const noexcept { return std::filesystem::path{_path}; }
 
 auto HiCFileWriter::resolutions() const {
-  return make_owning_numpy<std::int64_t>(_w->resolutions());
+  return make_owning_numpy<std::int64_t>(get().resolutions());
 }
 
-const hictk::Reference &HiCFileWriter::chromosomes() const { return w().chromosomes(); }
+const hictk::Reference &HiCFileWriter::chromosomes() const { return get().chromosomes(); }
 
 hictkpy::BinTable HiCFileWriter::bins(std::uint32_t resolution) const {
-  return hictkpy::BinTable{w().bins(resolution)};
+  return hictkpy::BinTable{get().bins(resolution)};
 }
 
 void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
@@ -182,10 +182,10 @@ void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
   }
 
   const auto pixels = std::get<ThinPixelBuffer<float>>(
-      convert_table_to_thin_pixels(w().bins(_base_resolution), table, false, float{}));
+      convert_table_to_thin_pixels(get().bins(_base_resolution), table, false, float{}));
 
-  SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), w().path());
-  w().add_pixels(_base_resolution, pixels.begin(), pixels.end(), validate);
+  SPDLOG_INFO(FMT_STRING("adding {} pixels to file \"{}\"..."), pixels.size(), get().path());
+  get().add_pixels(_base_resolution, pixels.begin(), pixels.end(), validate);
 }
 
 std::string HiCFileWriter::repr() const {
@@ -203,7 +203,7 @@ const std::filesystem::path &HiCFileWriter::tmpdir() const {
   return (*_tmpdir)();
 }
 
-hictk::hic::internal::HiCFileWriter &HiCFileWriter::w() {
+hictk::hic::internal::HiCFileWriter &HiCFileWriter::get() {
   if (!_w.has_value()) {
     throw std::runtime_error(fmt::format(
         FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),
@@ -212,7 +212,7 @@ hictk::hic::internal::HiCFileWriter &HiCFileWriter::w() {
   return *_w;
 }
 
-const hictk::hic::internal::HiCFileWriter &HiCFileWriter::w() const {
+const hictk::hic::internal::HiCFileWriter &HiCFileWriter::get() const {
   if (!_w.has_value()) {
     throw std::runtime_error(fmt::format(
         FMT_STRING("caught an attempt to access file \"{}\", which has already been closed"),

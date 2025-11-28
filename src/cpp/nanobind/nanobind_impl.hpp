@@ -16,6 +16,13 @@
 
 namespace hictkpy {
 
+inline void println_stderr_noexcept(const char* msg) noexcept {
+  try {
+    fmt::println(stderr, FMT_STRING("{}"), msg);
+  } catch (...) {  // NOLINT
+  }
+}
+
 template <typename... T>
 inline void println_stderr_noexcept(fmt::format_string<T...> fmt, T&&... args) noexcept {
   try {
@@ -28,10 +35,10 @@ template <typename... T>
 inline void raise_python_warning(PyObject* warning_type, fmt::format_string<T...> fmt,
                                  T&&... args) noexcept {
   try {
-    const auto msg = fmt::format(fmt, std::forward<T>(args)...);
+    const auto msg = fmt::format(fmt, args...);
     [[maybe_unused]] const GilScopedAcquire gil{true};
     if (PyErr_WarnEx(warning_type, msg.c_str(), 1) < 0) {
-      println_stderr_noexcept(fmt, std::forward<T>(args)...);
+      println_stderr_noexcept(msg.c_str());
     }
   } catch (...) {  // NOLINT
     println_stderr_noexcept(fmt, std::forward<T>(args)...);
