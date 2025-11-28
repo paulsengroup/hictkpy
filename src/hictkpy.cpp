@@ -76,7 +76,7 @@ static void handle_proc_forking(Logger* logger_ptr, bool print_warning = true) {
 
 NB_MODULE(_hictkpy, m) {
   set_nanobind_leak_warnings();
-  static const auto tsan_proxy_mutex = GilScopedAcquire::try_register_with_tsan();
+  [[maybe_unused]] static const auto& tsan_proxy_mutex = GilScopedAcquire::try_register_with_tsan();
   static const auto logger = init_logger();
 
   cooler::init_global_state();

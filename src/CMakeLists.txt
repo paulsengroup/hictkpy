@@ -13,6 +13,9 @@ find_package(
 )
 
 find_package(Arrow REQUIRED QUIET)
+if(NOT TARGET ArrowCompute::arrow_compute_shared AND NOT TARGET ArrowCompute::arrow_compute_static)
+  find_package(ArrowCompute REQUIRED QUIET)
+endif()
 find_package(FMT REQUIRED QUIET)
 find_package(HDF5 REQUIRED QUIET COMPONENTS C)
 find_package(nanobind REQUIRED QUIET)
@@ -37,41 +40,78 @@ nanobind_add_module(
         ${HICTKPY_MODULE_ARGS}
         NB_SUPPRESS_WARNINGS
         MODULE
-        "${CMAKE_CURRENT_SOURCE_DIR}/bin_table.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cooler_file_writer.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/file.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/hic_file_writer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/bin_table/bin_table.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file/file.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file/multires_file.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file/singlecell_file.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file_writer/cooler_file_writer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file_writer/hic_file_writer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/locking/locking.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/logger/logger.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/nanobind/nanobind.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/nanobind/nanobind_impl.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/numpy/to_numpy_impl.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/pixel/pixel.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/pixel/pixel_impl.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/pixel_aggregator/pixel_aggregator_impl.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/pixel_selector/pixel_selector.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/reference/reference.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/table/pixel_table.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/table/pixel_table_bg2.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/table/pixel_table_coo.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/table/pixel_table_impl.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/table/table.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/table/table_impl.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/type/type.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/hictkpy.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/logger.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/multires_file.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/pixel_aggregator_impl.hpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/pixel_selector.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/pixel_table.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/pixel_table_bg2.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/pixel_table_coo.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/pixel_table_impl.hpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/reference.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/singlecell_file.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/table.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/type.cpp"
 )
 
-target_include_directories(_hictkpy PRIVATE include)
+target_include_directories(
+  _hictkpy
+  PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/bin_table/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/common/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file_writer/include/cooler"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file_writer/include/helpers"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file_writer/include/hic"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/locking/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/logger/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/nanobind/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/numpy/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/pixel/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/pixel_aggregator/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/pixel_selector/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/reference/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/table/include/pixel_table"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/table/include/table"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cpp/type/include"
+)
 
 target_link_libraries(
   _hictkpy
   PRIVATE
     hictkpy_project_options
     hictkpy_project_warnings
-    hictk::cooler
-    hictk::file
-    hictk::hic
-    hictk::transformers
     Arrow::arrow_$<IF:$<BOOL:${BUILD_SHARED_LIBS}>,shared,static>
+    ArrowCompute::arrow_compute_$<IF:$<BOOL:${BUILD_SHARED_LIBS}>,shared,static>
     fmt::fmt-header-only
     HDF5::HDF5
-    phmap
+    hictk::balancing
+    hictk::bin_table
+    hictk::common
+    hictk::cooler
+    hictk::file
+    hictk::format
+    hictk::genomic_interval
+    hictk::hic
+    hictk::pixel
+    hictk::reference
+    hictk::tmpdir
+    hictk::transformers
+    hictk::type_traits
     Python::Module
+    Python::NumPy
     spdlog::spdlog_header_only
     std::filesystem
 )
@@ -101,4 +141,8 @@ if(CMAKE_BUILD_TYPE STREQUAL Release)
   # Disable clang-tidy on nanobind
   # This seems to be the only reliable way to do so...
   configure_file("${PROJECT_SOURCE_DIR}/cmake/.clang-tidy.in" "${nanobind_SOURCE_DIR}/.clang-tidy" COPYONLY)
+endif()
+
+if(HICTKPY_ENABLE_TESTING)
+  add_subdirectory(cpp)
 endif()
