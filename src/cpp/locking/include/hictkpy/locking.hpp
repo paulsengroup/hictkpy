@@ -4,10 +4,17 @@
 
 #pragma once
 
+// check if the compiler is invoked with -fsanitize=thread
+// the logic is a bit convoluted to workaround preprocessor bugs
+// when compiling with older versions of GCC
+#if defined(__GNUC__) && !defined(__clang__)
 #ifdef __SANITIZE_THREAD__
 #define HICTKPY_USE_TSAN
-#elif defined(__has_feature) && __has_feature(thread_sanitizer)
+#endif
+#else
+#if defined(__has_feature) && __has_feature(thread_sanitizer)
 #define HICTKPY_USE_TSAN
+#endif
 #endif
 
 #ifdef HICTKPY_USE_TSAN
