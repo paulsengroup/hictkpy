@@ -56,7 +56,7 @@ static void ctx_exit(CoolerFileWriter &w, nb::handle exc_type,
     return;
   }
 
-  if (!w.finalized()) {
+  if (!w.finalized()) {  // NOLINTNEXTLINE(*-avoid-magic-numbers)
     std::ignore = w.finalize(std::nullopt, 500'000, 10'000'000);
   }
 }
@@ -110,7 +110,7 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
   }
 
   const auto count_type = internal::infer_count_type(table.get());
-  const auto pixel_buff = convert_table_to_thin_pixels(_w->bins(), table, !sorted, count_type);
+  const auto pixel_buff = convert_table_to_thin_pixels(get().bins(), table, !sorted, count_type);
 
   std::visit(
       [&](const auto &pixels) {
@@ -194,6 +194,7 @@ File CoolerFileWriter::finalize(std::optional<std::string_view> log_lvl_str, std
       },
       count_type);
 
+  // NOLINTNEXTLINE(*-unchecked-optional-access)
   SPDLOG_INFO(FMT_STRING("merged {} cooler(s) into file \"{}\""), writer->cells().size(), _path);
 
   {

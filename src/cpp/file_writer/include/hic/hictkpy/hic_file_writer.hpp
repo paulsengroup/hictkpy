@@ -62,8 +62,8 @@ class HiCFileWriter {
 
  private:
   const std::filesystem::path& tmpdir() const;
-  const hictk::hic::internal::HiCFileWriter& w() const;
-  hictk::hic::internal::HiCFileWriter& w();
+  const hictk::hic::internal::HiCFileWriter& get() const;
+  hictk::hic::internal::HiCFileWriter& get();
 };
 
 }  // namespace hictkpy

@@ -67,7 +67,7 @@ class CoolerGlobalLock {
   };
 
   [[nodiscard]] static auto mtx() -> UniqueLock::Mutex&;
-  [[nodiscard]] static auto lock() -> const UniqueLock;
+  [[nodiscard]] static auto lock() -> UniqueLock;
 };
 
 class GilScopedAcquire {

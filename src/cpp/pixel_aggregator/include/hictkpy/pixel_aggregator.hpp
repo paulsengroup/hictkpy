@@ -55,6 +55,7 @@ class PixelAggregator {
 
   PixelAggregator() = default;
 
+  // NOLINTBEGIN(*-unnecessary-value-param)
   template <bool keep_nans, bool keep_infs>
   Stats compute(PixelIt first, PixelIt last, std::uint64_t size,
                 const phmap::flat_hash_set<std::string>& metrics, bool keep_zeros, bool exact);
@@ -68,6 +69,7 @@ class PixelAggregator {
   Stats compute_exact(PixelIt first, PixelIt last, std::uint64_t size,
                       const phmap::flat_hash_set<std::string>& metrics, std::uint64_t nnz,
                       double mean, bool keep_zeros);
+  // NOLINTEND(*-unnecessary-value-param)
   static void validate_metrics(const phmap::flat_hash_set<std::string>& metrics);
   template <bool keep_nans, bool keep_infs>
   void update_finiteness_counters(N n) noexcept;

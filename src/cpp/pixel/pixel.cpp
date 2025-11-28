@@ -22,6 +22,7 @@
 
 namespace hictkpy {
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 std::variant<std::int64_t, double> Pixel::count() const noexcept {
   return std::visit(
       [&](const auto n) -> std::variant<std::int64_t, double> {

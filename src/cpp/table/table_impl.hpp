@@ -21,19 +21,19 @@ constexpr bool is_integral_dtype(arrow::Type::type type) noexcept {
   switch (type) {
     using T = decltype(type);
     case T::UINT8:
-      return true;
+      [[fallthrough]];
     case T::UINT16:
-      return true;
+      [[fallthrough]];
     case T::UINT32:
-      return true;
+      [[fallthrough]];
     case T::UINT64:
-      return true;
+      [[fallthrough]];
     case T::INT8:
-      return true;
+      [[fallthrough]];
     case T::INT16:
-      return true;
+      [[fallthrough]];
     case T::INT32:
-      return true;
+      [[fallthrough]];
     case T::INT64:
       return true;
     default:
