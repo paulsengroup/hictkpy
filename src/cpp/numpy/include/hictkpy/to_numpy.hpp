@@ -4,45 +4,21 @@
 
 #pragma once
 
-#include <algorithm>
-#include <cstdint>
-#include <memory>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
-#include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 
 namespace hictkpy {
 
 template <typename N, typename OwningNumPyVector = nanobind::ndarray<
                           nanobind::numpy, nanobind::ndim<1>, nanobind::c_contig, N>>
-[[nodiscard]] inline OwningNumPyVector make_owning_numpy(std::vector<N> data) {
-  auto data_ = std::make_unique<std::vector<N>>(std::move(data));
-  auto *data_ptr = data_->data();
-  auto size = data_->size();
-
-  HICTKPY_GIL_SCOPED_ACQUIRE
-  return OwningNumPyVector{data_ptr, {size}, make_capsule(std::move(data_))};
-}
+[[nodiscard]] OwningNumPyVector make_owning_numpy(std::vector<N> data);
 
 template <typename N_OUT, typename N_IN,
           typename OwningNumPyVector =
               nanobind::ndarray<nanobind::numpy, nanobind::ndim<1>, nanobind::c_contig, N_OUT>>
-[[nodiscard]] inline OwningNumPyVector make_owning_numpy(const std::vector<N_IN> &data) {
-  static_assert(!std::is_same_v<N_IN, N_OUT>);
-
-  auto data_ = std::make_unique<std::vector<N_OUT>>(data.size());
-
-  std::transform(data.begin(), data.end(), data_->begin(),
-                 [](const auto res) { return static_cast<N_OUT>(res); });
-
-  auto *data_ptr = data_->data();
-  auto size = data_->size();
-
-  HICTKPY_GIL_SCOPED_ACQUIRE
-  return OwningNumPyVector{data_ptr, {size}, make_capsule(std::move(data_))};
-}
+[[nodiscard]] OwningNumPyVector make_owning_numpy(const std::vector<N_IN> &data);
 
 }  // namespace hictkpy
+
+#include "../../to_numpy_impl.hpp"

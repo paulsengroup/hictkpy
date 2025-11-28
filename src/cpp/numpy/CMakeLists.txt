@@ -4,6 +4,8 @@
 
 add_library(hictkpy_numpy INTERFACE)
 
+target_sources(hictkpy_numpy INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/to_numpy_impl.hpp")
+
 target_include_directories(hictkpy_numpy INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(
   hictkpy_numpy
