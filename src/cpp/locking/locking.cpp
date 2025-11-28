@@ -39,7 +39,7 @@ auto CoolerGlobalLock::mtx() -> UniqueLock::Mutex& {
   return mtx_;
 }
 
-auto CoolerGlobalLock::lock() -> const UniqueLock {
+auto CoolerGlobalLock::lock() -> UniqueLock {
   SPDLOG_TRACE(FMT_STRING("[tid={}]: CoolerGlobalLock({}): locking..."), std::this_thread::get_id(),
                fmt::ptr(&mtx()));
   return {mtx()};

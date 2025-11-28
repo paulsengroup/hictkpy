@@ -61,6 +61,7 @@ class ChromosomeIDArray {
     return std::get<std::vector<I>>(_chrom_ids);
   }
 
+  // NOLINTNEXTLINE(*-exception-escape)
   [[nodiscard]] std::size_t size() const noexcept {
     return std::visit([](const auto &v) { return v.size(); }, _chrom_ids);
   }
@@ -134,6 +135,7 @@ class ChromosomeIDArray {
     }
   }
 
+  // NOLINTNEXTLINE(*-convert-member-functions-to-static)
   void encode(const std::shared_ptr<arrow::DictionaryArray> &chroms) {
     const auto idx_dtype = chroms->indices()->type();
     const auto dict_dtype = chroms->dictionary()->type();
@@ -176,7 +178,6 @@ class ChromosomeIDArray {
         return encode(std::make_shared<arrow::StringArray>(_chroms_arrow->data()));
       case T::STRING_VIEW:
         return encode(std::make_shared<arrow::StringViewArray>(_chroms_arrow->data()));
-
       case T::LARGE_STRING:
         return encode(std::make_shared<arrow::LargeStringArray>(_chroms_arrow->data()));
       case T::DICTIONARY:
