@@ -34,6 +34,8 @@ void check_module_is_importable(const std::string& module_name);
 void check_pyarrow_is_importable(int min_version_major = 16, int min_version_minor = 0,
                                  int min_version_patch = 0);
 
+void println_stderr_noexcept(const char* msg) noexcept;
+
 template <typename... T>
 void println_stderr_noexcept(fmt::format_string<T...> fmt, T&&... args) noexcept;
 

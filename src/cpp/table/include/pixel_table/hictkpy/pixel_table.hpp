@@ -17,6 +17,7 @@ class DataType;
 
 namespace hictkpy {
 
+// NOLINTBEGIN(*-redundant-declaration)
 template <typename... ChunkedArrays>
 [[nodiscard]] auto normalize_non_uniform_column_types(
     const std::shared_ptr<arrow::DataType> &result_type, const ChunkedArrays &...arrays);
@@ -29,6 +30,7 @@ template <typename N>
 [[nodiscard]] ThinPixelBufferVar allocate_thin_pixel_buffer(std::size_t capacity);
 [[nodiscard]] ThinPixelBufferVar allocate_thin_pixel_buffer(std::size_t capacity,
                                                             const NumericDtype &count_type);
+// NOLINTEND(*-redundant-declaration)
 
 }  // namespace hictkpy
 

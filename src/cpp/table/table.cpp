@@ -460,7 +460,7 @@ PyArrowTable import_pyarrow_table(const nb::object& df,
                                   const std::vector<std::string>& column_names) {
   try {
     check_pyarrow_is_importable();
-  } catch (nanobind::python_error& e) {
+  } catch (nanobind::python_error& e) {  // NOLINTNEXTLINE(*-vararg)
     nanobind::raise_from(e, PyExc_ModuleNotFoundError,
                          "Loading interactions from a DataFrame requires pyarrow");
   }

@@ -131,6 +131,7 @@ void check_module_is_importable(const std::string& module_name) {
 void check_pyarrow_is_importable(int min_version_major, int min_version_minor,
                                  int min_version_patch) {
   [[maybe_unused]] const GilScopedAcquire gil{true};
+  // NOLINTNEXTLINE(clang-analyzer-core.NullDereference)
   std::ignore = import_pyarrow_checked(min_version_major, min_version_minor, min_version_patch);
 }
 

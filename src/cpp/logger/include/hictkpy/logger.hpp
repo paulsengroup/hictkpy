@@ -58,7 +58,7 @@ class MessageQueue {
 
   explicit operator bool() const noexcept;
 
-  void enqueue(Message msg,
+  void enqueue(Message msg,  // NOLINTNEXTLINE(*-avoid-magic-numbers)
                std::chrono::milliseconds wait_time = std::chrono::milliseconds{50}) noexcept;
   [[nodiscard]] std::optional<Message> try_dequeue() noexcept;
   [[nodiscard]] std::optional<Message> try_dequeue_timed() noexcept;
