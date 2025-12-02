@@ -44,7 +44,7 @@ class HictkpyConan(ConanFile):
         if is_msvc(self):
             self.requires("boost/1.89.0#010f59feedfd171b15f467b42f723d13", force=True)
         self.requires("concurrentqueue/1.0.4#1e48e1c712bcfd892087c9c622a51502")
-        self.requires("eigen/5.0.0#f7561f543f4aafd6d2dc1f6d677e3075", force=True)
+        self.requires("eigen/5.0.1#ceac4c62a715813690dc13d666e29fbc", force=True)
         self.requires("fast_float/8.1.0#bbf67486bec084d167da0f3e13eee534")
         self.requires("fmt/12.1.0#50abab23274d56bb8f42c94b3b9a40c7", force=True)
         self.requires("hdf5/1.14.6#0b780319690d537e6cb0683244919955", force=True)
