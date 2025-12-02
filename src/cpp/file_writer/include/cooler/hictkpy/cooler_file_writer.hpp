@@ -20,6 +20,7 @@
 #include "hictkpy/file.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/table.hpp"
 
 namespace hictkpy {
 
@@ -44,7 +45,8 @@ class CoolerFileWriter {
   [[nodiscard]] const hictk::Reference& chromosomes() const;
   [[nodiscard]] std::shared_ptr<const hictk::BinTable> bins_ptr() const;
 
-  void add_pixels(const nanobind::object& df, bool sorted, bool validate);
+  void add_pixels_from_dict(const nanobind::dict& columns, bool sorted, bool validate);
+  void add_pixels_from_table(const nanobind::object& df, bool sorted, bool validate);
 
   [[nodiscard]] File finalize(std::optional<std::string_view> log_lvl_str, std::size_t chunk_size,
                               std::size_t update_frequency);
@@ -59,6 +61,8 @@ class CoolerFileWriter {
   [[nodiscard]] static std::optional<hictk::cooler::SingleCellFile> create_file(
       std::string_view path, const hictk::BinTable& bins, std::string_view assembly,
       const std::filesystem::path& tmpdir_);
+
+  void add_pixels(const PyArrowTable& table, bool sorted, bool validate);
 
   void reset();
 

@@ -65,12 +65,6 @@ template <typename Container>
   return str.find(prefix) == 0;
 }
 
-static constexpr std::array<std::string_view, 3> coo_columns{"bin1_id", "bin2_id", "count"};
-static constexpr std::array<std::string_view, 3> bed3_columns{"chrom", "start", "end"};
-static constexpr std::array<std::string_view, 7> bg2_columns{"chrom1", "start1", "end1", "chrom2",
-                                                             "start2", "end2",   "count"};
-// clang-format off
-
 [[nodiscard]] static bool is_valid_chrom_col(std::string_view name,
                                              const arrow::ChunkedArray& col) noexcept {
   if (!starts_with(name, "chrom")) {
@@ -263,8 +257,7 @@ nb::object export_pyarrow_table(std::shared_ptr<arrow::Table> arrow_table) {
                   nb::rv_policy::take_ownership);
 }
 
-PyArrowTable::PyArrowTable(std::shared_ptr<arrow::Table> table,
-                           std::optional<nanobind::object> owner)
+PyArrowTable::PyArrowTable(std::shared_ptr<arrow::Table> table, std::optional<nb::object> owner)
     : _owner(std::move(owner)), _table(std::move(table)), _table_type(infer_table_type(_table)) {}
 PyArrowTable::PyArrowTable(std::shared_ptr<arrow::Table> table, Type table_type,
                            std::optional<nb::object> owner)
@@ -290,6 +283,8 @@ PyArrowTable::~PyArrowTable() noexcept {
     _owner.reset();
   }
 }
+
+PyArrowTable::operator bool() const noexcept { return !!_table; }
 
 PyArrowTable& PyArrowTable::operator=(const PyArrowTable& other) {
   if (this == &other) {
@@ -320,11 +315,14 @@ PyArrowTable& PyArrowTable::operator=(PyArrowTable&& other) noexcept {
   return *this;
 }
 
-std::shared_ptr<arrow::Table> PyArrowTable::get() const noexcept { return _table; }
+std::shared_ptr<arrow::Table> PyArrowTable::get() const noexcept {
+  assert(_table);
+  return _table;
+}
 auto PyArrowTable::type() const noexcept -> Type { return _table_type; }
 
 bool PyArrowTable::has_owner() const noexcept { return _owner.has_value(); }
-void PyArrowTable::set_owner(nanobind::object owner) { _owner = std::move(owner); }
+void PyArrowTable::set_owner(nb::object owner) { _owner = std::move(owner); }
 
 [[nodiscard]] static std::shared_ptr<arrow::Schema> import_arrow_schema(const nb::object& df) {
   HICTKPY_GIL_SCOPED_ACQUIRE
@@ -386,7 +384,11 @@ void PyArrowTable::set_owner(nanobind::object owner) { _owner = std::move(owner)
   auto schema = import_arrow_schema(df);
 
   if (column_names.empty()) {
-    return import_arrow_table(df, schema->field_names());
+    const auto field_names = schema->field_names();
+    if (field_names.empty()) {
+      return PyArrowTable{nullptr, PyArrowTable::Type::UNKNOWN};
+    }
+    return import_arrow_table(df, field_names);
   }
 
   arrow::FieldVector fields{};
@@ -456,13 +458,23 @@ void PyArrowTable::set_owner(nanobind::object owner) { _owner = std::move(owner)
   return table;
 }
 
+[[nodiscard]] static std::string format_py_type(const nb::handle& h) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
+  if (nb::hasattr(h, "__name__")) {
+    return nb::cast<std::string>(h.attr("__name__"));
+  }
+
+  const auto type = nb::cast<nb::type_object>(h);
+  return nb::cast<std::string>(type);
+}
+
 PyArrowTable import_pyarrow_table(const nb::object& df,
                                   const std::vector<std::string>& column_names) {
   try {
     check_pyarrow_is_importable();
-  } catch (nanobind::python_error& e) {  // NOLINTNEXTLINE(*-vararg)
-    nanobind::raise_from(e, PyExc_ModuleNotFoundError,
-                         "Loading interactions from a DataFrame requires pyarrow");
+  } catch (nb::python_error& e) {  // NOLINTNEXTLINE(*-vararg)
+    nb::raise_from(e, PyExc_ModuleNotFoundError,
+                   "Loading interactions from a DataFrame requires pyarrow");
   }
 
   if (is_pyarrow_table(df)) {
@@ -474,14 +486,9 @@ PyArrowTable import_pyarrow_table(const nb::object& df,
   }
 
   HICTKPY_GIL_SCOPED_ACQUIRE
-  auto type = df.type();
-  if (nb::hasattr(type, "__name__")) {
-    type = type.attr("__name__");
-  }
-
   throw std::invalid_argument(fmt::format(
       FMT_STRING("expected table to be of type pandas.DataFrame or pyarrow.Table, found {}"),
-      nb::cast<std::string>(type)));
+      format_py_type(df.type())));
 }
 
 Dtype infer_column_dtype(const std::shared_ptr<const arrow::Table>& df,

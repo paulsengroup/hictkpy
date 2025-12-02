@@ -14,6 +14,7 @@
    .. automethod:: __enter__
    .. automethod:: __exit__
    .. automethod:: add_pixels
+   .. automethod:: add_pixels_from_dict
    .. automethod:: bins
    .. automethod:: chromosomes
    .. automethod:: finalize

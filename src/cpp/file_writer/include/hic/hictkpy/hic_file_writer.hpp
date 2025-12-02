@@ -19,6 +19,7 @@
 #include "hictkpy/file.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/table.hpp"
 
 namespace hictkpy {
 
@@ -49,7 +50,8 @@ class HiCFileWriter {
   [[nodiscard]] const hictk::Reference& chromosomes() const;
   [[nodiscard]] hictkpy::BinTable bins(std::uint32_t resolution) const;
 
-  void add_pixels(const nanobind::object& df, bool validate);
+  void add_pixels_from_dict(const nanobind::dict& columns, bool validate);
+  void add_pixels_from_table(const nanobind::object& df, bool validate);
 
   [[nodiscard]] File finalize(std::optional<std::string_view> log_lvl_str = {});
   [[nodiscard]] bool finalized() const noexcept;
@@ -61,6 +63,8 @@ class HiCFileWriter {
   static void bind(nanobind::module_& m);
 
  private:
+  void add_pixels(const PyArrowTable& table, bool validate);
+
   const std::filesystem::path& tmpdir() const;
   const hictk::hic::internal::HiCFileWriter& get() const;
   hictk::hic::internal::HiCFileWriter& get();

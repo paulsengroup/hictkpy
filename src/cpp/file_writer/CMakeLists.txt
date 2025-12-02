@@ -6,18 +6,22 @@ find_package(FMT REQUIRED QUIET)
 find_package(spdlog REQUIRED QUIET)
 find_package(Filesystem REQUIRED QUIET)
 
-add_library(hictkpy_file_writer_helper INTERFACE)
+add_library(hictkpy_file_writer_helper STATIC)
 
-target_include_directories(hictkpy_file_writer_helper INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include/helpers")
+target_sources(hictkpy_file_writer_helper PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/file_writer_helpers.cpp")
+
+target_include_directories(hictkpy_file_writer_helper PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/helpers")
 target_link_libraries(
   hictkpy_file_writer_helper
-  INTERFACE
-    hictkpy_arrow
+  PRIVATE
     hictkpy_common
     hictkpy_project_options
     hictkpy_project_warnings
-    hictkpy_table
     fmt::fmt-header-only
+  PUBLIC
+    hictkpy_arrow
+    hictkpy_nanobind
+    hictkpy_table
 )
 
 add_library(hictkpy_file_writer_cooler STATIC)

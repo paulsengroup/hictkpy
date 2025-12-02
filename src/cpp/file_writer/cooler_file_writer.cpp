@@ -35,6 +35,7 @@
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_table.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/table.hpp"
 #include "hictkpy/type.hpp"
 #include "hictkpy/variant.hpp"
 
@@ -93,17 +94,23 @@ std::shared_ptr<const hictk::BinTable> CoolerFileWriter::bins_ptr() const {
   return get().bins_ptr();
 }
 
-void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool validate) {
+void CoolerFileWriter::add_pixels_from_dict(const nb::dict &columns, bool sorted, bool validate) {
+  add_pixels(internal::make_table(columns), sorted, validate);
+}
+
+void CoolerFileWriter::add_pixels_from_table(const nb::object &df, bool sorted, bool validate) {
+  add_pixels(import_pyarrow_table(df), sorted, validate);
+}
+
+void CoolerFileWriter::add_pixels(const PyArrowTable &table, bool sorted, bool validate) {
   if (finalized()) {
     throw std::runtime_error(
         "caught attempt to add_pixels() to a .cool file that has already been finalized!");
   }
 
-  const auto cell_id = fmt::to_string(get().cells().size());
-  auto attrs = hictk::cooler::Attributes::init(resolution());
-  attrs.assembly = get().attributes().assembly;
-
-  auto table = import_pyarrow_table(df);
+  if (!table) {
+    return;
+  }
 
   if (table.type() != PyArrowTable::Type::BG2 && table.type() != PyArrowTable::Type::COO) {
     internal::raise_invalid_table_format();
@@ -111,6 +118,10 @@ void CoolerFileWriter::add_pixels(const nb::object &df, bool sorted, bool valida
 
   const auto count_type = internal::infer_count_type(table.get());
   const auto pixel_buff = convert_table_to_thin_pixels(get().bins(), table, !sorted, count_type);
+
+  const auto cell_id = fmt::to_string(get().cells().size());
+  auto attrs = hictk::cooler::Attributes::init(resolution());
+  attrs.assembly = get().attributes().assembly;
 
   std::visit(
       [&](const auto &pixels) {
@@ -320,7 +331,7 @@ void CoolerFileWriter::bind(nb::module_ &m) {
              nb::sig("def bins(self) -> hictkpy.BinTable"), nb::rv_policy::move);
 
   writer.def(
-      "add_pixels", &hictkpy::CoolerFileWriter::add_pixels,
+      "add_pixels", &hictkpy::CoolerFileWriter::add_pixels_from_table,
       nb::call_guard<nb::gil_scoped_release>(),
       nb::sig(
           "def add_pixels(self, pixels: pandas.DataFrame | pyarrow.Table, sorted: bool = False, "
@@ -333,6 +344,19 @@ void CoolerFileWriter::bind(nb::module_ &m) {
       "ascending order.\n"
       "When validate is True, hictkpy will perform some basic sanity checks on the given "
       "pixels before adding them to the Cooler file.");
+  writer.def("add_pixels_from_dict", &hictkpy::CoolerFileWriter::add_pixels_from_dict,
+             nb::call_guard<nb::gil_scoped_release>(),
+             nb::sig("def add_pixels_from_dict(self, columns: Dict[str, Iterable[str | int | "
+                     "float]], sorted: bool = False, "
+                     "validate: bool = True) -> None"),
+             nb::arg("pixels"), nb::arg("sorted") = false, nb::arg("validate") = true,
+             "Add pixels from a dictionary containing containing columns corresponding to pixels "
+             "in COO or BG2 format (i.e. either with keys=[bin1_id, bin2_id, count] or with "
+             "keys=[chrom1, start1, end1, chrom2, start2, end2, count]).\n"
+             "When sorted is True, pixels are assumed to be sorted by their genomic coordinates in "
+             "ascending order.\n"
+             "When validate is True, hictkpy will perform some basic sanity checks on the given "
+             "pixels before adding them to the Cooler file.");
   // NOLINTBEGIN(*-avoid-magic-numbers)
   writer.def("finalize", &hictkpy::CoolerFileWriter::finalize,
              nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = nb::none(),

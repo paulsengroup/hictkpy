@@ -213,7 +213,7 @@ static void process_chunk(const hictk::BinTable &bins, const std::vector<ChromID
     }
     const auto res = bins.resolution();
     throw std::runtime_error(fmt::format(
-        FMT_STRING("invalid end{}, expected {}, found {}, (start{}={}; bin_size={})"), idx,
+        FMT_STRING("invalid end{}: expected {}, found {}, (start{}={}; bin_size={})"), idx,
         bin.end(), end, idx, bin.start(), res == 0 ? "variable" : fmt::to_string(res)));
   };
 
@@ -396,6 +396,9 @@ ThinPixelBufferVar convert_table_thin_pixels(const hictk::BinTable &bins,
                                              std::shared_ptr<arrow::Table> df, bool sort,
                                              const NumericDtype &count_type) {
   try {
+    if (!df) {
+      return allocate_thin_pixel_buffer(0, count_type);
+    }
     df = ensure_table_has_uniform_chunks(df);
     auto chrom1 = df->GetColumnByName("chrom1");
     auto chrom2 = df->GetColumnByName("chrom2");

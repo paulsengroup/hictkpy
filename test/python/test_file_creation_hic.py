@@ -104,7 +104,7 @@ class TestFileCreationHiC:
         with hictkpy.File(path) as f:
             assert f.fetch().nnz() == 0
 
-    def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
+    def test_file_creation_coo(self, file, resolution, tmpdir):
         with hictkpy.File(file, resolution) as f:
             if f.bins().type() != "fixed":
                 pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
@@ -132,7 +132,7 @@ class TestFileCreationHiC:
         with hictkpy.File(path) as f:
             assert f.fetch().sum() == expected_sum
 
-    def test_file_creation(self, file, resolution, tmpdir):
+    def test_file_creation_bg2(self, file, resolution, tmpdir):
         with hictkpy.File(file, resolution) as f:
             if f.bins().type() != "fixed":
                 pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
