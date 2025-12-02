@@ -6,10 +6,12 @@
 
 #include <arrow/type_fwd.h>
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "hictkpy/nanobind.hpp"
@@ -18,6 +20,20 @@
 namespace hictkpy {
 
 [[nodiscard]] nanobind::object export_pyarrow_table(std::shared_ptr<arrow::Table> arrow_table);
+
+// clang-format off
+inline constexpr std::array<std::string_view, 3> coo_columns{
+  "bin1_id", "bin2_id", "count"
+};
+inline constexpr std::array<std::string_view, 3> bed3_columns{
+  "chrom", "start", "end"
+};
+inline constexpr std::array<std::string_view, 7> bg2_columns{
+  "chrom1", "start1", "end1",
+  "chrom2", "start2", "end2",
+  "count"
+};
+// clang-format on
 
 class PyArrowTable {
  public:
@@ -38,6 +54,7 @@ class PyArrowTable {
   PyArrowTable(PyArrowTable&& other) noexcept;
   ~PyArrowTable() noexcept;
 
+  explicit operator bool() const noexcept;
   PyArrowTable& operator=(const PyArrowTable& other);
   PyArrowTable& operator=(PyArrowTable&& other) noexcept;
 

@@ -45,6 +45,7 @@ nanobind_add_module(
         "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file/multires_file.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file/singlecell_file.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file_writer/cooler_file_writer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file_writer/file_writer_helpers.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cpp/file_writer/hic_file_writer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cpp/locking/locking.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/cpp/logger/logger.cpp"

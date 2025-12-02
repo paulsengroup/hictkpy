@@ -24,12 +24,12 @@
 #include <vector>
 
 #include "hictkpy/bin_table.hpp"
-#include "hictkpy/common.hpp"
 #include "hictkpy/file_writer_helpers.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/pixel_table.hpp"
 #include "hictkpy/reference.hpp"
+#include "hictkpy/table.hpp"
 #include "hictkpy/to_numpy.hpp"
 
 namespace nb = nanobind;
@@ -169,13 +169,23 @@ hictkpy::BinTable HiCFileWriter::bins(std::uint32_t resolution) const {
   return hictkpy::BinTable{get().bins(resolution)};
 }
 
-void HiCFileWriter::add_pixels(const nb::object &df, bool validate) {
+void HiCFileWriter::add_pixels_from_dict(const nb::dict &columns, bool validate) {
+  add_pixels(internal::make_table(columns), validate);
+}
+
+void HiCFileWriter::add_pixels_from_table(const nb::object &df, bool validate) {
+  add_pixels(import_pyarrow_table(df), validate);
+}
+
+void HiCFileWriter::add_pixels(const PyArrowTable &table, bool validate) {
   if (finalized()) {
     throw std::runtime_error(
         "caught attempt to add_pixels() to a .hic file that has already been finalized!");
   }
 
-  auto table = import_pyarrow_table(df);
+  if (!table) {
+    return;
+  }
 
   if (table.type() != PyArrowTable::Type::BG2 && table.type() != PyArrowTable::Type::COO) {
     internal::raise_invalid_table_format();
@@ -285,7 +295,8 @@ void HiCFileWriter::bind(nb::module_ &m) {
              nb::sig("def bins(self, resolution: int) -> hictkpy.BinTable"), nb::rv_policy::move);
 
   writer.def(
-      "add_pixels", &hictkpy::HiCFileWriter::add_pixels, nb::call_guard<nb::gil_scoped_release>(),
+      "add_pixels", &hictkpy::HiCFileWriter::add_pixels_from_table,
+      nb::call_guard<nb::gil_scoped_release>(),
       nb::sig("def add_pixels(self, pixels: pandas.DataFrame | pyarrow.Table, validate: bool = "
               "True) -> None"),
       nb::arg("pixels"), nb::arg("validate") = true,
@@ -296,6 +307,18 @@ void HiCFileWriter::bind(nb::module_ &m) {
       "ascending order.\n"
       "When validate is True, hictkpy will perform some basic sanity checks on the given "
       "pixels before adding them to the .hic file.");
+  writer.def("add_pixels_from_dict", &hictkpy::HiCFileWriter::add_pixels_from_dict,
+             nb::call_guard<nb::gil_scoped_release>(),
+             nb::sig("def add_pixels_from_dict(self, columns: Dict[str, Iterable[str | int | "
+                     "float]], validate: bool = True) -> None"),
+             nb::arg("pixels"), nb::arg("validate") = true,
+             "Add pixels from a dictionary containing containing columns corresponding to pixels "
+             "in COO or BG2 format (i.e. either with keys=[bin1_id, bin2_id, count] or with "
+             "keys=[chrom1, start1, end1, chrom2, start2, end2, count]).\n"
+             "When sorted is True, pixels are assumed to be sorted by their genomic coordinates in "
+             "ascending order.\n"
+             "When validate is True, hictkpy will perform some basic sanity checks on the given "
+             "pixels before adding them to the Cooler file.");
   writer.def("finalize", &hictkpy::HiCFileWriter::finalize,
              nb::call_guard<nb::gil_scoped_release>(), nb::arg("log_lvl") = nb::none(),
              "Write interactions to file.", nb::rv_policy::move);

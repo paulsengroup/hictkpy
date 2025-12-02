@@ -14,7 +14,6 @@
 #include <mutex>
 #include <stdexcept>
 #include <string_view>
-#include <thread>
 #include <tuple>
 
 #include "hictkpy/common.hpp"
@@ -24,7 +23,7 @@ namespace hictkpy {
 
 namespace internal {
 inline void init_arrow_compute() {
-  static std::once_flag flag;
+  static std::once_flag flag;  // NOLINT(*-const-correctness)
   std::call_once(flag, []() {
     const auto status = arrow::compute::Initialize();
     if (!status.ok()) {
@@ -52,7 +51,7 @@ template <typename... ChunkedArrays>
   auto cast_array = [&](const auto &array) {
     internal::init_arrow_compute();
 
-    if (!dtype_is_different(array)) {
+    if (array->type()->id() == result_type->id()) {
       return array;
     }
     SPDLOG_DEBUG(FMT_STRING("casting array from {} to {}..."), array->type()->ToString(),

@@ -123,6 +123,10 @@ static void process_chunk(const std::shared_ptr<arrow::Array> &bin1_ids_chunk,
 ThinPixelBufferVar convert_table_thin_pixels(std::shared_ptr<arrow::Table> df, bool sort,
                                              const NumericDtype &count_type) {
   try {
+    if (!df) {
+      return allocate_thin_pixel_buffer(0, count_type);
+    }
+
     df = ensure_table_has_uniform_chunks(df);
 
     // we assume that the array types have already been validated
