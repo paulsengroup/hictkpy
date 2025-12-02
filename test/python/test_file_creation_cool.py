@@ -4,6 +4,7 @@
 
 import logging
 import pathlib
+from typing import Dict, Iterable, List
 
 import pytest
 
@@ -105,7 +106,7 @@ class TestFileCreationCooler:
         with hictkpy.File(path) as f:
             assert f.fetch().nnz() == 0
 
-    def test_file_creation_thin_pixel(self, file, resolution, tmpdir):
+    def test_file_creation_coo(self, file, resolution, tmpdir):
         with hictkpy.File(file, resolution) as f:
             if f.bins().type() != "fixed":
                 pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
@@ -133,7 +134,7 @@ class TestFileCreationCooler:
         with hictkpy.File(path) as f:
             assert f.fetch().sum() == expected_sum
 
-    def test_file_creation(self, file, resolution, tmpdir):
+    def test_file_creation_bg2(self, file, resolution, tmpdir):
         with hictkpy.File(file, resolution) as f:
             if f.bins().type() != "fixed":
                 pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
@@ -368,3 +369,261 @@ class TestFileCreationCooler:
 
             with pytest.raises(ValueError, match="DataFrame is not in COO or BG2 format.*"):
                 w.add_pixels(df)
+
+
+class TestFileCreationCoolerNoDeps:
+    @staticmethod
+    def setup_method():
+        logging.basicConfig(level="INFO", force=True)
+        logging.getLogger().setLevel("INFO")
+        hictkpy.logging.setLevel("INFO")
+
+    @staticmethod
+    def make_coo_dict(sel: hictkpy.PixelSelector) -> Dict[str, Iterable[int | float]]:
+        bin1_ids = []
+        bin2_ids = []
+        counts = []
+
+        for p in sel:
+            bin1_ids.append(p.bin1_id)
+            bin2_ids.append(p.bin2_id)
+            counts.append(p.count)
+
+        return {
+            "bin1_id": bin1_ids,
+            "bin2_id": bin2_ids,
+            "count": counts,
+        }
+
+    @staticmethod
+    def make_bg2_dict(sel: hictkpy.PixelSelector) -> Dict[str, Iterable[int | float]]:
+        chrom1 = []
+        start1 = []
+        end1 = []
+        chrom2 = []
+        start2 = []
+        end2 = []
+        counts = []
+
+        for p in sel:
+            chrom1.append(p.chrom1)
+            start1.append(p.start1)
+            end1.append(p.end1)
+            chrom2.append(p.chrom2)
+            start2.append(p.start2)
+            end2.append(p.end2)
+            counts.append(p.count)
+
+        return {
+            "chrom1": chrom1,
+            "start1": start1,
+            "end1": end1,
+            "chrom2": chrom2,
+            "start2": start2,
+            "end2": end2,
+            "count": counts,
+        }
+
+    @staticmethod
+    def chunk_dict(data: Dict) -> List[Dict]:
+        raise NotImplementedError
+
+    @staticmethod
+    def sum(data: Dict) -> int | float:
+        return sum(data["count"])
+
+    def test_file_creation_coo(self, file, resolution, tmpdir):
+        with hictkpy.File(file, resolution) as f:
+            if f.bins().type() != "fixed":
+                pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
+
+            chroms = f.chromosomes()
+            data = TestFileCreationCoolerNoDeps.make_coo_dict(f.fetch(join=False))
+            expected_sum = TestFileCreationCoolerNoDeps.sum(data)
+
+        path = tmpdir / "test.cool"
+        with hictkpy.cooler.FileWriter(path, chroms, resolution) as w:
+            w.add_pixels_from_dict(data)
+
+        with hictkpy.File(path) as f:
+            assert f.fetch().sum() == expected_sum
+
+    def test_file_creation_bg2(self, file, resolution, tmpdir):
+        with hictkpy.File(file, resolution) as f:
+            if f.bins().type() != "fixed":
+                pytest.skip(f'BinTable of file "{file}" does not have fixed bins.')
+
+            chroms = f.chromosomes()
+            data = TestFileCreationCoolerNoDeps.make_bg2_dict(f.fetch(join=True))
+            expected_sum = TestFileCreationCoolerNoDeps.sum(data)
+
+        path = tmpdir / "test.cool"
+        with hictkpy.cooler.FileWriter(path, chroms, resolution) as w:
+            w.add_pixels_from_dict(data)
+
+        with hictkpy.File(path) as f:
+            assert f.fetch().sum() == expected_sum
+
+    def test_invalid_pixels_coo(self, file, resolution, tmpdir):
+        chroms = {"chr1": 10, "chr2": 5}
+        resolution = 2
+        path = tmpdir / "test.cool"
+
+        with hictkpy.cooler.FileWriter(path, chroms, resolution) as w:
+            with pytest.raises(ValueError, match=".*does not contain columns in COO or BG2 format.*"):
+                w.add_pixels_from_dict(
+                    {
+                        "bin2_id": [0],
+                        "count": [1],
+                    }
+                )
+            with pytest.raises(ValueError, match=".*does not contain columns in COO or BG2 format.*"):
+                w.add_pixels_from_dict(
+                    {
+                        "foo": [],
+                    }
+                )
+
+            with pytest.raises(
+                RuntimeError, match=".*failed to process \"bin1_id\" values.*failed to cast 'a' to a integer.*"
+            ):
+                w.add_pixels_from_dict(
+                    {
+                        "bin1_id": ["a"],
+                        "bin2_id": ["b"],
+                        "count": [1],
+                    }
+                )
+
+            with pytest.raises(
+                RuntimeError, match='.*failed to process "count" values.*unable to cast object to an array of numbers'
+            ):
+                w.add_pixels_from_dict(
+                    {
+                        "bin1_id": [0],
+                        "bin2_id": [0],
+                        "count": ["a"],
+                    }
+                )
+
+            with pytest.raises(ValueError, match=".*found negative value in bin1_id column"):
+                w.add_pixels_from_dict(
+                    {
+                        "bin1_id": [-1],
+                        "bin2_id": [0],
+                        "count": [1],
+                    }
+                )
+
+            with pytest.raises(
+                RuntimeError, match=r".*columns don't have the same lengths: \[bin1_id=1, bin2_id=2, count=1\]"
+            ):
+                w.add_pixels_from_dict(
+                    {
+                        "bin1_id": [0],
+                        "bin2_id": [0, 1],
+                        "count": [1],
+                    }
+                )
+
+            with pytest.raises(RuntimeError, match=r".*failed to cast 0\.0 to a integer.*"):
+                w.add_pixels_from_dict(
+                    {
+                        "bin1_id": [0.0],
+                        "bin2_id": [0],
+                        "count": [1],
+                    }
+                )
+
+    def test_invalid_pixels_bg2(self, file, resolution, tmpdir):
+        chroms = {"1": 10, "a": 5}
+        resolution = 2
+        path = tmpdir / "test.cool"
+
+        with hictkpy.cooler.FileWriter(path, chroms, resolution) as w:
+            with pytest.raises(RuntimeError, match='.*failed to process "chrom1" values.*failed to cast 1 to a string'):
+                w.add_pixels_from_dict(
+                    {
+                        "chrom1": [1],
+                        "start1": [0],
+                        "end1": [2],
+                        "chrom2": ["1"],
+                        "start2": [0],
+                        "end2": [2],
+                        "count": [1],
+                    }
+                )
+
+            with pytest.raises(
+                ValueError,
+                match=".*failed to map .* to a valid pixel: invalid end1: expected 2, found 1",
+            ):
+                w.add_pixels_from_dict(
+                    {
+                        "chrom1": ["a"],
+                        "start1": [0],
+                        "end1": [1],
+                        "chrom2": ["a"],
+                        "start2": [0],
+                        "end2": [2],
+                        "count": [1],
+                    }
+                )
+
+            with pytest.raises(ValueError, match=".*genomic coordinates cannot be negative"):
+                w.add_pixels_from_dict(
+                    {
+                        "chrom1": ["a"],
+                        "start1": [-1],
+                        "end1": [1],
+                        "chrom2": ["a"],
+                        "start2": [0],
+                        "end2": [1],
+                        "count": [1],
+                    }
+                )
+
+            with pytest.raises(
+                ValueError,
+                match=r'.*failed to encode chromosomes: chromosome "x" not found',
+            ):
+                w.add_pixels_from_dict(
+                    {
+                        "chrom1": ["x"],
+                        "start1": [-1],
+                        "end1": [1],
+                        "chrom2": ["a"],
+                        "start2": [0],
+                        "end2": [1],
+                        "count": [1],
+                    }
+                )
+
+            with pytest.raises(
+                RuntimeError,
+                match=r".*columns don't have the same lengths: \[chrom1=2, start1=1, end1=1, chrom2=1, start2=1, end2=1, count=1\]",
+            ):
+                w.add_pixels_from_dict(
+                    {
+                        "chrom1": ["a", "a"],
+                        "start1": [-1],
+                        "end1": [1],
+                        "chrom2": ["a"],
+                        "start2": [0],
+                        "end2": [1],
+                        "count": [1],
+                    }
+                )
+
+            with pytest.raises(RuntimeError, match=r".*failed to cast 0\.0 to a integer.*"):
+                w.add_pixels_from_dict(
+                    {
+                        "chrom1": ["a"],
+                        "start1": [0.0],
+                        "end1": [1],
+                        "chrom2": ["a"],
+                        "start2": [0],
+                        "end2": [1],
+                        "count": [1],
+                    }
+                )
