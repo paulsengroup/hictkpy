@@ -138,3 +138,12 @@ This can significantly speed up file creation:
   In [3]: with htk.cooler.FileWriter("out.cool", chroms, resolution=50_000, chunk_size=len(df) + 1) as writer:
      ...:     writer.add_pixels(df)
      ...:
+
+In case it is not possible to install a compatible version of pandas or pyarrow, the ``FileWriter``
+classes support ingesting interactions from dictionaries of iterables
+(e.g., a dictionary mapping keys ``bin1_id``, ``bin2_id``, and ``count`` to iterables yielding numbers of the appropriate type).
+
+For more details, refer to the documentation for
+:py:meth:`hictkpy.cooler.FileWriter.add_pixels_from_dict()`
+and
+:py:meth:`hictkpy.hic.FileWriter.add_pixels_from_dict()`.
