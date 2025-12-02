@@ -30,6 +30,7 @@
 #include "hictkpy/common.hpp"
 #include "hictkpy/nanobind.hpp"
 #include "hictkpy/table.hpp"
+#include "hictkpy/type.hpp"
 
 namespace nb = nanobind;
 
@@ -62,22 +63,22 @@ using PixelDFColumn =
 }
 
 [[nodiscard]] static bool is_integral(const nb::type_object& dtype) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
   try {
-    HICTKPY_GIL_SCOPED_ACQUIRE
     const auto np = import_module_checked("numpy");
     return issubdtype(np, dtype, "integer");
   } catch (...) {
-    return nb::isinstance(dtype, nb::cast(std::int64_t{}).type());
+    return nb::isinstance(nb::cast(std::int64_t{}), dtype);
   }
 }
 
 [[nodiscard]] static bool is_floating(const nb::type_object& dtype) {
+  HICTKPY_GIL_SCOPED_ACQUIRE
   try {
-    HICTKPY_GIL_SCOPED_ACQUIRE
     const auto np = import_module_checked("numpy");
     return issubdtype(np, dtype, "floating");
   } catch (...) {
-    return nb::isinstance(dtype, nb::cast(double{}).type());
+    return nb::isinstance(nb::cast(double{}), dtype);
   }
 }
 
@@ -137,20 +138,23 @@ template <typename ArrowType>
       type = nb::cast<nb::type_object>(col.attr("__getitem__")(0).type());
     }
 
-    if (type.has_value()) {
-      if (is_integral(*type)) {
-        return make_array_of_integers(col);
-      }
-      if (is_floating(*type)) {
-        return make_array_of_doubles(col);
-      }
+    if (!type.has_value()) {
+      throw std::runtime_error("unable to cast object to an array of numbers: unknown object type");
     }
+    if (is_integral(*type)) {
+      return make_array_of_integers(col);
+    }
+    if (is_floating(*type)) {
+      return make_array_of_doubles(col);
+    }
+    throw std::runtime_error(
+        fmt::format(FMT_STRING("unable to convert {} to int or float"), format_py_type(*type)));
   } catch (const std::exception& e) {
     throw std::runtime_error(
         fmt::format(FMT_STRING("unable to cast object to an array of numbers: {}"), e.what()));
   } catch (...) {  // NOLINT
+    throw std::runtime_error("unable to cast object to an array of numbers");
   }
-  throw std::runtime_error("unable to cast object to an array of numbers");
 }
 
 [[nodiscard]] static std::shared_ptr<arrow::Array> make_array_of_strings(

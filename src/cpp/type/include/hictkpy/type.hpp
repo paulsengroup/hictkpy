@@ -7,6 +7,7 @@
 #include <patchlevel.h>
 
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <type_traits>
 
@@ -75,5 +76,6 @@ template <typename T>
 
 [[nodiscard]] NumericDtype map_py_numeric_to_cpp_type(const nanobind::type_object& dtype);
 [[nodiscard]] NumericDtype map_py_numeric_to_cpp_type(std::string_view dtype);
+[[nodiscard]] std::string format_py_type(const nanobind::handle& h);
 
 }  // namespace hictkpy

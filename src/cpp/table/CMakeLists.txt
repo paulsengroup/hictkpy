@@ -21,6 +21,7 @@ target_link_libraries(
     hictkpy_locking
     hictkpy_project_options
     hictkpy_project_warnings
+    hictkpy_type
     fmt::fmt-header-only
   PUBLIC
     hictkpy_arrow

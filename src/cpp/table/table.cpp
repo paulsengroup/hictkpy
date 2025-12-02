@@ -26,6 +26,7 @@
 #include "hictkpy/common.hpp"
 #include "hictkpy/locking.hpp"
 #include "hictkpy/nanobind.hpp"
+#include "hictkpy/type.hpp"
 #include "hictkpy/variant.hpp"
 
 namespace nb = nanobind;
@@ -456,16 +457,6 @@ void PyArrowTable::set_owner(nb::object owner) { _owner = std::move(owner); }
     pyarrow_table.reset();
   }
   return table;
-}
-
-[[nodiscard]] static std::string format_py_type(const nb::handle& h) {
-  HICTKPY_GIL_SCOPED_ACQUIRE
-  if (nb::hasattr(h, "__name__")) {
-    return nb::cast<std::string>(h.attr("__name__"));
-  }
-
-  const auto type = nb::cast<nb::type_object>(h);
-  return nb::cast<std::string>(type);
 }
 
 PyArrowTable import_pyarrow_table(const nb::object& df,
