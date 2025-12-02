@@ -14,6 +14,7 @@ target_include_directories(hictkpy_type PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(
   hictkpy_type
   PRIVATE
+    hictkpy_locking
     hictkpy_project_options
     hictkpy_project_warnings
     fmt::fmt-header-only
