@@ -46,12 +46,12 @@ SPDX-License-Identifier: MIT
     <tr>
       <td>CI</td>
       <td>
-        <a href="https://github.com/paulsengroup/hictkpy/actions/workflows/pip.yml">
-          <img src="https://github.com/paulsengroup/hictkpy/actions/workflows/pip.yml/badge.svg" alt="CI Status">
+        <a href="https://github.com/paulsengroup/hictkpy/actions/workflows/ci.yml">
+          <img src="https://github.com/paulsengroup/hictkpy/actions/workflows/ci.yml/badge.svg" alt="CI Status">
         </a>
         &nbsp
-        <a href="https://github.com/paulsengroup/hictkpy/actions/workflows/wheels.yml">
-          <img src="https://github.com/paulsengroup/hictkpy/actions/workflows/wheels.yml/badge.svg" alt="Build wheels Status">
+        <a href="https://github.com/paulsengroup/hictkpy/actions/workflows/build-wheels.yml">
+          <img src="https://github.com/paulsengroup/hictkpy/actions/workflows/build-wheels.yml/badge.svg" alt="Build wheels Status">
         </a>
       </td>
     </tr>
