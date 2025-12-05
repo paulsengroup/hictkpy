@@ -153,6 +153,8 @@ def run_conan(
         f"compiler.cppstd={cppstd}",
         "--options",
         f"*/*:shared={shared}",
+        "--options",
+        "hictkpy/*:with_catch2=True",
     ]
 
     if not no_update:

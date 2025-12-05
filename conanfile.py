@@ -21,11 +21,13 @@ class HictkpyConan(ConanFile):
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
+        "with_catch2": [True, False],
     }
 
     default_options = {
         "shared": False,
         "fPIC": True,
+        "with_catch2": False,
     }
 
     generators = "CMakeDeps"
@@ -41,6 +43,8 @@ class HictkpyConan(ConanFile):
     def requirements(self):
         self.requires("arrow/22.0.0#e46b173ba20adc478f7926495aeed142")
         self.requires("bshoshany-thread-pool/5.0.0#d94da300363f0c35b8f41b2c5490c94d")
+        if self.options.with_catch2:
+            self.requires("catch2/3.11.0#a560b55882ff2deb1f4bafad832a1b98")
         if is_msvc(self):
             self.requires("boost/1.89.0#010f59feedfd171b15f467b42f723d13", force=True)
         self.requires("concurrentqueue/1.0.4#1e48e1c712bcfd892087c9c622a51502")
