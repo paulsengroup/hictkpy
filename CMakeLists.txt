@@ -170,3 +170,7 @@ if(WIN32 AND HICTKPY_BUILD_PORTABLE_WHEELS_WIN)
 endif()
 
 add_subdirectory(src)
+
+if(HICTKPY_ENABLE_TESTING)
+  add_subdirectory(test/cpp)
+endif()
