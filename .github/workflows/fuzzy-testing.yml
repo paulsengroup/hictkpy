@@ -84,7 +84,7 @@ jobs:
 
       - name: Restore cache
         id: cache-dset
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: ${{ steps.generate-cache-key.outputs.key }}
           path: /tmp/test/data/
@@ -125,7 +125,7 @@ jobs:
           mv ./*.{cool,hic8,hic9} /tmp/test/data/
 
       - name: Save cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: steps.cache-dset.outputs.cache-hit != 'true'
         with:
           key: ${{ steps.generate-cache-key.outputs.key }}
@@ -248,7 +248,7 @@ jobs:
 
       - name: Restore cache
         if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: ${{ needs.cache-test-datasets.outputs.cache-key }}
           path: /tmp/test/data/
@@ -344,7 +344,7 @@ jobs:
 
       - name: Restore Conan cache
         id: cache-conan
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: conan-${{ steps.cache-key.outputs.key }}
           path: ${{ env.CONAN_HOME }}/p
@@ -376,7 +376,7 @@ jobs:
           conan cache clean "*" --source
 
       - name: Save Conan cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: steps.cache-conan.outputs.cache-hit != 'true'
         with:
           key: conan-${{ steps.cache-key.outputs.key }}

@@ -65,7 +65,7 @@ jobs:
 
       - name: Restore Conan cache
         id: cache-conan
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: conan-${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}/p
@@ -96,7 +96,7 @@ jobs:
           conan cache clean "*" --source
 
       - name: Save Conan cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: steps.cache-conan.outputs.cache-hit != 'true'
         with:
           key: conan-${{ steps.cache-key.outputs.conan-key }}
@@ -105,7 +105,7 @@ jobs:
           ZSTD_CLEVEL: 19
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
+        uses: github/codeql-action/init@1b168cd39490f61582a9beae412bb7057a6b2c4e # v4.31.8
         with:
           languages: c-cpp
           build-mode: manual
@@ -126,6 +126,6 @@ jobs:
           pip install . -v
 
       - name: Run Analysis
-        uses: github/codeql-action/analyze@fe4161a26a8629af62121b670040955b330f9af2 # v4.31.6
+        uses: github/codeql-action/analyze@1b168cd39490f61582a9beae412bb7057a6b2c4e # v4.31.8
         with:
           category: "/language:c-cpp"

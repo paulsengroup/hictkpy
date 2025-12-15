@@ -103,7 +103,7 @@ jobs:
 
       - name: Lookup package cache
         id: lookup-conan-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: ${{ steps.generate-cache-key.outputs.cache-key }}
           path: ${{ steps.generate-cache-key.outputs.tar }}
@@ -139,7 +139,7 @@ jobs:
             zstd -T0 -22 --long --ultra -v -o "$dest"
 
       - name: Export dependencies
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         with:
           key: ${{ steps.generate-cache-key.outputs.cache-key }}

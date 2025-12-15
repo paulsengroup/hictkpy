@@ -105,7 +105,7 @@ jobs:
 
       - name: Lookup package cache
         id: lookup-conan-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: ${{ needs.generate-cache-key.outputs.cache-key }}
           path: ${{ needs.generate-cache-key.outputs.tar }}
@@ -169,7 +169,7 @@ jobs:
           echo "tar=$dest" | tee -a "$GITHUB_OUTPUT"
 
       - name: Export dependencies
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: steps.lookup-conan-cache.outputs.cache-hit != 'true'
         with:
           key: ${{ needs.generate-cache-key.outputs.cache-key }}
