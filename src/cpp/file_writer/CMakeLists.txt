@@ -22,6 +22,7 @@ target_link_libraries(
     hictkpy_arrow
     hictkpy_nanobind
     hictkpy_table
+    hictkpy_type
 )
 
 add_library(hictkpy_file_writer_cooler STATIC)
