@@ -167,7 +167,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7.1.4
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
         with:
           python-version: 3.14
           activate-environment: true
@@ -188,7 +188,7 @@ jobs:
 
       - name: Restore Conan cache
         id: cache-conan
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: conan-${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}/p
@@ -210,13 +210,13 @@ jobs:
           uv tool run 'conan>2' cache clean "*" --source
 
       - name: Save Conan cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: steps.cache-conan.outputs.cache-hit != 'true'
         with:
           key: conan-${{ steps.cache-key.outputs.conan-key }}
           path: ${{ env.CONAN_HOME }}/p
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: sdist
           path: dist/hictkpy*.tar.gz
@@ -249,7 +249,7 @@ jobs:
 
       - name: Install uv
         if: ${{ !startsWith(matrix.os, 'ubuntu') }}
-        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244 # v7.1.4
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
         with:
           python-version: ${{ matrix.python-version }}
           activate-environment: true
@@ -307,7 +307,7 @@ jobs:
           } | tee -a "$GITHUB_OUTPUT"
 
       - name: Restore cached dependencies
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: ${{ steps.cache-key.outputs.deps-key }}
           path: ${{ steps.cache-key.outputs.deps-path }}
@@ -326,7 +326,7 @@ jobs:
         run: tar -C "$TMPDIR" -xf "$(cygpath -u '${{ steps.cache-key.outputs.deps-path }}')"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@63fd63b352a9a8bdcc24791c9dbee952ee9a8abc # v3.3.0
+        uses: pypa/cibuildwheel@298ed2fb2c105540f5ed055e8a6ad78d82dd3a7e # v3.3.1
         with:
           only: ${{ matrix.wheel-config }}
         env:
@@ -375,7 +375,7 @@ jobs:
         run: git diff --exit-code
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: "wheels-${{ matrix.wheel-config }}"
           path: wheelhouse/*.whl
@@ -391,7 +391,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
 
@@ -404,7 +404,7 @@ jobs:
           tar -cf dist.tar dist/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist.tar
@@ -424,7 +424,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: dist
           merge-multiple: true
