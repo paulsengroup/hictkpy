@@ -55,38 +55,38 @@ using ArrowStringArray =
 
 template <typename... ChunkedArrays>
 [[nodiscard]] auto normalize_non_uniform_column_types(
-    const std::shared_ptr<arrow::DataType> &result_type, const ChunkedArrays &...arrays);
+    const std::shared_ptr<arrow::DataType>& result_type, const ChunkedArrays&... arrays);
 
 [[nodiscard]] std::shared_ptr<arrow::Table> ensure_table_has_uniform_chunks(
     std::shared_ptr<arrow::Table> table);
 
 [[nodiscard]] ArrowNumericArray numeric_array_static_pointer_cast_helper(
-    const std::shared_ptr<arrow::DataType> &dtype);
+    const std::shared_ptr<arrow::DataType>& dtype);
 
 [[nodiscard]] ArrowIntegerArray integer_array_static_pointer_cast_helper(
-    const std::shared_ptr<arrow::DataType> &dtype);
+    const std::shared_ptr<arrow::DataType>& dtype);
 
 [[nodiscard]] ArrowStringArray string_array_static_pointer_cast_helper(
-    const std::shared_ptr<arrow::DataType> &dtype);
+    const std::shared_ptr<arrow::DataType>& dtype);
 
 namespace bg2 {
 
-[[nodiscard]] ThinPixelBufferVar convert_table_thin_pixels(const hictk::BinTable &bins,
+[[nodiscard]] ThinPixelBufferVar convert_table_thin_pixels(const hictk::BinTable& bins,
                                                            std::shared_ptr<arrow::Table> df,
                                                            bool sort,
-                                                           const NumericDtype &count_type);
+                                                           const NumericDtype& count_type);
 }
 
 namespace coo {
 
 [[nodiscard]] ThinPixelBufferVar convert_table_thin_pixels(std::shared_ptr<arrow::Table> df,
                                                            bool sort,
-                                                           const NumericDtype &count_type);
+                                                           const NumericDtype& count_type);
 }
 
-[[nodiscard]] ThinPixelBufferVar convert_table_thin_pixels(const hictk::BinTable &bins,
-                                                           const PyArrowTable &df, bool sort,
-                                                           const NumericDtype &count_type);
+[[nodiscard]] ThinPixelBufferVar convert_table_thin_pixels(const hictk::BinTable& bins,
+                                                           const PyArrowTable& df, bool sort,
+                                                           const NumericDtype& count_type);
 
 template <typename N_OUT>
 struct SafeNumericConverter {
@@ -95,13 +95,13 @@ struct SafeNumericConverter {
   SafeNumericConverter() = delete;
 
   template <typename N_IN, typename std::enable_if_t<std::is_integral_v<N_OUT> &&
-                                                     std::is_integral_v<N_IN>> * = nullptr>
+                                                     std::is_integral_v<N_IN>>* = nullptr>
   static constexpr bool can_convert(N_IN count) noexcept;
   template <typename N_IN, typename std::enable_if_t<std::is_floating_point_v<N_OUT> &&
-                                                     std::is_floating_point_v<N_IN>> * = nullptr>
+                                                     std::is_floating_point_v<N_IN>>* = nullptr>
   static constexpr bool can_convert(N_IN count) noexcept;
   template <typename N_IN, typename std::enable_if_t<std::is_floating_point_v<N_OUT> !=
-                                                     std::is_floating_point_v<N_IN>> * = nullptr>
+                                                     std::is_floating_point_v<N_IN>>* = nullptr>
   static constexpr bool can_convert(N_IN count) noexcept;
   template <typename N_IN>
   [[nodiscard]] static N_OUT convert(N_IN count);
